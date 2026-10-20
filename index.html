@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#2f5d34" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Farma" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="description" content="Pocket Farm – mała farma w kieszeni. Siej, podlewaj, zbieraj i sprzedawaj." />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <title>Pocket Farm</title>
+  </head>
+  <body>
+    <div id="game" aria-label="Farma – plansza gry" role="application"></div>
+
+    <header class="topbar">
+      <div class="stat coins" aria-label="Monety">
+        <span class="coin" aria-hidden="true"></span>
+        <output id="coins">0</output>
+      </div>
+      <button id="level-btn" class="stat level" type="button" popovertarget="stats-pop" aria-label="Poziom i doświadczenie">
+        <span class="level-badge" id="level">1</span>
+        <span class="xp"><span class="xp-fill" id="xp-fill"></span></span>
+      </button>
+      <button id="menu-btn" class="icon-btn" type="button" popovertarget="menu" aria-label="Menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+      </button>
+    </header>
+
+    <nav class="toolbar" role="toolbar" aria-label="Narzędzia">
+      <div class="toolbar-inner" id="toolbar"></div>
+    </nav>
+
+    <!-- Wybór nasion (otwierany drugim tapnięciem w „Nasiona”) -->
+    <div id="seed-picker" popover class="sheet small" aria-label="Wybierz nasiona">
+      <h2>Wybierz nasiona</h2>
+      <div class="seed-list" id="seed-list"></div>
+    </div>
+
+    <!-- Sklep -->
+    <div id="shop" popover class="sheet" aria-labelledby="shop-title">
+      <div class="sheet-head">
+        <h2 id="shop-title">Sklep</h2>
+        <button class="close" type="button" popovertarget="shop" popovertargetaction="hide" aria-label="Zamknij">✕</button>
+      </div>
+      <div class="tabs" role="tablist">
+        <button role="tab" type="button" data-tab="seeds" aria-selected="true">Nasiona</button>
+        <button role="tab" type="button" data-tab="sell" aria-selected="false">Sprzedaż</button>
+        <button role="tab" type="button" data-tab="upgrades" aria-selected="false">Ulepszenia</button>
+      </div>
+      <div class="shop-body" id="shop-body" role="tabpanel"></div>
+    </div>
+
+    <!-- Statystyki poziomu -->
+    <div id="stats-pop" popover class="sheet small" aria-label="Postęp">
+      <div id="stats-body"></div>
+    </div>
+
+    <!-- Menu -->
+    <div id="menu" popover class="sheet" aria-labelledby="menu-title">
+      <div class="sheet-head">
+        <h2 id="menu-title">Menu</h2>
+        <button class="close" type="button" popovertarget="menu" popovertargetaction="hide" aria-label="Zamknij">✕</button>
+      </div>
+      <div class="menu-list">
+        <button type="button" id="sound-toggle" class="row-btn" role="switch" aria-checked="true">
+          <span>Dźwięk</span><span class="switch" aria-hidden="true"></span>
+        </button>
+        <button type="button" id="export-btn" class="row-btn"><span>Eksportuj zapis</span><span aria-hidden="true">⇪</span></button>
+        <button type="button" id="import-btn" class="row-btn"><span>Importuj zapis</span><span aria-hidden="true">⇩</span></button>
+        <button type="button" id="recenter-btn" class="row-btn"><span>Wyśrodkuj widok</span><span aria-hidden="true">⌖</span></button>
+        <details class="help">
+          <summary>Jak grać</summary>
+          <ol>
+            <li><b>Motyka</b> – zaoraj pole (przeciągnij palcem, by orać wiele pól).</li>
+            <li><b>Nasiona</b> – posiej. Dotknij przycisku ponownie, by zmienić gatunek.</li>
+            <li><b>Konewka</b> – podlej. Roślina rośnie dopiero po podlaniu, także gdy gra jest zamknięta.</li>
+            <li><b>Sierp</b> – zbierz plony. Dojrzałe rośliny zbierzesz też tapnięciem dowolnym narzędziem.</li>
+            <li>Sprzedawaj plony w <b>Sklepie</b>, kupuj nasiona, ulepszenia i nowe pola (dotknij pola z kłódką).</li>
+            <li>Dwa palce: przesuwanie i zoom planszy.</li>
+          </ol>
+          <p class="hint">Safari może usunąć dane rzadko używanych stron – co jakiś czas zrób <b>eksport zapisu</b>.</p>
+        </details>
+        <p class="hint" id="storage-info"></p>
+      </div>
+    </div>
+
+    <!-- Zakup pola -->
+    <div id="unlock-pop" popover class="sheet small" aria-labelledby="unlock-title">
+      <h2 id="unlock-title">Nowe pole</h2>
+      <p id="unlock-text"></p>
+      <div class="row">
+        <button type="button" class="btn ghost" popovertarget="unlock-pop" popovertargetaction="hide">Anuluj</button>
+        <button type="button" class="btn primary" id="unlock-confirm">Kup</button>
+      </div>
+    </div>
+
+    <!-- Eksport / import -->
+    <dialog id="io-dialog" aria-labelledby="io-title">
+      <form method="dialog" class="io-form">
+        <h2 id="io-title">Zapis</h2>
+        <p id="io-desc" class="hint"></p>
+        <textarea id="io-text" rows="6" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+        <p id="io-error" class="error" role="alert"></p>
+        <div class="row">
+          <button value="cancel" class="btn ghost" type="submit">Zamknij</button>
+          <button id="io-action" class="btn primary" type="button">Kopiuj</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+
+    <div id="start-screen" class="start-screen">
+      <div class="start-card">
+        <div class="logo" aria-hidden="true">🌱</div>
+        <h1>Pocket Farm</h1>
+        <p id="start-summary" class="start-summary">Wczytywanie…</p>
+        <button id="start-btn" class="btn primary big" type="button" disabled>Dotknij, aby zagrać</button>
+      </div>
+    </div>
+
+    <noscript>Ta gra wymaga JavaScriptu.</noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "name": "pocket-farm",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Casualowa gra farmerska 2D na iPhone'a (PWA, Phaser 4).",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "icons": "node scripts/generate-icons.mjs"
+  },
+  "dependencies": {
+    "idb-keyval": "~6.3.0",
+    "phaser": "~4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "~7.0.2",
+    "vite": "~8.3.4",
+    "vite-plugin-pwa": "~2.0.0",
+    "vitest": "~5.0.5"
+  }
+}

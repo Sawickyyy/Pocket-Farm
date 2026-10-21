@@ -20,6 +20,7 @@ import { BuildMode } from './ui/buildMode';
 import { $ } from './ui/dom';
 import { handleEvents } from './ui/feedback';
 import { Fishing } from './ui/fishing';
+import { mountPlotList } from './ui/a11y';
 import { mountBeacons } from './ui/beacons';
 import { mountHud } from './ui/hud';
 import { registerBuild } from './ui/panels/build';
@@ -74,6 +75,48 @@ function materialSound(el: Element | null): SfxName {
   if (el.closest('.row-btn, .setting, .card, .peek')) return 'paper';
   if (el.closest('.badge, .sp-badge')) return 'wax';
   return 'click';
+}
+
+/**
+ * Rozmiar tekstu z ustawień systemu (Dynamic Type na iPhonie): `font: -apple-system-body` ma domyślnie 17 px,
+ * większy przy powiększonym tekście. Mnożymy nim skalę interfejsu z gry (z rozsądnym limitem).
+ */
+let sysScale: number | null = null;
+function systemTextScale(): number {
+  if (sysScale !== null) return sysScale;
+  sysScale = 1;
+  try {
+    const probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;visibility:hidden;font:-apple-system-body';
+    document.body.append(probe);
+    const px = parseFloat(getComputedStyle(probe).fontSize);
+    probe.remove();
+    // tylko gdy przeglądarka zna systemowy krój (Safari) – inaczej font-size zostaje domyślny
+    if (CSS.supports('font', '-apple-system-body') && px > 0) sysScale = Math.min(1.5, Math.max(0.85, px / 17));
+  } catch {
+    sysScale = 1;
+  }
+  return sysScale;
+}
+
+/**
+ * Gdy telefon nie wyrabia (średnio < 40 kl./s przez kilka sekund), wyłączamy ozdobne animacje bezczynności
+ * w interfejsie (moneta, Kiełek, kołysanie szyldów); po poprawie wracają.
+ */
+function watchFrameRate(): void {
+  let frames = 0;
+  let since = performance.now();
+  const tick = (now: number) => {
+    frames++;
+    if (now - since >= 3000) {
+      const fps = (frames * 1000) / (now - since);
+      if (!document.hidden) document.documentElement.dataset.lowfps = String(fps < 40);
+      frames = 0;
+      since = now;
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 
 async function boot(): Promise<void> {
@@ -171,6 +214,8 @@ async function boot(): Promise<void> {
   registerSettings(app, sheets, () => persisted);
   const hud = mountHud(app);
   mountBeacons(app, dpr);
+  mountPlotList(app);
+  watchFrameRate();
   build = new BuildMode(app);
   fishing = new Fishing(app);
   mountTutorial(app);
@@ -181,7 +226,7 @@ async function boot(): Promise<void> {
   const root = document.documentElement;
   const applySettings = (st: Settings) => {
     setLanguage(st.language);
-    root.style.setProperty('--ui-scale', String(st.uiScale));
+    root.style.setProperty('--ui-scale', String(Math.round(st.uiScale * systemTextScale() * 100) / 100));
     root.dataset.motion = st.reducedMotion;
     root.dataset.reduced = String(reducedMotion());
     applyHtmlColorblind(st.colorblind);

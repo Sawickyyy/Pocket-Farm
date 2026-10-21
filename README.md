@@ -52,14 +52,18 @@ Bez Blendera i prawdziwych modeli 3D – efekt „filmowy” robimy w kodzie, w 
 
 Ograniczenie: to wciąż grafika 2D rysowana proceduralnie. Prawdziwy wygląd z filmu (modele 3D, mapy normalnych pod oświetlenie Phasera) wymaga renderów z Blendera podmienionych przez `load.atlas` z tymi samymi nazwami klatek.
 
-## Interfejs bajkowy
+## Interfejs w stylu filmu animowanego
 
-- **Wstążki zamiast okienek**: komunikaty to zielone/różowe/kremowe wstążki z wyciętymi końcami, w kolejce nad paskiem narzędzi (najwyżej dwie naraz).
-- **Baner na ważne chwile**: awans poziomu, nowa pora roku i osiągnięcia pokazują złotą wstęgę z ikoną i iskierkami; kolejne awanse podmieniają treść zamiast się piętrzyć.
-- **Pasek narzędzi**: nazwa tylko przy wybranym narzędziu, które wyskakuje w górę; przeszycie jak na płóciennej torbie, „Farma” jako drewniany szyld z czerwoną pieczęcią, gdy coś czeka.
-- **Menu „Farma”**: malowane ikony (sakiewka, stragan, młotek, chatka, zwój, gwiazdka, koszyk, zębatka) zamiast emoji.
-- **Podgląd grządki**: przytrzymanie palca na polu pokazuje dymek z czasem do zbioru, wodą, żyznością i przewidywaną jakością.
-- **Pieczęcie przy krawędzi**: gdy gotowe plony, produkty zwierząt lub wyroby maszyn są poza kadrem, przy brzegu ekranu pojawia się pieczęć ze strzałką; dotknięcie przenosi tam kamerę.
+Plan: `docs/plan-ui-pixar.md`. Cały wygląd jest w `src/ui/theme/` (tokeny, materiały, komponenty, kokpit, panele, momenty).
+
+- **Zero fioletu i zero szkła**: `tests/theme.test.ts` odrzuca każdy fioletowy kolor w CSS i kodzie rysującym (także w grafice gry) i sprawdza kontrast WCAG tokenów w obu motywach. Motyw ciemny to „wieczór przy lampie” (morski granat, orzechowe drewno, bursztyn).
+- **Sześć materiałów**: glazurowana ceramika (przyciski zapadają się i odbijają), drewno ze słojami i gwoździkami, papier z ziarnem, płótno z przeszyciem, złoto i wosk (pieczęcie liczników).
+- **Ikony 3D w canvasie** (`render/art/uiIcons.ts`): ok. 60 ikon z jednym modelem światła, rejestrowanych jako klasy `.ic-<nazwa>`; żadnych emoji.
+- **Maskotka Kiełek** (`render/art/mascot.ts`, 7 min): ekran startowy, samouczek, puste stany, błędy.
+- **Kokpit**: moneta, która obraca się i błyska; cyfry licznika podskakują po kolei; złota rozeta poziomu; korytko z miodem zamiast paska XP; drewniany szyld zegara z malowaną pogodą i porą roku; skrzynka z narzędziami, z której wybrane narzędzie wyskakuje.
+- **Panele**: drewniana tablica z przypiętą kartką, przeciąganie palcem (w dół zamyka, w górę pełny ekran), płócienne zakładki z przewracaniem kartki, ciepła sepia świata w tle; każdy panel ma własny wystrój (mapka, stragan, saszetki nasion, półki, szkicownik, tablica korkowa, notes, drzewko umiejętności).
+- **Ruch i dźwięk**: sprężyny `linear()`, squash & stretch, przygotowanie i dobicie ruchu; każdy materiał ma swój dźwięk; przy niskiej liczbie klatek ozdobne animacje bezczynności się wyłączają.
+- **Dostępność**: rozmiar tekstu z ustawień systemu (Dynamic Type), ukryta lista grządek dla VoiceOver, ograniczony ruch, daltonizm.
 
 ## Wioska i mapa
 

@@ -481,7 +481,9 @@ export class FarmScene extends Phaser.Scene {
     this.tweens.chain({
       targets: img,
       tweens: [
-        { scale: scale * 1.3, y: p.y - TILE * 0.6, duration: 260, ease: 'Back.easeOut' },
+        // przygotowanie: przysiad przed wyskokiem
+        { scaleX: scale * 1.25, scaleY: scale * 0.75, duration: 90, ease: 'Quad.easeOut' },
+        { scaleX: scale * 1.15, scaleY: scale * 1.4, y: p.y - TILE * 0.6, duration: 240, ease: 'Back.easeOut' },
         { scale: scale * 0.35, x: dest.x, y: dest.y, alpha: 0.6, duration: 520, ease: 'Cubic.easeIn' },
       ],
       onComplete: () => img.destroy(),

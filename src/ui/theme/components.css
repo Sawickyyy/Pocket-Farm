@@ -797,3 +797,28 @@ pre.state {
   transform: scaleX(-1);
   opacity: 0.8;
 }
+
+/* zmiana zakładki = przewrócenie kartki (View Transitions) */
+::view-transition-old(sheet-body) {
+  animation: page-out 200ms ease-in both;
+  transform-origin: 0 50%;
+}
+
+::view-transition-new(sheet-body) {
+  animation: page-in 340ms var(--spring-soft) both;
+  transform-origin: 100% 50%;
+}
+
+@keyframes page-out {
+  to {
+    transform: perspective(60rem) rotateY(-28deg) translateX(-8%);
+    opacity: 0;
+  }
+}
+
+@keyframes page-in {
+  from {
+    transform: perspective(60rem) rotateY(22deg) translateX(8%);
+    opacity: 0;
+  }
+}

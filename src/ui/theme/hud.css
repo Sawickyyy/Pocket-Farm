@@ -681,3 +681,55 @@ body:has(.fishing:not([hidden])) .toolbar-inner {
     transform: scale(0.5, 0.3);
   }
 }
+
+/* ---------- liczby z charakterem: cyfry podskakują po kolei, wydatek zapada się */
+.coins output span {
+  display: inline-block;
+}
+
+.digit-tick {
+  animation: digit-tick 420ms var(--spring-pop) both;
+}
+
+@keyframes digit-tick {
+  from {
+    transform: translateY(-0.55em) scale(0.8, 1.2);
+    opacity: 0.2;
+  }
+  60% {
+    transform: translateY(0.08em) scale(1.12, 0.88);
+  }
+}
+
+.coins.spend {
+  animation: coin-spend 380ms var(--spring-pop);
+}
+
+.coins.spend output {
+  animation: spend-flash 520ms ease-out;
+}
+
+@keyframes coin-spend {
+  30% {
+    transform: translateY(0.12rem) scale(1.04, 0.9);
+  }
+}
+
+@keyframes spend-flash {
+  20% {
+    color: var(--terra-lo);
+  }
+}
+
+.level-badge.pop {
+  animation: rosette-pop 700ms var(--spring-pop);
+}
+
+@keyframes rosette-pop {
+  30% {
+    transform: scale(1.45) rotate(-20deg);
+  }
+  60% {
+    transform: scale(0.9) rotate(8deg);
+  }
+}

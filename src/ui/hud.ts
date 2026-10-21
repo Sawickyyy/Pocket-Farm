@@ -82,24 +82,44 @@ export function mountHud(app: App): { coinTarget(): { x: number; y: number } | n
   const animateCoins = (target: number) => {
     cancelAnimationFrame(anim);
     const from = shownCoins;
-    if (target > from) {
-      coinsBox.classList.remove('bump');
-      void coinsBox.offsetWidth;
-      coinsBox.classList.add('bump');
-    }
+    // zarobek: podskok kapsuły; wydatek: krótkie „zapadnięcie” z terakotowym błyskiem
+    const cls = target > from ? 'bump' : 'spend';
+    coinsBox.classList.remove('bump', 'spend');
+    void coinsBox.offsetWidth;
+    coinsBox.classList.add(cls);
     if (app.reducedMotion() || Math.abs(target - from) < 2) {
       shownCoins = target;
-      coinsEl.value = fmt(target);
+      settleDigits(fmt(from), fmt(target));
       return;
     }
     const start = performance.now();
     const step = (now: number) => {
       const k = Math.min(1, (now - start) / 450);
       shownCoins = Math.round(from + (target - from) * (1 - (1 - k) ** 3));
-      coinsEl.value = fmt(shownCoins);
-      if (k < 1) anim = requestAnimationFrame(step);
+      if (k < 1) {
+        coinsEl.textContent = fmt(shownCoins);
+        anim = requestAnimationFrame(step);
+      } else settleDigits(fmt(from), fmt(target));
     };
     anim = requestAnimationFrame(step);
+  };
+
+  /** Końcowa liczba jako osobne cyfry; zmienione cyfry podskakują każda z własnym opóźnieniem (jak liczydło). */
+  const settleDigits = (before: string, after: string) => {
+    const pad = (s: string) => s.padStart(Math.max(before.length, after.length), ' ');
+    const a = pad(before);
+    const b = pad(after);
+    coinsEl.replaceChildren(
+      ...[...b].map((ch, i) => {
+        const span = document.createElement('span');
+        span.textContent = ch === ' ' ? '' : ch;
+        if (ch !== a[i] && ch !== ' ' && !app.reducedMotion()) {
+          span.className = 'digit-tick';
+          span.style.animationDelay = `${(b.length - 1 - i) * 45}ms`;
+        }
+        return span;
+      }),
+    );
   };
 
   // ---------- pogoda (CSS)
@@ -118,7 +138,15 @@ export function mountHud(app: App): { coinTarget(): { x: number; y: number } | n
     renderTools(s);
     if (s.coins !== shownCoins) animateCoins(s.coins);
     const p = levelProgress(s.xp);
-    levelEl.textContent = String(p.level);
+    if (levelEl.textContent !== String(p.level)) {
+      const first = levelEl.textContent === '';
+      levelEl.textContent = String(p.level);
+      if (!first && !app.reducedMotion()) {
+        levelEl.classList.remove('pop');
+        void levelEl.offsetWidth;
+        levelEl.classList.add('pop');
+      }
+    }
     xpFill.style.width = `${Math.round(p.ratio * 100)}%`;
     spBadge.hidden = s.skillPoints <= 0;
     spBadge.textContent = String(s.skillPoints);

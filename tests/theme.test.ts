@@ -114,3 +114,34 @@ describe('kontrast tokenów (WCAG)', () => {
     });
   }
 });
+
+// ---------------------------------------------------------------- ikony
+import { MASCOT_MOODS } from '../src/render/art/mascot';
+import { MENU_ICONS } from '../src/render/art/menuIcons';
+import { UI_ICONS } from '../src/render/art/uiIcons';
+
+describe('ikony interfejsu', () => {
+  it('każda ikona użyta w CSS, HTML i kodzie UI istnieje', () => {
+    const known = new Set([...UI_ICONS, ...MENU_ICONS.map((m) => `menu-${m}`)]);
+    const used = new Map<string, string>();
+    const src = [...files('src/ui', /\.(ts|css)$/), 'index.html'];
+    for (const f of src) {
+      const text = readFileSync(f, 'utf8');
+      for (const m of text.matchAll(/(?<![\w-])ic-([a-z][\w-]*)/g)) used.set(m[1]!, f);
+      for (const m of text.matchAll(/--icon-([a-z][\w-]*)/g)) used.set(m[1]!, f);
+      for (const m of text.matchAll(/\b(?:ic|icEl)\('([\w-]+)'/g)) used.set(m[1]!, f);
+      for (const m of text.matchAll(/icon: '([\w-]+)'/g)) used.set(m[1]!, f);
+    }
+    // ikony składane dynamicznie: pogoda, pory roku, narzędzia
+    for (const w of ['sun', 'cloud', 'rain', 'heat', 'snow']) used.set(`w-${w}`, 'format.ts');
+    for (const s of ['spring', 'summer', 'autumn', 'winter']) used.set(`s-${s}`, 'format.ts');
+    for (const tool of ['hoe', 'can', 'sickle', 'rod']) used.set(tool, 'hud.ts');
+    const missing = [...used].filter(([name]) => !known.has(name) && !name.endsWith('-')).map(([n, f]) => `${n} (${f})`);
+    expect(missing).toEqual([]);
+  });
+
+  it('maskotka ma wszystkie miny używane w kodzie', () => {
+    const text = files('src', /\.ts$/).map((f) => readFileSync(f, 'utf8')).join('\n');
+    for (const m of text.matchAll(/(?:mood = |empty\([^)]*, |data-mood', |mascotEl\()'(\w+)'/g)) expect(MASCOT_MOODS as readonly string[]).toContain(m[1]);
+  });
+});

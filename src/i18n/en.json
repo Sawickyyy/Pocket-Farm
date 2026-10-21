@@ -439,5 +439,9 @@
   "beacon.crops": "Crops ready – show",
   "beacon.animals": "Animals have products – show",
   "beacon.machines": "Goods waiting in a building – show",
-  "common.back": "Back"
+  "common.back": "Back",
+  "a11y.field": "Farm field",
+  "a11y.plot": "Plot {n}",
+  "a11y.stage": "stage {n} of 4",
+  "a11y.use": "Tap to use: {tool}"
 }

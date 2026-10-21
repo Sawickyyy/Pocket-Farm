@@ -439,5 +439,9 @@
   "beacon.crops": "Gotowe plony – pokaż",
   "beacon.animals": "Zwierzęta mają produkty – pokaż",
   "beacon.machines": "Wyroby czekają w budynku – pokaż",
-  "common.back": "Wstecz"
+  "common.back": "Wstecz",
+  "a11y.field": "Pole uprawne",
+  "a11y.plot": "Grządka {n}",
+  "a11y.stage": "etap {n} z 4",
+  "a11y.use": "Dotknij, aby użyć: {tool}"
 }

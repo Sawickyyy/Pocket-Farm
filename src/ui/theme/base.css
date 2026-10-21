@@ -174,3 +174,22 @@ img.icon.sm {
 :root[data-reduced='true'] .weather i {
   display: none !important;
 }
+
+/* treść tylko dla czytników ekranu */
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* słabszy telefon: bez ozdobnych animacji bezczynności (main.ts mierzy klatki) */
+:root[data-lowfps='true'] :is(.coin, .mascot, .clock, .tool .badge, .beacon img, .xp-fill, .sp-badge, .start-sign, #start-btn, .banner-stars, .fish-marker),
+:root[data-lowfps='true'] .btn.reward::after {
+  animation: none !important;
+}

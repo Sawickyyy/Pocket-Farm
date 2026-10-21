@@ -53,7 +53,7 @@ export function handleEvents(app: App, events: readonly SimEvent[]): void {
       // Dźwięk przestrzenny: panorama wg pozycji zdarzenia na ekranie, ciszej poza kadrem.
       let where = { pan: 0, gain: 1 };
       if ('at' in e && scene) {
-        const p = scene.cam.toScreen(e.at.x * 128, e.at.y * 128);
+        const p = scene.screenOfTile(e.at);
         const w = scene.cam.viewport.width;
         const hgt = scene.cam.viewport.height;
         const off = p.x < 0 || p.y < 0 || p.x > w || p.y > hgt;

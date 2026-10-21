@@ -3,7 +3,8 @@
 import Phaser from 'phaser';
 import type { Content } from '../../content/content';
 import type { Animal, GameState } from '../../sim/types';
-import { SPRITES_KEY, TILE, animalFrame } from '../art/atlas';
+import { SPRITES_KEY, animalFrame } from '../art/atlas';
+import { project } from '../iso';
 
 interface View {
   sprite: Phaser.GameObjects.Sprite;
@@ -28,7 +29,12 @@ export class AnimalLayer {
     const def = home && this.content.buildings[home.type];
     if (!home || !def) return null;
     const [w, h] = def.size;
-    return { x0: home.x * TILE + 30, x1: (home.x + w) * TILE - 30, y0: (home.y + h) * TILE + 20, y1: (home.y + h + 1) * TILE - 10 };
+    // Wybieg: rząd kafli przed frontową (lewą) ścianą budynku – w kaflach, rzutowany przy rysowaniu.
+    return { x0: home.x + 0.2, x1: home.x + w - 0.2, y0: home.y + h + 0.25, y1: home.y + h + 0.9 };
+  }
+
+  private randomIn(yard: { x0: number; x1: number; y0: number; y1: number }) {
+    return project(yard.x0 + Math.random() * (yard.x1 - yard.x0), yard.y0 + Math.random() * (yard.y1 - yard.y0));
   }
 
   sync(state: GameState): void {
@@ -41,10 +47,9 @@ export class AnimalLayer {
       if (!v || v.home !== a.home) {
         v?.sprite.destroy();
         v?.badge.destroy();
-        const x = Phaser.Math.Between(yard.x0, yard.x1);
-        const y = Phaser.Math.Between(yard.y0, yard.y1);
+        const { x, y } = this.randomIn(yard);
         const scale = a.kind === 'chicken' ? 0.65 : 0.9;
-        const sprite = this.scene.add.sprite(x, y, SPRITES_KEY, animalFrame(a.kind, 0)).setScale(scale).setDepth(25).setLighting(true);
+        const sprite = this.scene.add.sprite(x, y, SPRITES_KEY, animalFrame(a.kind, 0)).setOrigin(0.5, 0.78).setScale(scale).setDepth(25).setLighting(true);
         sprite.setData('animal', a.id);
         const badge = this.scene.add.image(x, y - 70, SPRITES_KEY, 'icon_ready').setScale(0.4).setDepth(26).setVisible(false);
         v = { sprite, badge, home: a.home, kind: a.kind, nextMove: 0, walking: false };
@@ -72,8 +77,7 @@ export class AnimalLayer {
       if (!yard) continue;
       v.nextMove = time + Phaser.Math.Between(2000, 5000);
       if (!this.motion()) continue;
-      const tx = Phaser.Math.Between(yard.x0, yard.x1);
-      const ty = Phaser.Math.Between(yard.y0, yard.y1);
+      const { x: tx, y: ty } = this.randomIn(yard);
       const dist = Phaser.Math.Distance.Between(v.sprite.x, v.sprite.y, tx, ty);
       v.sprite.setFlipX(tx < v.sprite.x);
       v.walking = true;

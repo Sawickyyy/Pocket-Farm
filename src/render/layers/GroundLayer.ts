@@ -4,12 +4,17 @@ import type Phaser from 'phaser';
 import type { Content } from '../../content/content';
 import { canUnlock } from '../../sim/systems/fields';
 import type { Calendar, GameState, Plot } from '../../sim/types';
-import { BiomeId, FIELD, MAP_H, MAP_W, plotAtTile, tileIndex, type WorldMap } from '../../sim/world';
+import { BiomeId, MAP_H, MAP_W, plotAtTile, tileIndex, type WorldMap } from '../../sim/world';
 import { TILE, TILES_KEY, Tile } from '../art/atlas';
 import { hashFloat } from '../../core/rng';
 
 export class GroundLayer {
   readonly layer: Phaser.Tilemaps.TilemapGPULayer;
+  /**
+   * Kontener „płaskiej” ziemi: obrót o 45° wewnątrz spłaszczenia Y ×0,5 = rzut izometryczny 2:1.
+   * Wszystko, co leży na ziemi (podświetlenie, obrys budowy), dodajemy tutaj we współrzędnych kafli × TILE.
+   */
+  readonly flat: Phaser.GameObjects.Container;
   private readonly cache = new Int16Array(MAP_W * MAP_H).fill(-1);
 
   constructor(
@@ -23,7 +28,10 @@ export class GroundLayer {
     if (!tileset) throw new Error('Nie udało się utworzyć tilesetu');
     // Pozycja (0,0): Phaser 4.1/4.2 dolicza przesunięcie TilemapGPULayer dwukrotnie, więc warstwy nie przesuwamy.
     this.layer = map.createLayer(0, tileset, 0, 0, true) as Phaser.Tilemaps.TilemapGPULayer;
-    this.layer.setDepth(0).setLighting(true);
+    this.layer.setLighting(true);
+    // TilemapGPULayer obsługuje tylko rzut ortogonalny – izometrię daje macierz kontenerów (koszt GPU bez zmian).
+    this.flat = scene.add.container(0, 0, [this.layer]).setRotation(Math.PI / 4);
+    scene.add.container(0, 0, [this.flat]).setScale(1, 0.5).setDepth(0);
   }
 
   private fieldTile(state: GameState, plot: Plot, i: number): number {
@@ -75,5 +83,3 @@ export class GroundLayer {
     if (dirty) this.layer.generateLayerDataTexture();
   }
 }
-
-export const FIELD_RECT_PX = { x: FIELD.x * TILE, y: FIELD.y * TILE, w: FIELD.w * TILE, h: FIELD.h * TILE };

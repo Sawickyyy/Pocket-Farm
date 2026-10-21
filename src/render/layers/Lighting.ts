@@ -6,7 +6,7 @@ import { daylight } from '../../sim/calendar';
 import { isReady } from '../../sim/systems/fields';
 import type { Calendar, GameState } from '../../sim/types';
 import { plotTile } from '../../sim/world';
-import { TILE } from '../art/atlas';
+import { project } from '../iso';
 
 const NIGHT = [0x3a, 0x48, 0x7a];
 const DUSK = [0xff, 0xb0, 0x80];
@@ -47,9 +47,11 @@ export class Lighting {
     for (const o of state.objects) {
       const def = this.content.buildings[o.type];
       if (def?.kind !== 'lantern' || !def.light) continue;
+      const p = project(o.x + 0.5, o.y + 0.5);
       wanted.set(`o${o.uid}`, {
-        x: (o.x + 0.5) * TILE,
-        y: (o.y + 0.3) * TILE,
+        x: p.x,
+        // Światło trochę nad podstawą: oświetla ziemię wokół latarni i jej klosz.
+        y: p.y - 60,
         radius: def.light.radius,
         color: hex(def.light.color),
         intensity: def.light.intensity,
@@ -59,7 +61,8 @@ export class Lighting {
       const def = p.crop && this.content.crop[p.crop.id];
       if (!def?.night || !isReady(p.crop)) return;
       const t = plotTile(i);
-      wanted.set(`p${i}`, { x: (t.x + 0.5) * TILE, y: (t.y + 0.5) * TILE, radius: 220, color: hex(def.art.color ?? '#9fe0ff'), intensity: 1 });
+      const at = project(t.x + 0.5, t.y + 0.5);
+      wanted.set(`p${i}`, { x: at.x, y: at.y - 30, radius: 220, color: hex(def.art.color ?? '#9fe0ff'), intensity: 1 });
     });
     for (const [k, l] of this.lamps) {
       if (!wanted.has(k)) {

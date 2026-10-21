@@ -48,6 +48,13 @@ export function bindPointerInput(el: HTMLElement, scene: FarmScene, app: App, bu
       }
     }
 
+    // 2.5D: bryła budynku zasłania kafle za nią – najpierw sprawdzamy trafienie w sprite.
+    const building = scene.objectAt(...toLocal(x, y));
+    if (building !== null && plotAtTile(tile.x, tile.y) === null) {
+      app.openSheet('building', building);
+      return;
+    }
+
     const plot = plotAtTile(tile.x, tile.y);
     if (plot !== null) {
       const p = state.plots[plot]!;

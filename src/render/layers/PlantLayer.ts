@@ -4,7 +4,8 @@ import type Phaser from 'phaser';
 import { canUnlock, cropStage, isReady } from '../../sim/systems/fields';
 import type { GameState } from '../../sim/types';
 import { plotTile } from '../../sim/world';
-import { SPRITES_KEY, TILE, cropFrame } from '../art/atlas';
+import { SPRITES_KEY, cropFrame } from '../art/atlas';
+import { project } from '../iso';
 
 export class PlantLayer {
   readonly layer: Phaser.GameObjects.SpriteGPULayer;
@@ -27,8 +28,8 @@ export class PlantLayer {
   sync(state: GameState, motion: boolean): void {
     state.plots.forEach((plot, i) => {
       const t = plotTile(i);
-      const x = (t.x + 0.5) * TILE;
-      const y = (t.y + 0.5) * TILE;
+      // Rośliny stoją pionowo na środku rombu kafla (podstawa w środku, origin ~0.72 klatki).
+      const { x, y } = project(t.x + 0.5, t.y + 0.5);
       const crop = plot.crop;
       if (!crop) this.set(i, '', null);
       else {
@@ -38,8 +39,9 @@ export class PlantLayer {
           x,
           y,
           frame: cropFrame(crop.id, stage),
-          scaleX: 1,
-          scaleY: ripe && motion ? { base: 1, amplitude: 0.07, duration: 650, ease: 'Sine.easeInOut', yoyo: true } : 1,
+          originY: 0.72,
+          scaleX: 1.15,
+          scaleY: ripe && motion ? { base: 1.15, amplitude: 0.08, duration: 650, ease: 'Sine.easeInOut', yoyo: true } : 1.15,
         });
       }
 
@@ -49,11 +51,11 @@ export class PlantLayer {
       else if (isReady(crop)) icon = 'icon_ready';
       const m = this.count + i;
       if (!icon) this.set(m, '', null);
-      else if (icon === 'icon_lock') this.set(m, `${icon}`, { x, y, frame: icon, scaleX: 0.8, scaleY: 0.8, alpha: 0.9 });
+      else if (icon === 'icon_lock') this.set(m, `${icon}`, { x, y: y - 20, frame: icon, scaleX: 0.8, scaleY: 0.8, alpha: 0.9 });
       else {
-        const iy = y - TILE * 0.3;
+        const iy = y - 110;
         this.set(m, `${icon}:${motion}`, {
-          x: x + TILE * 0.28,
+          x: x + 30,
           y: motion ? { base: iy, amplitude: -10, duration: 550, ease: 'Sine.easeInOut', yoyo: true } : iy,
           frame: icon,
           scaleX: 0.45,

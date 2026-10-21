@@ -7,9 +7,10 @@ import { DAY_MS, HOUR_MS, calendarAt } from '../sim/calendar';
 import type { SimEvent } from '../sim/events';
 import { PLOT_COUNT } from '../sim/initialState';
 import type { GameState } from '../sim/types';
-import { CHUNK, FIELD, MAP_H, MAP_W, generateWorld, plotTile, type WorldMap } from '../sim/world';
+import { CHUNK, CHUNKS_X, FIELD, generateWorld, plotTile, type WorldMap } from '../sim/world';
 import { SPRITES_KEY, TILE, TILES_KEY, buildingFrame, cropFrame, drawSpriteAtlas, drawTileset, itemFrame, type ParticleFrame } from './art/atlas';
 import { CameraModel, type Viewport } from './cameraModel';
+import { buildingPlacement, project, projectedBounds, unproject } from './iso';
 import { colorMatrix20, type ColorblindMode } from './colorblind';
 import { AnimalLayer } from './layers/AnimalLayer';
 import { FogLayer } from './layers/FogLayer';
@@ -78,19 +79,20 @@ export class FarmScene extends Phaser.Scene {
     this.lighting = new Lighting(this, CONTENT);
 
     // Podświetlenie dotkniętego pola – jedyny obiekt z filtrem glow (filtry są kosztowne).
-    this.highlight = this.add.graphics().setDepth(60).setVisible(false);
+    // Nakładki leżące na ziemi siedzą w kontenerze izometrycznym – rysujemy je jak kwadraty kafli.
+    this.highlight = this.add.graphics().setVisible(false);
     this.highlight.lineStyle(10, 0xfff3b0, 1).strokeRoundedRect(4, 4, TILE - 8, TILE - 8, 18);
     this.highlight.enableFilters();
     this.highlight.filters?.internal.addGlow(0xffe27a, 6, 0, 1);
 
-    this.tutorialPulse = this.add.graphics().setDepth(61).setVisible(false);
+    this.tutorialPulse = this.add.graphics().setVisible(false);
     this.tutorialPulse.lineStyle(12, 0x7dd3fc, 1).strokeRoundedRect(0, 0, TILE, TILE, 20);
 
-    this.ghostRect = this.add.graphics().setDepth(70).setVisible(false);
+    this.ghostRect = this.add.graphics().setVisible(false);
+    this.ground.flat.add([this.highlight, this.tutorialPulse, this.ghostRect]);
     this.ghostImage = this.add.image(0, 0, SPRITES_KEY, 'icon_ready').setOrigin(0.5, 1).setAlpha(0.8).setDepth(71).setVisible(false);
 
-    const field = { x: FIELD.x * TILE, y: FIELD.y * TILE, w: FIELD.w * TILE, h: FIELD.h * TILE };
-    this.cam = new CameraModel(field, this.boundsFor(state));
+    this.cam = new CameraModel(projectedBounds(FIELD.x, FIELD.y, FIELD.w, FIELD.h), this.boundsFor(state), 0.3, 2.2, 1.35);
     this.cameras.main.setBackgroundColor('#3f7a32');
     this.cameras.main.setRoundPixels(false);
 
@@ -137,28 +139,21 @@ export class FarmScene extends Phaser.Scene {
     if (force || !prev || prev.world.revealed.length !== state.world.revealed.length) this.cam.bounds = this.boundsFor(state);
   }
 
-  /** Granice kamery: prostokąt obejmujący odkryte fragmenty (z marginesem). */
+  /** Granice kamery: prostokąt otaczający rzut odkrytych fragmentów (z marginesem). */
   private boundsFor(state: GameState) {
-    const size = CHUNK * TILE;
     let x0 = Infinity;
     let y0 = Infinity;
     let x1 = -Infinity;
     let y1 = -Infinity;
     for (const c of state.world.revealed) {
-      const cx = (c % (MAP_W / CHUNK)) * size;
-      const cy = Math.floor(c / (MAP_W / CHUNK)) * size;
-      x0 = Math.min(x0, cx);
-      y0 = Math.min(y0, cy);
-      x1 = Math.max(x1, cx + size);
-      y1 = Math.max(y1, cy + size);
+      const r = projectedBounds((c % CHUNKS_X) * CHUNK, Math.floor(c / CHUNKS_X) * CHUNK, CHUNK, CHUNK);
+      x0 = Math.min(x0, r.x);
+      y0 = Math.min(y0, r.y);
+      x1 = Math.max(x1, r.x + r.w);
+      y1 = Math.max(y1, r.y + r.h);
     }
-    const pad = size * 0.4;
-    return {
-      x: Math.max(0, x0 - pad),
-      y: Math.max(0, y0 - pad),
-      w: Math.min(MAP_W * TILE, x1 + pad) - Math.max(0, x0 - pad),
-      h: Math.min(MAP_H * TILE, y1 + pad) - Math.max(0, y0 - pad),
-    };
+    const pad = 300;
+    return { x: x0 - pad, y: y0 - pad, w: x1 - x0 + pad * 2, h: y1 - y0 + pad * 2 };
   }
 
   // ------------------------------------------------------------- kamera i trafienia
@@ -182,7 +177,20 @@ export class FarmScene extends Phaser.Scene {
 
   tileAt(sx: number, sy: number): { x: number; y: number } {
     const w = this.worldAt(sx, sy);
-    return { x: Math.floor(w.x / TILE), y: Math.floor(w.y / TILE) };
+    const t = unproject(w.x, w.y);
+    return { x: Math.floor(t.x), y: Math.floor(t.y) };
+  }
+
+  /** Budynek pod palcem (trafienie w cały sprite bryły, nie tylko w podstawę). */
+  objectAt(sx: number, sy: number): number | null {
+    const w = this.worldAt(sx, sy);
+    return this.objects.hit(w.x, w.y);
+  }
+
+  /** Kafel (ciągły) → piksele urządzenia na ekranie (np. do dźwięku przestrzennego). */
+  screenOfTile(at: { x: number; y: number }): { x: number; y: number } {
+    const p = project(at.x, at.y);
+    return this.cam.toScreen(p.x, p.y);
   }
 
   animalAt(sx: number, sy: number): number | null {
@@ -191,7 +199,8 @@ export class FarmScene extends Phaser.Scene {
   }
 
   focusTile(x: number, y: number): void {
-    this.cam.focusOn((x + 0.5) * TILE, (y + 0.5) * TILE, Math.max(this.cam.zoom, this.cam.fitZoom * 0.8));
+    const p = project(x + 0.5, y + 0.5);
+    this.cam.focusOn(p.x, p.y, Math.max(this.cam.zoom, this.cam.fitZoom * 0.8));
   }
 
   // ------------------------------------------------------------- nakładki
@@ -225,11 +234,14 @@ export class FarmScene extends Phaser.Scene {
     if (!def) return;
     const [w, h] = def.size;
     const color = g.valid ? 0x7dff8a : 0xff6b6b;
-    this.ghostRect.clear().fillStyle(color, 0.28).fillRect(0, 0, w * TILE, h * TILE).lineStyle(6, color, 0.9).strokeRect(0, 0, w * TILE, h * TILE);
+    this.ghostRect.clear().fillStyle(color, 0.3).fillRect(0, 0, w * TILE, h * TILE).lineStyle(8, color, 0.9).strokeRect(0, 0, w * TILE, h * TILE);
     this.ghostRect.setPosition(g.x * TILE, g.y * TILE).setVisible(true);
+    const place = buildingPlacement(def, g.x, g.y);
     this.ghostImage
       .setFrame(buildingFrame(g.type))
-      .setPosition((g.x + w / 2) * TILE, (g.y + h) * TILE)
+      .setOrigin(place.originX, place.originY)
+      .setScale(place.scale)
+      .setPosition(place.x, place.y)
       .setTint(g.valid ? 0xffffff : 0xff9a9a)
       .setVisible(def.kind !== 'path');
   }
@@ -248,7 +260,7 @@ export class FarmScene extends Phaser.Scene {
   // ------------------------------------------------------------- efekty („juice”)
 
   private px(at: { x: number; y: number }) {
-    return { x: at.x * TILE, y: at.y * TILE };
+    return project(at.x, at.y);
   }
 
   private burst(at: { x: number; y: number }, frame: ParticleFrame, count: number, opts?: Parameters<ParticleLayer['emit']>[4]): void {

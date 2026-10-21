@@ -3,6 +3,8 @@
 
 import { CONTENT, SEASONS, type Content, type Season } from '../../content/content';
 import { ellipse, makeCanvas, rng, rrect, shade, type Ctx2D } from './draw';
+import { buildingFrameSize, isBox } from '../iso';
+import { drawIsoBuilding } from './isoBuilding';
 import { drawAnimal, drawBuilding, drawCrop, drawIcon, drawItem, drawTree } from './subjects';
 
 export const TILE = 128;
@@ -198,7 +200,7 @@ export interface FrameRect {
 }
 
 /** Pakowanie półkowe: sortowanie po wysokości, wiersze od lewej. */
-export function shelfPack(sizes: { w: number; h: number }[], width: number): { x: number; y: number }[] | null {
+export function shelfPack(sizes: { w: number; h: number }[], width: number, maxHeight = width): { x: number; y: number }[] | null {
   const order = sizes.map((s, i) => ({ ...s, i })).sort((a, b) => b.h - a.h);
   const out: { x: number; y: number }[] = new Array(sizes.length);
   let x = 0;
@@ -215,7 +217,7 @@ export function shelfPack(sizes: { w: number; h: number }[], width: number): { x
     x += s.w + PAD;
     rowH = Math.max(rowH, s.h);
   }
-  return y + rowH <= width ? out : null;
+  return y + rowH <= maxHeight ? out : null;
 }
 
 export function itemIconDrawer(c: Content, id: string) {
@@ -233,10 +235,15 @@ export function drawSpriteAtlas(c: Content = CONTENT): { canvas: HTMLCanvasEleme
     }
   }
   for (const b of c.buildingList) {
-    const [w, h] = b.size;
     const emblemId = b.art.emblem;
     const emblem = emblemId ? itemIconDrawer(c, emblemId) : undefined;
-    entries.push({ name: buildingFrame(b.id), w: w * TILE, h: h * TILE + BUILDING_ROOF, draw: (ctx, x, y) => drawBuilding(ctx, b, x, y, TILE, emblem) });
+    const size = buildingFrameSize(b);
+    entries.push({
+      name: buildingFrame(b.id),
+      w: size.w,
+      h: size.h,
+      draw: (ctx, x, y) => (isBox(b) ? drawIsoBuilding(ctx, b, x, y, emblem) : drawBuilding(ctx, b, x, y, TILE, emblem)),
+    });
   }
   for (const season of SEASONS) {
     for (const kind of ['oak', 'pine'] as const) {
@@ -264,10 +271,12 @@ export function drawSpriteAtlas(c: Content = CONTENT): { canvas: HTMLCanvasEleme
   for (const p of PARTICLES) entries.push({ name: p, w: 32, h: 32, draw: (ctx, x, y) => drawParticle(ctx, p, x + 16, y + 16) });
   entries.push({ name: 'fog', w: 256, h: 256, draw: (ctx, x, y) => drawFogPuff(ctx, x, y) });
 
+  // Szerokość 2048, wysokość dopasowana do zawartości (maks. 4096 – limit tekstur na iOS jest wyższy).
   const size = 2048;
-  const placed = shelfPack(entries, size);
+  const placed = shelfPack(entries, size, 4096);
   if (!placed) throw new Error('Atlas się nie mieści');
-  const [canvas, ctx] = makeCanvas(size, size);
+  const usedH = Math.max(...placed.map((p, i) => p.y + entries[i]!.h));
+  const [canvas, ctx] = makeCanvas(size, Math.ceil(usedH / 256) * 256);
   const frames: FrameRect[] = entries.map((e, i) => {
     const p = placed[i]!;
     ctx.save();
@@ -361,14 +370,13 @@ export function buildingIconUrl(id: string, size = 96, c: Content = CONTENT): st
   const def = c.buildings[id];
   const [canvas, ctx] = makeCanvas(size, size);
   if (def) {
-    const [w, h] = def.size;
-    const fw = w * TILE;
-    const fh = h * TILE + BUILDING_ROOF;
+    const { w: fw, h: fh } = buildingFrameSize(def);
     const s = Math.min(size / fw, size / fh);
     ctx.translate((size - fw * s) / 2, (size - fh * s) / 2);
     ctx.scale(s, s);
     const emblem = def.art.emblem ? itemIconDrawer(c, def.art.emblem) : undefined;
-    drawBuilding(ctx, def, 0, 0, TILE, emblem);
+    if (isBox(def)) drawIsoBuilding(ctx, def, 0, 0, emblem);
+    else drawBuilding(ctx, def, 0, 0, TILE, emblem);
   }
   const url = canvas.toDataURL('image/png');
   iconCache.set(key, url);

@@ -56,3 +56,39 @@ describe('muzyka generatywna', () => {
     expect(degree('spring', -1)).toBe(57);
   });
 });
+
+import { ISO_HH, ISO_HW, project, projectedBounds, unproject } from '../src/render/iso';
+
+describe('rzut izometryczny 2.5D', () => {
+  it('romb kafla ma proporcje 2:1', () => {
+    const top = project(0, 0);
+    const right = project(1, 0);
+    const bottom = project(1, 1);
+    expect(right.x - top.x).toBeCloseTo(ISO_HW);
+    expect(bottom.y - top.y).toBeCloseTo(2 * ISO_HH);
+    expect(ISO_HW / ISO_HH).toBeCloseTo(2);
+  });
+
+  it('unproject odwraca project', () => {
+    for (const [x, y] of [[0, 0], [3.5, 7.25], [47, 1], [-2, 9]] as const) {
+      const p = unproject(project(x, y).x, project(x, y).y);
+      expect(p.x).toBeCloseTo(x);
+      expect(p.y).toBeCloseTo(y);
+    }
+  });
+
+  it('zgadza się z obrotem o 45° i spłaszczeniem Y ×0,5 (kontenery ziemi)', () => {
+    const T = 128;
+    const rot = (X: number, Y: number) => ({ x: X * Math.cos(Math.PI / 4) - Y * Math.sin(Math.PI / 4), y: (X * Math.sin(Math.PI / 4) + Y * Math.cos(Math.PI / 4)) * 0.5 });
+    const a = rot(5 * T, 2 * T);
+    const b = project(5, 2);
+    expect(a.x).toBeCloseTo(b.x);
+    expect(a.y).toBeCloseTo(b.y);
+  });
+
+  it('prostokąt otaczający rzut', () => {
+    const r = projectedBounds(0, 0, 2, 2);
+    expect(r.w).toBeCloseTo(4 * ISO_HW);
+    expect(r.h).toBeCloseTo(4 * ISO_HH);
+  });
+});

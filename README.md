@@ -22,6 +22,13 @@ Stos: TypeScript 7 (strict) · Phaser 4.1 (TilemapGPULayer, SpriteGPULayer, ośw
 | Mapa proceduralna z mgłą, zbieractwo, łowienie | `sim/world.ts`, `sim/systems/exploration.ts` | `forage.json`, `fish.json` |
 | Samouczek | `sim/systems/tutorial.ts`, `ui/tutorial.ts` | `tutorial.json` |
 
+## Widok 2.5D (izometria)
+
+- Rzut izometryczny 2:1 (`render/iso.ts`): logika gry zostaje na siatce kafli, `project()`/`unproject()` przeliczają kafle ↔ ekran.
+- Ziemia to nadal **TilemapGPULayer** (Phaser obsługuje w nim tylko rzut ortogonalny): warstwa siedzi w kontenerze obróconym o 45° wewnątrz kontenera spłaszczonego w Y ×0,5, co daje dokładnie romby izometryczne przy tym samym koszcie GPU. Nakładki leżące na ziemi (podświetlenie, obrys budowy) są w tym samym kontenerze.
+- Rośliny, drzewa, budynki i zwierzęta stoją pionowo w rzutowanych punktach; obiekty są sortowane po głębi (przedni narożnik podstawy).
+- Domy i maszyny to bryły izometryczne (`render/art/isoBuilding.ts`: dwie ściany, dach czterospadowy, drzwi, okna, szyld). Dotyk trafia w cały sprite budynku, nie tylko w podstawę.
+
 ## Architektura
 
 - **Data-driven:** uprawy, przedmioty, ryby, zwierzęta, budynki, receptury, mieszkańcy, umiejętności, zadania, osiągnięcia, festyny i pogoda są w `src/content/data/*.json`. `validateContent()` (test) pilnuje spójności odwołań, a test i18n – nazw w obu językach.

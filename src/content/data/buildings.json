@@ -8,7 +8,7 @@
   { "id": "preserves", "kind": "machine", "size": [2, 2], "cost": 600, "level": 4, "art": { "wall": "#f4e2d0", "roof": "#a83a4a", "emblem": "jam" } },
   { "id": "composter", "kind": "machine", "size": [1, 1], "cost": 150, "level": 2, "art": { "wall": "#7a5a34", "roof": "#5a4026", "emblem": "compost" } },
   { "id": "sprinkler", "kind": "sprinkler", "size": [1, 1], "cost": 200, "level": 3, "radius": 1, "art": { "wall": "#9aa4ad", "roof": "#4ea3dc" } },
-  { "id": "lantern", "kind": "lantern", "size": [1, 1], "cost": 60, "level": 2, "light": { "radius": 420, "color": "#ffcf7a", "intensity": 1.6 }, "art": { "wall": "#3b3330", "roof": "#ffcf7a" } },
+  { "id": "lantern", "kind": "lantern", "size": [1, 1], "cost": 60, "level": 2, "light": { "radius": 380, "color": "#ffcf7a", "intensity": 1.05 }, "art": { "wall": "#3b3330", "roof": "#ffcf7a" } },
   { "id": "path", "kind": "path", "size": [1, 1], "cost": 5, "level": 1, "art": { "wall": "#d9c08a", "roof": "#d9c08a" } },
   { "id": "fence", "kind": "deco", "size": [1, 1], "cost": 8, "level": 1, "art": { "wall": "#a8743f", "roof": "#7c5128" } },
   { "id": "flowers", "kind": "deco", "size": [1, 1], "cost": 20, "level": 1, "art": { "wall": "#f7a1c4", "roof": "#fff6a8" } },

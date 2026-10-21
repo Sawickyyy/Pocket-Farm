@@ -39,6 +39,8 @@ export class CameraModel {
     public bounds: Rect,
     readonly minZoomFactor = 0.4,
     readonly maxZoomFactor = 2.5,
+    /** Przybliżenie startowe względem „całe pole na ekranie” (w 2.5D romb pola jest szeroki, a kafle muszą być duże). */
+    readonly fitScale = 1,
   ) {
     this.focusX = fitRect.x + fitRect.w / 2;
     this.focusY = fitRect.y + fitRect.h / 2;
@@ -70,7 +72,7 @@ export class CameraModel {
     this.viewport = v;
     const availW = Math.max(1, v.width - padding * 2);
     const availH = Math.max(1, v.height - v.insetTop - v.insetBottom - padding * 2);
-    this.fitZoom = Math.min(availW / this.fitRect.w, availH / this.fitRect.h);
+    this.fitZoom = Math.min(availW / this.fitRect.w, availH / this.fitRect.h) * this.fitScale;
     this.zoom = this.clampZoom(this.fitZoom * (Number.isFinite(relative) ? relative : 1));
     this.clampFocus();
   }

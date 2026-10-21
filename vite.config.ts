@@ -1,11 +1,20 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
 // Ścieżka bazowa: "/" lokalnie, np. "/pocket-farm/" na GitHub Pages (BASE_PATH=/pocket-farm/ npm run build).
 const base = process.env.BASE_PATH ?? '/';
 
 export default defineConfig({
   base,
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
+  worker: {
+    format: 'es',
+  },
   build: {
     target: 'safari18',
     // Phaser jest duży (~1,2 MB) – trzymamy go w osobnym chunku, żeby kod gry cache'ował się niezależnie.
@@ -29,7 +38,7 @@ export default defineConfig({
       manifest: {
         name: 'Pocket Farm',
         short_name: 'Farma',
-        description: 'Mała farma w kieszeni – siej, podlewaj, zbieraj.',
+        description: 'Farma w kieszeni – uprawy, zwierzęta, przetwórstwo, wioska i wyprawy.',
         lang: 'pl',
         start_url: '.',
         scope: '.',

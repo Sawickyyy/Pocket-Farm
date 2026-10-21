@@ -1,34 +1,47 @@
-// Matematyka kamery (przesuwanie, zoom wokół punktu, dopasowanie do ekranu) bez zależności od Phasera.
-// Konwencja jak w Phaserze: środek kamery (cx, cy) w świecie, punkt ekranu sx → świat: cx + (sx - w/2) / zoom.
+// Matematyka kamery bez zależności od Phasera: dopasowanie, przesuwanie z inercją, zoom wokół punktu, płynne przejścia.
+// Konwencja jak w Phaserze: punkt ekranu sx → świat: centerX + (sx − w/2) / zoom.
 
 export interface Viewport {
   /** Rozmiar canvasu w pikselach urządzenia. */
   width: number;
   height: number;
-  /** Zasłonięte przez interfejs HTML pasy u góry i u dołu (piksele urządzenia). */
+  /** Pasy zasłonięte przez interfejs HTML (piksele urządzenia). */
   insetTop: number;
   insetBottom: number;
 }
 
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const FRICTION_PER_FRAME = 0.92;
+const SMOOTH_MS = 140;
+
 export class CameraModel {
-  /** Punkt świata wyświetlany w środku widocznego obszaru (między paskami). */
   focusX: number;
   focusY: number;
   zoom = 1;
   fitZoom = 1;
   viewport: Viewport = { width: 1, height: 1, insetTop: 0, insetBottom: 0 };
+  /** Prędkość inercji (świat / ms). */
+  velX = 0;
+  velY = 0;
+  private target: { x: number; y: number; zoom: number } | null = null;
+  private lastPan = { dx: 0, dy: 0, t: 0 };
 
   constructor(
-    readonly worldWidth: number,
-    readonly worldHeight: number,
-    /** Lewy górny róg obszaru, który dopasowujemy do ekranu (siatka pól), we współrzędnych świata. */
-    readonly originX = 0,
-    readonly originY = 0,
-    readonly minZoomFactor = 0.85,
+    /** Obszar dopasowywany do ekranu (pole uprawne). */
+    public fitRect: Rect,
+    /** Granice przesuwania (odkryta część mapy). */
+    public bounds: Rect,
+    readonly minZoomFactor = 0.4,
     readonly maxZoomFactor = 2.5,
   ) {
-    this.focusX = originX + worldWidth / 2;
-    this.focusY = originY + worldHeight / 2;
+    this.focusX = fitRect.x + fitRect.w / 2;
+    this.focusY = fitRect.y + fitRect.h / 2;
   }
 
   get minZoom(): number {
@@ -39,13 +52,11 @@ export class CameraModel {
     return this.fitZoom * this.maxZoomFactor;
   }
 
-  /** Ekranowy środek widocznego obszaru. */
   private get visibleCenterY(): number {
     const { height, insetTop, insetBottom } = this.viewport;
     return insetTop + (height - insetTop - insetBottom) / 2;
   }
 
-  /** Środek kamery w świecie (do przekazania do `camera.centerOn`). */
   get centerX(): number {
     return this.focusX;
   }
@@ -59,15 +70,27 @@ export class CameraModel {
     this.viewport = v;
     const availW = Math.max(1, v.width - padding * 2);
     const availH = Math.max(1, v.height - v.insetTop - v.insetBottom - padding * 2);
-    this.fitZoom = Math.min(availW / this.worldWidth, availH / this.worldHeight);
+    this.fitZoom = Math.min(availW / this.fitRect.w, availH / this.fitRect.h);
     this.zoom = this.clampZoom(this.fitZoom * (Number.isFinite(relative) ? relative : 1));
     this.clampFocus();
   }
 
-  fit(): void {
-    this.zoom = this.fitZoom;
-    this.focusX = this.originX + this.worldWidth / 2;
-    this.focusY = this.originY + this.worldHeight / 2;
+  fit(animate = false): void {
+    this.focusOn(this.fitRect.x + this.fitRect.w / 2, this.fitRect.y + this.fitRect.h / 2, this.fitZoom, animate);
+  }
+
+  focusOn(x: number, y: number, zoom = this.zoom, animate = true): void {
+    const z = this.clampZoom(zoom);
+    this.velX = this.velY = 0;
+    if (animate) {
+      this.target = { x, y, zoom: z };
+    } else {
+      this.target = null;
+      this.focusX = x;
+      this.focusY = y;
+      this.zoom = z;
+      this.clampFocus();
+    }
   }
 
   toWorld(sx: number, sy: number): { x: number; y: number } {
@@ -77,15 +100,36 @@ export class CameraModel {
     };
   }
 
-  /** Przesunięcie o wektor ekranowy (palce w prawo → świat w prawo). */
-  pan(dx: number, dy: number): void {
+  toScreen(wx: number, wy: number): { x: number; y: number } {
+    return {
+      x: (wx - this.centerX) * this.zoom + this.viewport.width / 2,
+      y: (wy - this.centerY) * this.zoom + this.viewport.height / 2,
+    };
+  }
+
+  /** Przesunięcie o wektor ekranowy (palce w prawo → świat jedzie w prawo). */
+  pan(dx: number, dy: number, now = performance.now()): void {
+    this.target = null;
     this.focusX -= dx / this.zoom;
     this.focusY -= dy / this.zoom;
     this.clampFocus();
+    this.lastPan = { dx, dy, t: now };
   }
 
-  /** Zoom wokół punktu ekranu – ten punkt świata zostaje pod palcami. */
+  /** Puszczenie palca: kontynuacja ruchu z inercją. */
+  release(now = performance.now(), sampleMs = 16): void {
+    if (now - this.lastPan.t > 80) return;
+    this.velX = -this.lastPan.dx / this.zoom / sampleMs;
+    this.velY = -this.lastPan.dy / this.zoom / sampleMs;
+  }
+
+  stop(): void {
+    this.velX = this.velY = 0;
+    this.target = null;
+  }
+
   zoomAt(scale: number, sx: number, sy: number): void {
+    this.target = null;
     const before = this.toWorld(sx, sy);
     this.zoom = this.clampZoom(this.zoom * scale);
     const after = this.toWorld(sx, sy);
@@ -94,12 +138,47 @@ export class CameraModel {
     this.clampFocus();
   }
 
+  /** Krok animacji; zwraca true, jeśli kamera się poruszyła. */
+  update(dtMs: number): boolean {
+    let moved = false;
+    if (this.target) {
+      const k = 1 - Math.exp(-dtMs / SMOOTH_MS);
+      this.focusX += (this.target.x - this.focusX) * k;
+      this.focusY += (this.target.y - this.focusY) * k;
+      this.zoom += (this.target.zoom - this.zoom) * k;
+      if (Math.abs(this.target.x - this.focusX) < 0.5 && Math.abs(this.target.y - this.focusY) < 0.5 && Math.abs(this.target.zoom - this.zoom) < 1e-3) {
+        this.focusX = this.target.x;
+        this.focusY = this.target.y;
+        this.zoom = this.target.zoom;
+        this.target = null;
+      }
+      this.clampFocus();
+      moved = true;
+    }
+    if (this.velX || this.velY) {
+      this.focusX += this.velX * dtMs;
+      this.focusY += this.velY * dtMs;
+      const f = FRICTION_PER_FRAME ** (dtMs / 16.67);
+      this.velX *= f;
+      this.velY *= f;
+      if (Math.hypot(this.velX, this.velY) * this.zoom < 0.02) this.velX = this.velY = 0;
+      this.clampFocus();
+      moved = true;
+    }
+    return moved;
+  }
+
   private clampZoom(z: number): number {
     return Math.min(this.maxZoom, Math.max(this.minZoom, z));
   }
 
   private clampFocus(): void {
-    this.focusX = Math.min(this.originX + this.worldWidth, Math.max(this.originX, this.focusX));
-    this.focusY = Math.min(this.originY + this.worldHeight, Math.max(this.originY, this.focusY));
+    const b = this.bounds;
+    const fx = Math.min(b.x + b.w, Math.max(b.x, this.focusX));
+    const fy = Math.min(b.y + b.h, Math.max(b.y, this.focusY));
+    if (fx !== this.focusX) this.velX = 0;
+    if (fy !== this.focusY) this.velY = 0;
+    this.focusX = fx;
+    this.focusY = fy;
   }
 }

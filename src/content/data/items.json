@@ -1,0 +1,23 @@
+[
+  { "id": "egg", "kind": "animal", "price": 22, "quality": true, "art": { "shape": "egg", "color": "#f6ead2" } },
+  { "id": "milk", "kind": "animal", "price": 48, "quality": true, "art": { "shape": "bottle", "color": "#ffffff" } },
+  { "id": "wool", "kind": "animal", "price": 70, "quality": true, "art": { "shape": "wool", "color": "#f2efe6" } },
+  { "id": "manure", "kind": "fertilizer", "price": 6, "fertility": 0.3, "art": { "shape": "sack", "color": "#6b4a2a" } },
+  { "id": "compost", "kind": "fertilizer", "price": 8, "buy": 15, "fertility": 0.2, "art": { "shape": "sack", "color": "#8a6a35" } },
+  { "id": "superfert", "kind": "fertilizer", "price": 30, "fertility": 0.5, "art": { "shape": "sack", "color": "#5fae3a" } },
+  { "id": "feed", "kind": "feed", "price": 2, "buy": 4, "art": { "shape": "sack", "color": "#d9b45a" } },
+  { "id": "hay", "kind": "feed", "price": 2, "buy": 3, "art": { "shape": "hay", "color": "#e8cf6a" } },
+  { "id": "flour", "kind": "artisan", "price": 110, "art": { "shape": "sack", "color": "#f4efe2" } },
+  { "id": "bread", "kind": "artisan", "price": 190, "art": { "shape": "bread", "color": "#c98a3c" } },
+  { "id": "pie", "kind": "artisan", "price": 420, "art": { "shape": "pie", "color": "#e0731c" } },
+  { "id": "cheese", "kind": "artisan", "price": 130, "art": { "shape": "cheese", "color": "#f2c94c" } },
+  { "id": "cloth", "kind": "artisan", "price": 180, "art": { "shape": "cloth", "color": "#7fa7d9" } },
+  { "id": "jam", "kind": "artisan", "price": 150, "art": { "shape": "jar", "color": "#d6304a" } },
+  { "id": "winterjam", "kind": "artisan", "price": 260, "art": { "shape": "jar", "color": "#bfe3ff" } },
+  { "id": "mushroom", "kind": "forage", "price": 25, "quality": true, "art": { "shape": "mushroom", "color": "#b5651d" } },
+  { "id": "berries", "kind": "forage", "price": 18, "quality": true, "art": { "shape": "berry", "color": "#5a3fa0" } },
+  { "id": "wildflower", "kind": "forage", "price": 14, "quality": true, "art": { "shape": "flower", "color": "#f7a1c4" } },
+  { "id": "herb", "kind": "forage", "price": 16, "quality": true, "art": { "shape": "herb", "color": "#6cbf3c" } },
+  { "id": "wood", "kind": "forage", "price": 6, "art": { "shape": "log", "color": "#8a5a2e" } },
+  { "id": "shell", "kind": "forage", "price": 20, "art": { "shape": "shell", "color": "#f3d9c4" } }
+]

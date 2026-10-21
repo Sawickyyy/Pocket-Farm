@@ -1,0 +1,5 @@
+[
+  { "id": "chicken", "price": 80, "home": "coop", "level": 3, "feed": ["feed", "wheat", "corn"], "produceHours": 6, "product": "egg", "byproduct": null, "art": { "body": "#ffffff", "accent": "#e84a3c" } },
+  { "id": "cow", "price": 300, "home": "barn", "level": 5, "feed": ["hay", "feed"], "produceHours": 12, "product": "milk", "byproduct": { "item": "manure", "chance": 0.6 }, "art": { "body": "#f4f0e8", "accent": "#3b3330" } },
+  { "id": "sheep", "price": 250, "home": "barn", "level": 6, "feed": ["hay", "feed"], "produceHours": 24, "product": "wool", "byproduct": { "item": "manure", "chance": 0.3 }, "art": { "body": "#f2efe6", "accent": "#4a4038" } }
+]

@@ -1,0 +1,21 @@
+[
+  { "id": "coop", "kind": "home", "size": [2, 2], "cost": 400, "level": 3, "capacity": 4, "animals": ["chicken"], "art": { "wall": "#e8c48a", "roof": "#c0503a", "emblem": "egg" } },
+  { "id": "barn", "kind": "home", "size": [3, 2], "cost": 1000, "level": 5, "capacity": 4, "animals": ["cow", "sheep"], "art": { "wall": "#b8423a", "roof": "#6e3a2c", "emblem": "milk" } },
+  { "id": "mill", "kind": "machine", "size": [2, 2], "cost": 500, "level": 4, "art": { "wall": "#d8c8a8", "roof": "#7a5a3a", "emblem": "flour" } },
+  { "id": "bakery", "kind": "machine", "size": [2, 2], "cost": 900, "level": 6, "art": { "wall": "#f0dcc0", "roof": "#c56a2c", "emblem": "bread" } },
+  { "id": "dairy", "kind": "machine", "size": [2, 2], "cost": 800, "level": 6, "art": { "wall": "#f4f4f0", "roof": "#4a7ab8", "emblem": "cheese" } },
+  { "id": "loom", "kind": "machine", "size": [2, 2], "cost": 700, "level": 7, "art": { "wall": "#e2d6f0", "roof": "#6a4a9a", "emblem": "cloth" } },
+  { "id": "preserves", "kind": "machine", "size": [2, 2], "cost": 600, "level": 4, "art": { "wall": "#f4e2d0", "roof": "#a83a4a", "emblem": "jam" } },
+  { "id": "composter", "kind": "machine", "size": [1, 1], "cost": 150, "level": 2, "art": { "wall": "#7a5a34", "roof": "#5a4026", "emblem": "compost" } },
+  { "id": "sprinkler", "kind": "sprinkler", "size": [1, 1], "cost": 200, "level": 3, "radius": 1, "art": { "wall": "#9aa4ad", "roof": "#4ea3dc" } },
+  { "id": "lantern", "kind": "lantern", "size": [1, 1], "cost": 60, "level": 2, "light": { "radius": 420, "color": "#ffcf7a", "intensity": 1.6 }, "art": { "wall": "#3b3330", "roof": "#ffcf7a" } },
+  { "id": "path", "kind": "path", "size": [1, 1], "cost": 5, "level": 1, "art": { "wall": "#d9c08a", "roof": "#d9c08a" } },
+  { "id": "fence", "kind": "deco", "size": [1, 1], "cost": 8, "level": 1, "art": { "wall": "#a8743f", "roof": "#7c5128" } },
+  { "id": "flowers", "kind": "deco", "size": [1, 1], "cost": 20, "level": 1, "art": { "wall": "#f7a1c4", "roof": "#fff6a8" } },
+  { "id": "bench", "kind": "deco", "size": [2, 1], "cost": 80, "level": 2, "art": { "wall": "#a8743f", "roof": "#7c5128" } },
+  { "id": "scarecrow", "kind": "deco", "size": [1, 1], "cost": 120, "level": 2, "art": { "wall": "#e4c04a", "roof": "#7a4a2a" } },
+  { "id": "statue_spring", "kind": "deco", "size": [1, 1], "cost": 0, "level": 1, "festival": true, "art": { "wall": "#f7a1c4", "roof": "#d8d8d8" } },
+  { "id": "statue_summer", "kind": "deco", "size": [1, 1], "cost": 0, "level": 1, "festival": true, "art": { "wall": "#f7c62f", "roof": "#d8d8d8" } },
+  { "id": "statue_autumn", "kind": "deco", "size": [1, 1], "cost": 0, "level": 1, "festival": true, "art": { "wall": "#ef8326", "roof": "#d8d8d8" } },
+  { "id": "statue_winter", "kind": "deco", "size": [1, 1], "cost": 0, "level": 1, "festival": true, "art": { "wall": "#bfe3ff", "roof": "#d8d8d8" } }
+]

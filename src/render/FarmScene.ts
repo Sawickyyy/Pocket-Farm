@@ -1,52 +1,60 @@
-import Phaser from 'phaser';
-import type { Store } from '../core/store';
-import { CROPS, GRID_COLS, GRID_ROWS, PLOT_COUNT } from '../game/content';
-import { canUnlock, cropStage, isReady, type GameEvent } from '../game/logic';
-import type { GameState, Plot } from '../game/state';
-import { CameraModel, type Viewport } from './cameraModel';
-import { ParticleLayer } from './ParticleLayer';
-import {
-  SPRITES_KEY,
-  TILE,
-  TILES_KEY,
-  Tile,
-  cropFrame,
-  drawSpriteAtlas,
-  drawTileset,
-  type IconFrame,
-} from './proceduralArt';
+// Scena Phasera: składa warstwy, synchronizuje je ze stanem symulacji, steruje kamerą, światłem i efektami.
 
-/** Ile kafli trawy otacza siatkę pól (widać je przy oddaleniu i przesuwaniu). */
-const BORDER = 3;
-const WORLD_W = GRID_COLS * TILE;
-const WORLD_H = GRID_ROWS * TILE;
-/**
- * Siatka pól zaczyna się w świecie od (GRID_X, GRID_Y), a warstwa kafli leży w (0, 0).
- * Phaser 4.1/4.2 dodaje pozycję TilemapGPULayer dwukrotnie (applyITRS + setQuad w SubmitterTilemapGPULayer),
- * więc nie przesuwamy warstwy – przesuwamy siatkę.
- */
-const GRID_X = BORDER * TILE;
-const GRID_Y = BORDER * TILE;
+import Phaser from 'phaser';
+import { CONTENT, parseKey } from '../content/content';
+import type { Store } from '../core/store';
+import { DAY_MS, HOUR_MS, calendarAt } from '../sim/calendar';
+import type { SimEvent } from '../sim/events';
+import { PLOT_COUNT } from '../sim/initialState';
+import type { GameState } from '../sim/types';
+import { CHUNK, FIELD, MAP_H, MAP_W, generateWorld, plotTile, type WorldMap } from '../sim/world';
+import { SPRITES_KEY, TILE, TILES_KEY, buildingFrame, cropFrame, drawSpriteAtlas, drawTileset, itemFrame, type ParticleFrame } from './art/atlas';
+import { CameraModel, type Viewport } from './cameraModel';
+import { colorMatrix20, type ColorblindMode } from './colorblind';
+import { AnimalLayer } from './layers/AnimalLayer';
+import { FogLayer } from './layers/FogLayer';
+import { GroundLayer } from './layers/GroundLayer';
+import { Lighting } from './layers/Lighting';
+import { ObjectLayer } from './layers/ObjectLayer';
+import { PlantLayer } from './layers/PlantLayer';
+import { ParticleLayer } from './ParticleLayer';
 
 export interface SceneDeps {
   store: Store<GameState>;
   reducedMotion: () => boolean;
+  /** Pozycja licznika monet na ekranie (px CSS) – cel „lecących” plonów. */
+  hudTarget: () => { x: number; y: number } | null;
+  dpr: () => number;
   onReady: (scene: FarmScene) => void;
 }
 
-type SyncMember = { key: string };
+export interface Ghost {
+  type: string;
+  x: number;
+  y: number;
+  valid: boolean;
+}
+
+const SYNC_MS = 120;
 
 export class FarmScene extends Phaser.Scene {
   private deps!: SceneDeps;
-  private ground!: Phaser.Tilemaps.TilemapGPULayer;
-  private plants!: Phaser.GameObjects.SpriteGPULayer;
+  private world!: WorldMap;
+  private ground!: GroundLayer;
+  private plants!: PlantLayer;
+  private objects!: ObjectLayer;
+  private fog!: FogLayer;
+  private animals!: AnimalLayer;
+  private lighting!: Lighting;
   private particles!: ParticleLayer;
   private highlight!: Phaser.GameObjects.Graphics;
-  private readonly tileCache = new Int16Array(PLOT_COUNT).fill(-1);
-  /** Klucz ostatnio wysłanego stanu członka – edytujemy bufor GPU tylko przy zmianie. */
-  private readonly plantKeys: SyncMember[] = Array.from({ length: PLOT_COUNT * 2 }, () => ({ key: '' }));
-  readonly cam = new CameraModel(WORLD_W, WORLD_H, GRID_X, GRID_Y);
-  private unsubscribers: Array<() => void> = [];
+  private tutorialPulse!: Phaser.GameObjects.Graphics;
+  private ghostImage!: Phaser.GameObjects.Image;
+  private ghostRect!: Phaser.GameObjects.Graphics;
+  private colorFilter: Phaser.Filters.ColorMatrix | null = null;
+  private lastState: GameState | null = null;
+  private lastSync = 0;
+  cam!: CameraModel;
 
   constructor() {
     super({ key: 'farm' });
@@ -57,33 +65,37 @@ export class FarmScene extends Phaser.Scene {
   }
 
   create(): void {
+    const state = this.deps.store.get();
+    this.world = generateWorld(state.seed);
     this.createTextures();
-    this.createGround();
-    this.createPlants();
-    this.particles = new ParticleLayer(this, SPRITES_KEY);
 
-    // Podświetlenie dotkniętego pola – jedyny obiekt z filtrem glow (filtry są kosztowne, używamy oszczędnie).
-    this.highlight = this.add.graphics().setDepth(30).setVisible(false);
+    this.ground = new GroundLayer(this, this.world, CONTENT);
+    this.plants = new PlantLayer(this, PLOT_COUNT);
+    this.objects = new ObjectLayer(this, this.world, CONTENT);
+    this.animals = new AnimalLayer(this, CONTENT, () => !this.deps.reducedMotion());
+    this.fog = new FogLayer(this);
+    this.particles = new ParticleLayer(this);
+    this.lighting = new Lighting(this, CONTENT);
+
+    // Podświetlenie dotkniętego pola – jedyny obiekt z filtrem glow (filtry są kosztowne).
+    this.highlight = this.add.graphics().setDepth(60).setVisible(false);
     this.highlight.lineStyle(10, 0xfff3b0, 1).strokeRoundedRect(4, 4, TILE - 8, TILE - 8, 18);
     this.highlight.enableFilters();
     this.highlight.filters?.internal.addGlow(0xffe27a, 6, 0, 1);
 
-    this.cameras.main.setBackgroundColor('#4f8a3c');
+    this.tutorialPulse = this.add.graphics().setDepth(61).setVisible(false);
+    this.tutorialPulse.lineStyle(12, 0x7dd3fc, 1).strokeRoundedRect(0, 0, TILE, TILE, 20);
+
+    this.ghostRect = this.add.graphics().setDepth(70).setVisible(false);
+    this.ghostImage = this.add.image(0, 0, SPRITES_KEY, 'icon_ready').setOrigin(0.5, 1).setAlpha(0.8).setDepth(71).setVisible(false);
+
+    const field = { x: FIELD.x * TILE, y: FIELD.y * TILE, w: FIELD.w * TILE, h: FIELD.h * TILE };
+    this.cam = new CameraModel(field, this.boundsFor(state));
+    this.cameras.main.setBackgroundColor('#3f7a32');
     this.cameras.main.setRoundPixels(false);
 
-    const { store } = this.deps;
-    this.unsubscribers.push(store.select((s) => s.plots, () => this.syncAll(), true));
-    this.unsubscribers.push(store.select((s) => s.upgrades, () => this.syncAll()));
-
-    // Wzrost liczony ze znaczników czasu – wystarczy co jakiś czas odświeżyć etapy.
-    this.time.addEvent({ delay: 500, loop: true, callback: () => this.syncAll() });
-
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unsubscribers.forEach((u) => u()));
+    this.syncAll(state, true);
     this.deps.onReady(this);
-  }
-
-  override update(): void {
-    this.particles.update();
   }
 
   // ------------------------------------------------------------- tekstury
@@ -91,208 +103,68 @@ export class FarmScene extends Phaser.Scene {
   private createTextures(): void {
     if (!this.textures.exists(TILES_KEY)) this.textures.addCanvas(TILES_KEY, drawTileset());
     if (!this.textures.exists(SPRITES_KEY)) {
-      const { canvas, frames } = drawSpriteAtlas();
+      const { canvas, frames } = drawSpriteAtlas(CONTENT);
       const tex = this.textures.addCanvas(SPRITES_KEY, canvas);
       for (const f of frames) tex?.add(f.name, 0, f.x, f.y, f.w, f.h);
     }
   }
 
-  private createGround(): void {
-    const cols = GRID_COLS + BORDER * 2;
-    const rows = GRID_ROWS + BORDER * 2;
-    const data: number[][] = [];
-    for (let y = 0; y < rows; y++) {
-      const row: number[] = [];
-      for (let x = 0; x < cols; x++) {
-        const inGrid = x >= BORDER && x < BORDER + GRID_COLS && y >= BORDER && y < BORDER + GRID_ROWS;
-        const ring = x === BORDER - 1 || x === BORDER + GRID_COLS || y === BORDER - 1 || y === BORDER + GRID_ROWS;
-        const inRing = ring && x >= BORDER - 1 && x <= BORDER + GRID_COLS && y >= BORDER - 1 && y <= BORDER + GRID_ROWS;
-        if (inGrid) row.push(Tile.Locked);
-        else if (inRing) row.push(Tile.Path);
-        else row.push((x * 7 + y * 13) % 5 === 0 ? Tile.GrassFlowers : Tile.Grass);
-      }
-      data.push(row);
-    }
-    const map = this.make.tilemap({ data, tileWidth: TILE, tileHeight: TILE });
-    const tileset = map.addTilesetImage(TILES_KEY, TILES_KEY, TILE, TILE, 0, 0);
-    if (!tileset) throw new Error('Nie udało się utworzyć tilesetu');
-    // Ostatni argument `true` → TilemapGPULayer (cała warstwa w jednym quadzie, koszt per piksel).
-    this.ground = map.createLayer(0, tileset, 0, 0, true) as Phaser.Tilemaps.TilemapGPULayer;
-    this.ground.setDepth(0);
-  }
+  // ------------------------------------------------------------- pętla
 
-  private createPlants(): void {
-    this.plants = this.add.spriteGPULayer(SPRITES_KEY, PLOT_COUNT * 2).setDepth(10);
-    // Włączamy z góry używane animacje, żeby nie rekompilować shadera w trakcie gry.
-    this.plants.setAnimationEnabled('Sine.easeInOut', true);
-    // Członkowie 0..47 = rośliny, 48..95 = ikony nad polami. Pusty slot = skala 0 (bez przebudowy bufora).
-    for (let i = 0; i < PLOT_COUNT * 2; i++) this.plants.addMember({ frame: 'icon_ready', scaleX: 0, scaleY: 0, alpha: 0 });
-  }
-
-  // ------------------------------------------------------------- synchronizacja ze stanem
-
-  private groundTileFor(state: GameState, plot: Plot, i: number): number {
-    if (!plot.unlocked) return canUnlock(state, i) ? Tile.Unlockable : Tile.Locked;
-    if (plot.crop) return plot.crop.wateredAt !== null && !isReady(plot.crop, Date.now()) ? Tile.Wet : Tile.Tilled;
-    return plot.tilled ? Tile.Tilled : Tile.Untilled;
-  }
-
-  syncAll(): void {
-    if (!this.ground) return;
+  override update(time: number, delta: number): void {
     const state = this.deps.store.get();
-    const now = Date.now();
+    if (state !== this.lastState && time - this.lastSync > SYNC_MS) this.syncAll(state, false);
+    const clock = state.clock;
+    const hour = ((clock.simMs + clock.accMs) % DAY_MS) / HOUR_MS;
+    this.lighting.update(hour, calendarAt(clock.simMs, state.seed));
+    this.animals.update(time, state);
+    this.particles.update();
+    if (this.cam.update(delta)) this.applyCamera();
+  }
+
+  private syncAll(state: GameState, force: boolean): void {
+    const prev = this.lastState;
+    this.lastState = state;
+    this.lastSync = this.time.now;
+    const cal = calendarAt(state.clock.simMs, state.seed);
     const motion = !this.deps.reducedMotion();
-    let groundDirty = false;
-
-    state.plots.forEach((plot, i) => {
-      const col = i % GRID_COLS;
-      const row = Math.floor(i / GRID_COLS);
-      const tile = this.groundTileFor(state, plot, i);
-      if (this.tileCache[i] !== tile) {
-        this.tileCache[i] = tile;
-        this.ground.putTileAt(tile, col + BORDER, row + BORDER);
-        groundDirty = true;
-      }
-
-      const x = GRID_X + col * TILE + TILE / 2;
-      const y = GRID_Y + row * TILE + TILE / 2;
-
-      // Roślina
-      const crop = plot.crop;
-      const stage = crop ? cropStage(crop, now) : -1;
-      const ripe = crop !== null && stage === 3;
-      const plantKey = crop ? `${crop.id}:${stage}:${motion}` : '';
-      if (this.setKey(i, plantKey)) {
-        if (!crop) this.hide(i);
-        else
-          this.plants.editMember(i, {
-            x,
-            y,
-            frame: cropFrame(crop.id, stage),
-            originY: 0.5,
-            scaleX: 1,
-            scaleY: ripe && motion ? { base: 1, amplitude: 0.07, duration: 650, ease: 'Sine.easeInOut', yoyo: true } : 1,
-            alpha: 1,
-          });
-      }
-
-      // Ikona nad polem
-      let icon: IconFrame | null = null;
-      if (!plot.unlocked && canUnlock(state, i)) icon = 'icon_lock';
-      else if (crop && crop.wateredAt === null) icon = 'icon_drop';
-      else if (ripe) icon = 'icon_ready';
-      const iconKey = icon ? `${icon}:${motion}` : '';
-      const m = PLOT_COUNT + i;
-      if (this.setKey(m, iconKey)) {
-        if (!icon) this.hide(m);
-        else if (icon === 'icon_lock') {
-          this.plants.editMember(m, { x, y, frame: icon, scaleX: 0.8, scaleY: 0.8, alpha: 0.9 });
-        } else {
-          const ix = x + TILE * 0.28;
-          const iy = y - TILE * 0.3;
-          this.plants.editMember(m, {
-            x: ix,
-            y: motion ? { base: iy, amplitude: -10, duration: 550, ease: 'Sine.easeInOut', yoyo: true } : iy,
-            frame: icon,
-            scaleX: 0.45,
-            scaleY: 0.45,
-            alpha: 1,
-          });
-        }
-      }
-    });
-
-    if (groundDirty) this.ground.generateLayerDataTexture();
+    this.ground.sync(state, cal);
+    this.plants.sync(state, motion);
+    this.objects.sync(state, cal);
+    this.fog.sync(state, motion);
+    this.animals.sync(state);
+    if (force || !prev || prev.objects !== state.objects || prev.plots !== state.plots) this.lighting.sync(state);
+    if (force || !prev || prev.world.revealed.length !== state.world.revealed.length) this.cam.bounds = this.boundsFor(state);
   }
 
-  private setKey(member: number, key: string): boolean {
-    const slot = this.plantKeys[member];
-    if (!slot || slot.key === key) return false;
-    slot.key = key;
-    return true;
-  }
-
-  private hide(member: number): void {
-    this.plants.editMember(member, { frame: 'icon_ready', scaleX: 0, scaleY: 0, alpha: 0 });
-  }
-
-  // ------------------------------------------------------------- efekty
-
-  playEvents(events: readonly GameEvent[]): void {
-    const rich = !this.deps.reducedMotion();
-    for (const e of events) {
-      switch (e.type) {
-        case 'tilled':
-          this.burst(e.plot, 'p_dirt', rich ? 8 : 3);
-          break;
-        case 'planted':
-          this.burst(e.plot, 'p_seed', rich ? 6 : 2);
-          break;
-        case 'watered':
-          this.burst(e.plot, 'p_water', rich ? 10 : 3);
-          break;
-        case 'harvested':
-          this.burst(e.plot, 'p_leaf', rich ? 8 : 3);
-          this.burst(e.plot, 'p_star', rich ? 4 : 1);
-          this.floatText(e.plot, `+${e.xp} XP`, '#fff6b0');
-          break;
-        case 'unlocked':
-          this.burst(e.plot, 'p_coin', rich ? 10 : 3);
-          break;
-        default:
-          break;
-      }
-      this.syncAll();
+  /** Granice kamery: prostokąt obejmujący odkryte fragmenty (z marginesem). */
+  private boundsFor(state: GameState) {
+    const size = CHUNK * TILE;
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const c of state.world.revealed) {
+      const cx = (c % (MAP_W / CHUNK)) * size;
+      const cy = Math.floor(c / (MAP_W / CHUNK)) * size;
+      x0 = Math.min(x0, cx);
+      y0 = Math.min(y0, cy);
+      x1 = Math.max(x1, cx + size);
+      y1 = Math.max(y1, cy + size);
     }
-  }
-
-  private plotCenter(i: number): { x: number; y: number } {
-    return { x: GRID_X + (i % GRID_COLS) * TILE + TILE / 2, y: GRID_Y + Math.floor(i / GRID_COLS) * TILE + TILE / 2 };
-  }
-
-  private burst(plot: number, frame: Parameters<ParticleLayer['emit']>[2], count: number): void {
-    const { x, y } = this.plotCenter(plot);
-    this.particles.emit(x, y, frame, count);
-  }
-
-  private floatText(plot: number, text: string, color: string): void {
-    const { x, y } = this.plotCenter(plot);
-    const label = this.add
-      .text(x, y - TILE * 0.2, text, {
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        fontSize: '40px',
-        fontStyle: 'bold',
-        color,
-        stroke: '#2b1d0e',
-        strokeThickness: 8,
-      })
-      .setOrigin(0.5)
-      .setDepth(40);
-    if (this.deps.reducedMotion()) {
-      this.time.delayedCall(700, () => label.destroy());
-      return;
-    }
-    this.tweens.add({
-      targets: label,
-      y: y - TILE * 0.9,
-      alpha: 0,
-      duration: 900,
-      ease: 'Cubic.easeOut',
-      onComplete: () => label.destroy(),
-    });
-  }
-
-  showHighlight(plot: number | null): void {
-    if (plot === null) {
-      this.highlight.setVisible(false);
-      return;
-    }
-    this.highlight.setPosition(GRID_X + (plot % GRID_COLS) * TILE, GRID_Y + Math.floor(plot / GRID_COLS) * TILE).setVisible(true);
+    const pad = size * 0.4;
+    return {
+      x: Math.max(0, x0 - pad),
+      y: Math.max(0, y0 - pad),
+      w: Math.min(MAP_W * TILE, x1 + pad) - Math.max(0, x0 - pad),
+      h: Math.min(MAP_H * TILE, y1 + pad) - Math.max(0, y0 - pad),
+    };
   }
 
   // ------------------------------------------------------------- kamera i trafienia
 
   setViewport(v: Viewport): void {
+    this.cameras.main.setSize(v.width, v.height);
     this.cam.setViewport(v, Math.min(v.width, v.height) * 0.04);
     this.applyCamera();
   }
@@ -303,17 +175,201 @@ export class FarmScene extends Phaser.Scene {
     c.centerOn(this.cam.centerX, this.cam.centerY);
   }
 
-  /** Piksele urządzenia → indeks pola albo null. */
-  plotAt(sx: number, sy: number): number | null {
-    const { x, y } = this.cam.toWorld(sx, sy);
-    const col = Math.floor((x - GRID_X) / TILE);
-    const row = Math.floor((y - GRID_Y) / TILE);
-    if (col < 0 || row < 0 || col >= GRID_COLS || row >= GRID_ROWS) return null;
-    return row * GRID_COLS + col;
+  /** Piksele urządzenia → świat. */
+  worldAt(sx: number, sy: number): { x: number; y: number } {
+    return this.cam.toWorld(sx, sy);
   }
 
-  cropColor(plot: number): string | null {
-    const c = this.deps.store.get().plots[plot]?.crop;
-    return c ? CROPS[c.id].color : null;
+  tileAt(sx: number, sy: number): { x: number; y: number } {
+    const w = this.worldAt(sx, sy);
+    return { x: Math.floor(w.x / TILE), y: Math.floor(w.y / TILE) };
+  }
+
+  animalAt(sx: number, sy: number): number | null {
+    const w = this.worldAt(sx, sy);
+    return this.animals.hit(w.x, w.y);
+  }
+
+  focusTile(x: number, y: number): void {
+    this.cam.focusOn((x + 0.5) * TILE, (y + 0.5) * TILE, Math.max(this.cam.zoom, this.cam.fitZoom * 0.8));
+  }
+
+  // ------------------------------------------------------------- nakładki
+
+  showHighlight(tile: { x: number; y: number } | null): void {
+    if (!tile) {
+      this.highlight.setVisible(false);
+      return;
+    }
+    this.highlight.setPosition(tile.x * TILE, tile.y * TILE).setVisible(true);
+  }
+
+  setTutorialTarget(plot: number | null): void {
+    this.tweens.killTweensOf(this.tutorialPulse);
+    if (plot === null) {
+      this.tutorialPulse.setVisible(false);
+      return;
+    }
+    const t = plotTile(plot);
+    this.tutorialPulse.setPosition(t.x * TILE, t.y * TILE).setVisible(true).setAlpha(1);
+    if (!this.deps.reducedMotion()) this.tweens.add({ targets: this.tutorialPulse, alpha: 0.25, duration: 700, yoyo: true, repeat: -1 });
+  }
+
+  setGhost(g: Ghost | null): void {
+    if (!g) {
+      this.ghostImage.setVisible(false);
+      this.ghostRect.setVisible(false);
+      return;
+    }
+    const def = CONTENT.buildings[g.type];
+    if (!def) return;
+    const [w, h] = def.size;
+    const color = g.valid ? 0x7dff8a : 0xff6b6b;
+    this.ghostRect.clear().fillStyle(color, 0.28).fillRect(0, 0, w * TILE, h * TILE).lineStyle(6, color, 0.9).strokeRect(0, 0, w * TILE, h * TILE);
+    this.ghostRect.setPosition(g.x * TILE, g.y * TILE).setVisible(true);
+    this.ghostImage
+      .setFrame(buildingFrame(g.type))
+      .setPosition((g.x + w / 2) * TILE, (g.y + h) * TILE)
+      .setTint(g.valid ? 0xffffff : 0xff9a9a)
+      .setVisible(def.kind !== 'path');
+  }
+
+  setColorblind(mode: ColorblindMode): void {
+    const filters = this.cameras.main.filters;
+    if (mode === 'none') {
+      if (this.colorFilter) filters?.external.remove(this.colorFilter, true);
+      this.colorFilter = null;
+      return;
+    }
+    this.colorFilter ??= filters?.external.addColorMatrix() ?? null;
+    this.colorFilter?.colorMatrix.set(colorMatrix20(mode));
+  }
+
+  // ------------------------------------------------------------- efekty („juice”)
+
+  private px(at: { x: number; y: number }) {
+    return { x: at.x * TILE, y: at.y * TILE };
+  }
+
+  private burst(at: { x: number; y: number }, frame: ParticleFrame, count: number, opts?: Parameters<ParticleLayer['emit']>[4]): void {
+    const p = this.px(at);
+    const n = this.deps.reducedMotion() ? Math.ceil(count / 3) : count;
+    this.particles.emit(p.x, p.y, frame, n, opts);
+  }
+
+  playEvents(events: readonly SimEvent[]): void {
+    for (const e of events) {
+      switch (e.type) {
+        case 'tilled':
+          this.burst(e.at, 'p_dirt', 8);
+          break;
+        case 'planted':
+          this.burst(e.at, 'p_seed', 6);
+          break;
+        case 'watered':
+          this.burst(e.at, 'p_water', 10);
+          break;
+        case 'fertilized':
+          this.burst(e.at, 'p_dirt', 5);
+          this.burst(e.at, 'p_star', 3, { scale: 0.8 });
+          break;
+        case 'harvested':
+          this.burst(e.at, 'p_leaf', 8);
+          if (e.quality) this.burst(e.at, 'p_star', 4 + e.quality * 3);
+          this.flyToHud(e.at, cropFrame(e.crop, 3), 1);
+          this.floatText(e.at, `+${e.xp} XP${e.quality === 2 ? ' ★★' : e.quality === 1 ? ' ★' : ''}`, e.quality === 2 ? '#ffe066' : '#fff6b0');
+          break;
+        case 'cleared':
+        case 'withered':
+          this.burst(e.at, 'p_leaf', 5);
+          break;
+        case 'unlocked':
+          this.burst(e.at, 'p_coin', 10);
+          break;
+        case 'placed':
+        case 'moved':
+        case 'removed':
+          this.burst(e.at, 'p_smoke', 12, { speed: 300 });
+          break;
+        case 'fed':
+          this.burst(e.at, 'p_seed', 6);
+          break;
+        case 'petted':
+          this.burst(e.at, 'p_heart', 5, { speed: 350 });
+          this.animals.hop(e.id);
+          break;
+        case 'collected':
+        case 'foraged':
+        case 'caught':
+          this.flyToHud(e.at, itemFrame(parseKey(e.key).id), 0.9);
+          this.burst(e.at, e.type === 'caught' ? 'p_water' : 'p_star', 6);
+          break;
+        case 'crafted':
+          this.burst(e.at, 'p_star', 6);
+          break;
+        case 'outputCollected':
+          this.burst(e.at, 'p_coin', 8);
+          break;
+        case 'bite':
+          this.burst(e.at, 'p_water', 12, { speed: 400 });
+          break;
+        case 'escaped':
+          this.burst(e.at, 'p_water', 6);
+          break;
+        case 'levelUp':
+          this.celebrate();
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  /** Sprężysty „pop” i lot przedmiotu do licznika monet. */
+  private flyToHud(at: { x: number; y: number }, frame: string, scale: number): void {
+    const p = this.px(at);
+    const img = this.add.image(p.x, p.y - TILE * 0.2, SPRITES_KEY, frame).setDepth(80).setScale(0);
+    const target = this.deps.hudTarget();
+    if (this.deps.reducedMotion() || !target) {
+      img.setScale(scale);
+      this.tweens.add({ targets: img, alpha: 0, delay: 350, duration: 250, onComplete: () => img.destroy() });
+      return;
+    }
+    const d = this.deps.dpr();
+    const dest = this.cam.toWorld(target.x * d, target.y * d);
+    this.tweens.chain({
+      targets: img,
+      tweens: [
+        { scale: scale * 1.3, y: p.y - TILE * 0.6, duration: 260, ease: 'Back.easeOut' },
+        { scale: scale * 0.35, x: dest.x, y: dest.y, alpha: 0.6, duration: 520, ease: 'Cubic.easeIn' },
+      ],
+      onComplete: () => img.destroy(),
+    });
+  }
+
+  private floatText(at: { x: number; y: number }, text: string, color: string): void {
+    const p = this.px(at);
+    const label = this.add
+      .text(p.x, p.y - TILE * 0.2, text, {
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontSize: '40px',
+        fontStyle: 'bold',
+        color,
+        stroke: '#2b1d0e',
+        strokeThickness: 8,
+      })
+      .setOrigin(0.5)
+      .setDepth(85);
+    if (this.deps.reducedMotion()) {
+      this.time.delayedCall(800, () => label.destroy());
+      return;
+    }
+    this.tweens.add({ targets: label, y: p.y - TILE * 0.95, alpha: 0, duration: 950, ease: 'Cubic.easeOut', onComplete: () => label.destroy() });
+  }
+
+  private celebrate(): void {
+    const c = this.cam.toWorld(this.cam.viewport.width / 2, this.cam.viewport.height / 2);
+    this.particles.emit(c.x, c.y, 'p_star', this.deps.reducedMotion() ? 6 : 24, { speed: 900, life: 1000, scale: 2 });
+    if (!this.deps.reducedMotion()) this.cameras.main.shake(220, 0.004);
   }
 }

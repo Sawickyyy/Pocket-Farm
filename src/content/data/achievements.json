@@ -1,0 +1,15 @@
+[
+  { "id": "first_harvest", "stat": "harvested", "target": 1, "coins": 20 },
+  { "id": "harvest_100", "stat": "harvested", "target": 100, "coins": 300 },
+  { "id": "harvest_1000", "stat": "harvested", "target": 1000, "coins": 3000 },
+  { "id": "gold_10", "stat": "gold", "target": 10, "coins": 250 },
+  { "id": "earn_10k", "stat": "coinsEarned", "target": 10000, "coins": 1000 },
+  { "id": "animals_5", "stat": "animalsBought", "target": 5, "coins": 400 },
+  { "id": "fish_10", "stat": "fishCaught", "target": 10, "coins": 200 },
+  { "id": "orders_10", "stat": "ordersDone", "target": 10, "coins": 500 },
+  { "id": "crafted_25", "stat": "crafted", "target": 25, "coins": 400 },
+  { "id": "explorer", "stat": "explored", "target": 8, "coins": 800 },
+  { "id": "festival", "stat": "festivals", "target": 1, "coins": 300 },
+  { "id": "builder", "stat": "built", "target": 20, "coins": 300 },
+  { "id": "skilled", "stat": "skills", "target": 6, "coins": 600 }
+]

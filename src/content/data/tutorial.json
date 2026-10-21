@@ -1,0 +1,12 @@
+[
+  { "id": "welcome", "advance": "next" },
+  { "id": "select_hoe", "advance": "toolSelected", "value": "hoe", "target": "tool:hoe" },
+  { "id": "till", "advance": "tilled", "target": "field" },
+  { "id": "select_seeds", "advance": "toolSelected", "value": "seeds", "target": "tool:seeds" },
+  { "id": "plant", "advance": "planted", "target": "field" },
+  { "id": "select_can", "advance": "toolSelected", "value": "can", "target": "tool:can" },
+  { "id": "water", "advance": "watered", "target": "field" },
+  { "id": "wait", "advance": "harvested", "target": "field" },
+  { "id": "sell", "advance": "sold", "target": "tool:hub" },
+  { "id": "done", "advance": "next", "coins": 50 }
+]

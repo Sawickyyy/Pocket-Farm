@@ -3,7 +3,7 @@
 
 import { createStore as createIdbStore, get, set, type UseStore } from 'idb-keyval';
 import type { Store } from '../core/store';
-import type { GameState } from '../game/state';
+import type { GameState } from '../sim/types';
 import { loadFromUnknown } from './migrations';
 
 const SAVE_KEY = 'save';
@@ -69,10 +69,14 @@ export async function loadSave(backend: SaveBackend, now: number): Promise<SaveE
   return primary ?? backup;
 }
 
+/**
+ * Stan zmienia się co tick symulacji (zegar), więc nie zapisujemy przy każdej zmianie store'a.
+ * Zapis: ~1 s po akcji gracza (schedule), co `autosaveMs` (postęp symulacji) i przy ukryciu strony.
+ */
 export class SaveManager {
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private autosave: ReturnType<typeof setInterval> | null = null;
   private dirty = false;
-  private unsubscribe: (() => void) | null = null;
   lastSavedAt = 0;
 
   constructor(
@@ -80,16 +84,18 @@ export class SaveManager {
     private readonly backend: SaveBackend,
     private readonly delayMs = 1000,
     private readonly clock: () => number = Date.now,
+    private readonly autosaveMs = 15_000,
   ) {}
 
   start(): void {
-    this.unsubscribe = this.store.subscribe(() => this.schedule());
+    this.autosave = setInterval(() => void this.flush(true), this.autosaveMs);
   }
 
   stop(): void {
-    this.unsubscribe?.();
     if (this.timer) clearTimeout(this.timer);
+    if (this.autosave) clearInterval(this.autosave);
     this.timer = null;
+    this.autosave = null;
   }
 
   /** Zaplanuj zapis (debounce). */

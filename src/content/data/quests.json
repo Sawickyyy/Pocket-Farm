@@ -1,0 +1,10 @@
+[
+  { "id": "harvest", "event": "harvest", "daily": [5, 12], "weekly": [40, 80], "coinsPer": 4, "xpPer": 1 },
+  { "id": "water", "event": "water", "daily": [5, 15], "weekly": [40, 90], "coinsPer": 2, "xpPer": 0.5 },
+  { "id": "earn", "event": "sell", "daily": [100, 400], "weekly": [1500, 4000], "coinsPer": 0.1, "xpPer": 0.02 },
+  { "id": "feed", "event": "feed", "daily": [3, 8], "weekly": [25, 50], "coinsPer": 5, "xpPer": 1, "requires": "animals" },
+  { "id": "produce", "event": "craft", "daily": [2, 5], "weekly": [12, 30], "coinsPer": 15, "xpPer": 3, "requires": "machines" },
+  { "id": "fish", "event": "fish", "daily": [2, 5], "weekly": [10, 25], "coinsPer": 12, "xpPer": 2, "requires": "water" },
+  { "id": "forage", "event": "forage", "daily": [3, 6], "weekly": [15, 35], "coinsPer": 6, "xpPer": 1, "requires": "explored" },
+  { "id": "order", "event": "order", "daily": [1, 2], "weekly": [5, 10], "coinsPer": 40, "xpPer": 8 }
+]

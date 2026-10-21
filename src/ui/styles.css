@@ -1,8 +1,9 @@
 /* ---------------------------------------------------------------- tokeny */
 :root {
   color-scheme: light dark;
+  --ui-scale: 1;
   --bg: #2f5d34;
-  --surface: rgb(255 251 240 / 0.92);
+  --surface: rgb(255 251 240 / 0.93);
   --surface-solid: #fffbf0;
   --surface-2: #f3ead2;
   --text: #2b2113;
@@ -10,53 +11,74 @@
   --accent: #3f8f3a;
   --accent-text: #fff;
   --gold: #f2b632;
+  --silver: #9aa8b5;
   --danger: #c4452f;
   --line: rgb(70 50 20 / 0.15);
-  --shadow: 0 8px 28px rgb(20 30 10 / 0.28);
-  --radius: 18px;
-  --tap: 48px;
+  --shadow: 0 0.5rem 1.75rem rgb(20 30 10 / 0.28);
+  --radius: 1.1rem;
+  --tap: 3rem;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --dur: 220ms;
   font-family: system-ui, -apple-system, 'SF Pro Rounded', 'Segoe UI', sans-serif;
+  /* Skalowanie interfejsu: wszystkie wymiary są w rem. */
+  font-size: calc(16px * var(--ui-scale));
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --surface: rgb(32 36 28 / 0.9);
+    --surface: rgb(32 36 28 / 0.92);
     --surface-solid: #20241c;
     --surface-2: #2d3326;
     --text: #f2eddc;
     --muted: #b3ab95;
     --accent: #5fb055;
     --line: rgb(255 255 255 / 0.12);
-    --shadow: 0 8px 28px rgb(0 0 0 / 0.5);
+    --shadow: 0 0.5rem 1.75rem rgb(0 0 0 / 0.5);
   }
 }
 
+/* Ograniczenie ruchu: systemowe lub wymuszone w ustawieniach (data-motion). */
 @media (prefers-reduced-motion: reduce) {
-  :root {
+  :root:not([data-motion='off']) {
     --dur: 0ms;
   }
-  *,
-  *::before,
-  *::after {
+  :root:not([data-motion='off']) *,
+  :root:not([data-motion='off']) *::before,
+  :root:not([data-motion='off']) *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation: none !important;
-  }
+}
+:root[data-motion='on'] {
+  --dur: 0ms;
+}
+:root[data-motion='on'] *,
+:root[data-motion='on'] *::before,
+:root[data-motion='on'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+:root[data-reduced='true']::view-transition-group(*),
+:root[data-reduced='true']::view-transition-old(*),
+:root[data-reduced='true']::view-transition-new(*) {
+  animation: none !important;
 }
 
-/* ---------------------------------------------------------------- baza: bez zoomu, bez gumki */
+/* Tryb dla daltonistów w interfejsie HTML (canvas ma własny filtr w Phaserze). */
+:root[data-colorblind='protan'] :is(.ui-layer, .sheet, .toasts, .fishing),
+:root[data-colorblind='deutan'] :is(.ui-layer, .sheet, .toasts, .fishing),
+:root[data-colorblind='tritan'] :is(.ui-layer, .sheet, .toasts, .fishing) {
+  filter: url(#cb-filter);
+}
+
+/* ---------------------------------------------------------------- baza */
 *,
 *::before,
 *::after {
@@ -76,7 +98,6 @@ body {
 body {
   position: fixed;
   inset: 0;
-  /* svh jako bezpieczny fallback, dvh śledzi chowające się paski Safari */
   height: 100svh;
   height: 100dvh;
   touch-action: none;
@@ -87,10 +108,15 @@ body {
 }
 
 button,
+select,
+input,
 [role='tab'] {
   font: inherit;
   color: inherit;
   touch-action: manipulation;
+}
+
+button {
   cursor: pointer;
 }
 
@@ -103,7 +129,19 @@ button:disabled {
   outline-offset: 2px;
 }
 
-/* ---------------------------------------------------------------- canvas */
+img.icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+img.icon.sm {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* ---------------------------------------------------------------- canvas i nakładki */
 #game {
   position: fixed;
   inset: 0;
@@ -118,17 +156,92 @@ button:disabled {
   touch-action: none;
 }
 
+.ui-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.ui-layer > * {
+  pointer-events: auto;
+}
+
+/* Pogoda: lekka nakładka CSS (transform → kompozycja na GPU). */
+.weather {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+  transition: background-color 1.2s;
+}
+
+.weather.rain {
+  background: rgb(40 60 90 / 0.12);
+}
+
+.weather.heat {
+  background: rgb(255 170 60 / 0.08);
+}
+
+.weather.snow {
+  background: rgb(220 235 255 / 0.1);
+}
+
+.weather i {
+  position: absolute;
+  top: -10%;
+  display: none;
+  width: 2px;
+  height: 1.4rem;
+  border-radius: 2px;
+  background: rgb(200 225 255 / 0.65);
+  animation: fall linear infinite;
+}
+
+.weather.rain i,
+.weather.snow i {
+  display: block;
+}
+
+.weather.snow i {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.9);
+  animation-name: snow;
+}
+
+@keyframes fall {
+  to {
+    transform: translate3d(-3vh, 115vh, 0);
+  }
+}
+
+@keyframes snow {
+  50% {
+    transform: translate3d(2vh, 55vh, 0);
+  }
+  to {
+    transform: translate3d(-1vh, 115vh, 0);
+  }
+}
+
+:root[data-reduced='true'] .weather i {
+  display: none !important;
+}
+
 /* ---------------------------------------------------------------- górny pasek */
 .topbar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 10;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: calc(var(--safe-top) + 6px) calc(var(--safe-right) + 10px) 6px calc(var(--safe-left) + 10px);
+  gap: 0.5rem;
+  padding: calc(var(--safe-top) + 0.375rem) calc(var(--safe-right) + 0.625rem) 0.25rem calc(var(--safe-left) + 0.625rem);
   pointer-events: none;
 }
 
@@ -137,11 +250,12 @@ button:disabled {
 }
 
 .stat {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   min-height: var(--tap);
-  padding: 0 14px;
+  padding: 0 0.875rem;
   border-radius: 999px;
   background: var(--surface);
   box-shadow: var(--shadow);
@@ -157,19 +271,22 @@ button:disabled {
   min-width: 3ch;
 }
 
-.coins.bump output {
-  animation: bump 300ms ease-out;
+.coins.bump {
+  animation: bump 380ms cubic-bezier(0.3, 1.6, 0.5, 1);
 }
 
 @keyframes bump {
-  40% {
-    transform: scale(1.25);
+  35% {
+    transform: scale(1.18) rotate(-3deg);
+  }
+  70% {
+    transform: scale(0.97) rotate(1deg);
   }
 }
 
 .coin {
-  width: 22px;
-  height: 22px;
+  width: 1.4rem;
+  height: 1.4rem;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #ffe58a, var(--gold) 60%, #c98a12);
   box-shadow: inset 0 0 0 2px rgb(150 100 10 / 0.4);
@@ -177,25 +294,24 @@ button:disabled {
 
 .level {
   flex: 1;
-  max-width: 220px;
+  max-width: 14rem;
   margin-inline: auto;
-  padding-left: 6px;
+  padding-left: 0.375rem;
 }
 
 .level-badge {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 50%;
   background: var(--accent);
   color: var(--accent-text);
-  font-size: 1rem;
 }
 
 .xp {
   flex: 1;
-  height: 10px;
+  height: 0.625rem;
   border-radius: 999px;
   background: var(--surface-2);
   overflow: hidden;
@@ -208,6 +324,21 @@ button:disabled {
   background: linear-gradient(90deg, #8fd16a, var(--accent));
   border-radius: inherit;
   transition: width var(--dur) ease-out;
+}
+
+.sp-badge {
+  position: absolute;
+  top: -0.25rem;
+  right: -0.25rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #3b2a05;
+  font-size: 0.7rem;
+  line-height: 1.25rem;
+  text-align: center;
 }
 
 .icon-btn {
@@ -225,22 +356,42 @@ button:disabled {
 }
 
 .icon-btn svg {
-  width: 24px;
-  height: 24px;
+  width: 1.5rem;
+  height: 1.5rem;
   stroke: currentColor;
   stroke-width: 2.4;
   stroke-linecap: round;
   fill: none;
 }
 
-/* ---------------------------------------------------------------- dolny pasek narzędzi */
+.clock {
+  position: fixed;
+  top: calc(var(--safe-top) + 3.6rem);
+  left: 50%;
+  translate: -50% 0;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.clock .fest {
+  margin-left: 0.4rem;
+  color: #b4236b;
+}
+
+/* ---------------------------------------------------------------- pasek narzędzi */
 .toolbar {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 10;
-  padding: 8px calc(var(--safe-right) + 10px) calc(var(--safe-bottom) + 8px) calc(var(--safe-left) + 10px);
+  padding: 0.5rem calc(var(--safe-right) + 0.5rem) calc(var(--safe-bottom) + 0.5rem) calc(var(--safe-left) + 0.5rem);
   container-type: inline-size;
   container-name: toolbar;
   pointer-events: none;
@@ -249,12 +400,12 @@ button:disabled {
 .toolbar-inner {
   pointer-events: auto;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
-  max-width: 520px;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+  max-width: 36rem;
   margin: 0 auto;
-  padding: 6px;
-  border-radius: 24px;
+  padding: 0.3rem;
+  border-radius: 1.5rem;
   background: var(--surface);
   box-shadow: var(--shadow);
   border: 1px solid var(--line);
@@ -268,20 +419,22 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  min-height: 64px;
-  min-width: 44px;
-  padding: 6px 2px;
+  gap: 0.1rem;
+  min-height: 3.6rem;
+  min-width: 2.75rem;
+  padding: 0.3rem 0.1rem;
   border: 0;
-  border-radius: 18px;
+  border-radius: 1.1rem;
   background: transparent;
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   font-weight: 600;
-  transition: background-color var(--dur), transform var(--dur);
+  transition:
+    background-color var(--dur),
+    transform var(--dur);
 }
 
 .tool:active {
-  transform: scale(0.94);
+  transform: scale(0.92);
 }
 
 .tool[aria-pressed='true'] {
@@ -289,47 +442,61 @@ button:disabled {
   color: var(--accent-text);
 }
 
-.tool svg {
-  width: 30px;
-  height: 30px;
+.tool svg,
+.tool img {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.tool .label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tool .badge {
   position: absolute;
-  top: 4px;
-  right: 6px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
+  top: 0.15rem;
+  right: 0.2rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.25rem;
   border-radius: 999px;
   background: var(--gold);
   color: #3b2a05;
-  font-size: 0.7rem;
-  line-height: 20px;
+  font-size: 0.65rem;
+  line-height: 1.15rem;
   font-variant-numeric: tabular-nums;
 }
 
-.tool .badge:empty,
-.tool .badge[data-zero] {
+.tool .badge:empty {
   display: none;
 }
 
-/* Nasiona: drugi tap otwiera wybór – podpowiedź strzałką, gdy narzędzie jest aktywne. */
-.tool[data-tool='seeds'][aria-pressed='true'] .label::after {
-  content: ' ▴';
+.tool.tut-target,
+.tut-target {
+  outline: 3px solid #7dd3fc;
+  outline-offset: 2px;
+  animation: pulse 1.2s ease-in-out infinite;
 }
 
-/* Wąskie ekrany (np. iPhone SE): same ikony. */
-@container toolbar (max-width: 340px) {
+@keyframes pulse {
+  50% {
+    outline-color: transparent;
+  }
+}
+
+@container toolbar (max-width: 360px) {
   .tool .label {
     display: none;
   }
   .tool {
-    min-height: 56px;
+    min-height: 3.2rem;
   }
 }
 
-/* ---------------------------------------------------------------- arkusze (Popover API) */
+/* ---------------------------------------------------------------- arkusz (Popover API) */
 [popover] {
   margin: 0;
   padding: 0;
@@ -342,13 +509,13 @@ button:disabled {
   position: fixed;
   inset: auto 0 0 0;
   width: auto;
-  max-width: 560px;
-  max-height: min(78dvh, 640px);
+  max-width: 40rem;
+  max-height: min(82dvh, 46rem);
   margin-inline: auto;
-  padding: 16px calc(var(--safe-right) + 16px) calc(var(--safe-bottom) + 16px) calc(var(--safe-left) + 16px);
-  border-radius: 26px 26px 0 0;
+  padding: 0.875rem calc(var(--safe-right) + 1rem) calc(var(--safe-bottom) + 1rem) calc(var(--safe-left) + 1rem);
+  border-radius: 1.6rem 1.6rem 0 0;
   background: var(--surface-solid);
-  box-shadow: 0 -10px 40px rgb(0 0 0 / 0.3);
+  box-shadow: 0 -0.6rem 2.5rem rgb(0 0 0 / 0.3);
   overflow: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
@@ -384,21 +551,34 @@ button:disabled {
 }
 
 .sheet h2 {
-  margin: 0 0 12px;
+  margin: 0 0 0.75rem;
   font-size: 1.2rem;
 }
 
+.sheet h3 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1rem;
+}
+
 .sheet-head {
+  position: sticky;
+  top: -0.875rem;
+  z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.5rem;
+  margin: -0.875rem -1rem 0;
+  padding: 0.875rem 1rem 0.5rem;
+  background: var(--surface-solid);
 }
 
 .sheet-head h2 {
+  flex: 1;
   margin: 0;
 }
 
-.close {
+.close,
+.back {
   width: var(--tap);
   height: var(--tap);
   border: 0;
@@ -408,27 +588,31 @@ button:disabled {
 }
 
 /* Gdy otwarty jest arkusz, pasek narzędzi nie łapie dotyku (:has). */
-body:has(.sheet:popover-open) .toolbar-inner {
+body:has(.sheet:popover-open) .toolbar-inner,
+body:has(.fishing:not([hidden])) .toolbar-inner {
   pointer-events: none;
   filter: saturate(0.6);
 }
 
 .tabs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  margin: 14px 0;
-  padding: 4px;
-  border-radius: 14px;
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.25rem;
+  border-radius: 0.875rem;
   background: var(--surface-2);
+  overflow-x: auto;
 }
 
 .tabs [role='tab'] {
-  min-height: 44px;
+  flex: 1;
+  min-height: 2.75rem;
+  padding: 0 0.6rem;
   border: 0;
-  border-radius: 10px;
+  border-radius: 0.625rem;
   background: transparent;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .tabs [role='tab'][aria-selected='true'] {
@@ -436,68 +620,76 @@ body:has(.sheet:popover-open) .toolbar-inner {
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
 }
 
-.shop-body {
-  view-transition-name: shop-body;
+.sheet-body {
+  view-transition-name: sheet-body;
 }
 
 .cards {
   display: grid;
-  gap: 10px;
+  gap: 0.6rem;
 }
 
-@container sheet (min-width: 500px) {
-  .cards {
+@container sheet (min-width: 34rem) {
+  .cards.two {
     grid-template-columns: 1fr 1fr;
   }
 }
 
 .card {
   display: grid;
-  grid-template-columns: 52px 1fr auto;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
   border-radius: var(--radius);
   background: var(--surface-2);
   border: 1px solid var(--line);
 }
 
 .card .thumb {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 0.875rem;
   display: grid;
   place-items: center;
   background: var(--surface-solid);
+  position: relative;
 }
 
-.card .thumb svg {
-  width: 40px;
-  height: 40px;
+.card .thumb img {
+  width: 2.75rem;
+  height: 2.75rem;
+  object-fit: contain;
 }
 
-.card h3 {
+.card h4 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.98rem;
 }
 
 .card p {
-  margin: 2px 0 0;
-  font-size: 0.82rem;
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 
 .card .actions {
   display: flex;
-  gap: 6px;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-/* Karta zablokowana (poziom) – :has() zamiast dodatkowej klasy. */
+.card.done {
+  opacity: 0.6;
+}
+
+/* Zablokowana karta (poziom/wymagania) – :has() zamiast dodatkowej klasy. */
 .card:has(.locked-note) {
-  opacity: 0.65;
+  opacity: 0.62;
 }
 
-.card:has(button:disabled) .price {
+.card.buy:has(.btn.primary:disabled) .price {
   color: var(--danger);
 }
 
@@ -506,11 +698,70 @@ body:has(.sheet:popover-open) .toolbar-inner {
   font-variant-numeric: tabular-nums;
 }
 
+.chip {
+  display: inline-block;
+  margin-left: 0.3rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+}
+
+.chip.hot {
+  color: #b4236b;
+}
+
+.chip.cold {
+  color: #5a6b7a;
+}
+
+/* Jakość: różne kolory I różna liczba gwiazdek (czytelne dla daltonistów). */
+.q1,
+.q2 {
+  font-weight: 800;
+}
+
+.q1 {
+  color: var(--silver);
+}
+
+.q2 {
+  color: var(--gold);
+}
+
+.bar {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-solid);
+  overflow: hidden;
+  margin-top: 0.25rem;
+}
+
+.bar > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+  transition: width var(--dur);
+}
+
+.bar.warn > i {
+  background: var(--danger);
+}
+
+.hearts {
+  color: #e2486a;
+  letter-spacing: 0.05em;
+  font-size: 0.9rem;
+}
+
 .btn {
   min-height: var(--tap);
   min-width: var(--tap);
-  padding: 0 16px;
-  border-radius: 14px;
+  padding: 0 1rem;
+  border-radius: 0.875rem;
   border: 1px solid var(--line);
   background: var(--surface-solid);
   font-weight: 700;
@@ -527,8 +778,21 @@ body:has(.sheet:popover-open) .toolbar-inner {
   border-color: transparent;
 }
 
+.btn.danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: transparent;
+}
+
 .btn.ghost {
   background: transparent;
+}
+
+.btn.sm {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0 0.7rem;
+  font-size: 0.85rem;
 }
 
 .btn:disabled {
@@ -536,131 +800,32 @@ body:has(.sheet:popover-open) .toolbar-inner {
 }
 
 .btn.big {
-  min-height: 60px;
-  padding: 0 28px;
+  min-height: 3.75rem;
+  padding: 0 1.75rem;
   font-size: 1.15rem;
-  border-radius: 20px;
+  border-radius: 1.25rem;
 }
 
 .row {
   display: flex;
-  gap: 10px;
+  gap: 0.6rem;
   justify-content: flex-end;
-  margin-top: 14px;
+  flex-wrap: wrap;
+  margin-top: 0.875rem;
 }
 
 .summary-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
 }
 
 .empty {
-  padding: 20px 8px;
+  padding: 1.25rem 0.5rem;
   text-align: center;
   color: var(--muted);
-}
-
-/* ---------------------------------------------------------------- wybór nasion */
-.seed-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 8px;
-}
-
-.seed-option {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  min-height: 96px;
-  padding: 8px;
-  border-radius: var(--radius);
-  border: 2px solid transparent;
-  background: var(--surface-2);
-  font-size: 0.85rem;
-}
-
-.seed-option svg {
-  width: 40px;
-  height: 40px;
-}
-
-.seed-option[aria-pressed='true'] {
-  border-color: var(--accent);
-}
-
-.seed-option small {
-  color: var(--muted);
-}
-
-/* ---------------------------------------------------------------- menu */
-.menu-list {
-  display: grid;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.row-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 52px;
-  padding: 0 16px;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: var(--surface-2);
-  font-weight: 600;
-  text-align: left;
-}
-
-.switch {
-  position: relative;
-  width: 46px;
-  height: 28px;
-  border-radius: 999px;
-  background: #b9b3a3;
-  transition: background-color var(--dur);
-}
-
-.switch::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #fff;
-  transition: translate var(--dur);
-}
-
-[aria-checked='true'] .switch {
-  background: var(--accent);
-}
-
-[aria-checked='true'] .switch::after {
-  translate: 18px 0;
-}
-
-.help {
-  padding: 8px 16px;
-  border-radius: 14px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-}
-
-.help summary {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  font-weight: 600;
-}
-
-.help ol {
-  padding-left: 20px;
-  line-height: 1.45;
 }
 
 .hint {
@@ -671,16 +836,298 @@ body:has(.sheet:popover-open) .toolbar-inner {
 .error {
   color: var(--danger);
   min-height: 1.2em;
-  margin: 4px 0;
+  margin: 0.25rem 0;
   font-size: 0.9rem;
+}
+
+/* ---------------------------------------------------------------- hub */
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  gap: 0.6rem;
+}
+
+.hub-tile {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  min-height: 6rem;
+  padding: 0.75rem 0.4rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.hub-tile .emoji {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.hub-tile .badge {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.5rem;
+  min-width: 1.3rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #3b2a05;
+  font-size: 0.72rem;
+}
+
+/* ---------------------------------------------------------------- umiejętności */
+.branches {
+  display: grid;
+  gap: 1rem;
+}
+
+@container sheet (min-width: 36rem) {
+  .branches {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .branches .card {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------------------------------------------------------------- ustawienia */
+.settings {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.row-btn,
+.setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 3.25rem;
+  padding: 0.4rem 1rem;
+  border-radius: 0.875rem;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-weight: 600;
+  text-align: left;
+}
+
+.setting select,
+.setting input[type='range'] {
+  min-height: 2.75rem;
+  max-width: 55%;
+}
+
+.seg {
+  display: flex;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border-radius: 0.75rem;
+  background: var(--surface-solid);
+}
+
+.seg button {
+  min-height: 2.5rem;
+  min-width: 2.75rem;
+  padding: 0 0.6rem;
+  border: 0;
+  border-radius: 0.6rem;
+  background: transparent;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.seg button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.switch {
+  position: relative;
+  flex: none;
+  width: 2.9rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: #b9b3a3;
+  transition: background-color var(--dur);
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 0.19rem;
+  left: 0.19rem;
+  width: 1.37rem;
+  height: 1.37rem;
+  border-radius: 50%;
+  background: #fff;
+  transition: translate var(--dur);
+}
+
+[aria-checked='true'] .switch {
+  background: var(--accent);
+}
+
+[aria-checked='true'] .switch::after {
+  translate: 1.15rem 0;
+}
+
+pre.state {
+  max-height: 16rem;
+  overflow: auto;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--surface-2);
+  font-size: 0.7rem;
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: pan-x pan-y;
+}
+
+/* ---------------------------------------------------------------- tryb budowania */
+.build-bar {
+  position: fixed;
+  top: calc(var(--safe-top) + 3.6rem);
+  left: 0.75rem;
+  right: 0.75rem;
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: 0.75rem;
+  border-radius: var(--radius);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+  z-index: 3;
+}
+
+.build-bar p {
+  margin: 0;
+  font-weight: 600;
+  text-align: center;
+}
+
+.build-bar .row {
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+body:has(.build-bar:not([hidden])) .clock {
+  display: none;
+}
+
+/* ---------------------------------------------------------------- samouczek i napisy */
+.tutorial {
+  position: fixed;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: calc(var(--safe-bottom) + 5.5rem);
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius);
+  background: #1e3a5f;
+  color: #fff;
+  box-shadow: var(--shadow);
+  z-index: 4;
+}
+
+.tutorial p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.tutorial .row {
+  margin-top: 0.5rem;
+}
+
+.tutorial .btn.ghost {
+  color: #fff;
+  border-color: rgb(255 255 255 / 0.3);
+}
+
+.captions {
+  position: fixed;
+  left: 50%;
+  translate: -50% 0;
+  bottom: calc(var(--safe-bottom) + 5.4rem);
+  display: grid;
+  justify-items: center;
+  gap: 0.2rem;
+  pointer-events: none !important;
+  z-index: 3;
+}
+
+.captions span {
+  padding: 0.2rem 0.6rem;
+  border-radius: 0.4rem;
+  background: rgb(0 0 0 / 0.75);
+  color: #fff;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+body:has(.tutorial:not([hidden])) .captions {
+  bottom: calc(var(--safe-bottom) + 12rem);
+}
+
+/* ---------------------------------------------------------------- łowienie */
+.fishing {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgb(10 30 50 / 0.45);
+  touch-action: none;
+}
+
+.fishing[hidden] {
+  display: none;
+}
+
+.fishing-card {
+  width: min(92vw, 26rem);
+  padding: 1.25rem;
+  border-radius: 1.5rem;
+  background: var(--surface-solid);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.fish-track {
+  position: relative;
+  height: 3.5rem;
+  margin: 1rem 0 0.5rem;
+  border-radius: 1rem;
+  background: linear-gradient(#3f8fcf, #2f6f9f);
+  overflow: hidden;
+}
+
+.fish-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgb(125 255 138 / 0.45);
+  border-left: 3px solid #7dff8a;
+  border-right: 3px solid #7dff8a;
+}
+
+.fish-marker {
+  position: absolute;
+  top: 50%;
+  translate: -50% -50%;
+  font-size: 2rem;
+  will-change: left;
 }
 
 /* ---------------------------------------------------------------- dialog eksport/import */
 dialog#io-dialog {
-  width: min(92vw, 520px);
-  padding: 18px;
+  width: min(92vw, 32rem);
+  padding: 1.1rem;
   border: 0;
-  border-radius: 22px;
+  border-radius: 1.4rem;
   background: var(--surface-solid);
   color: var(--text);
   box-shadow: var(--shadow);
@@ -691,14 +1138,14 @@ dialog#io-dialog::backdrop {
 }
 
 .io-form h2 {
-  margin: 0 0 6px;
+  margin: 0 0 0.4rem;
 }
 
 #io-text {
   width: 100%;
-  font: 14px/1.4 ui-monospace, Menlo, monospace;
-  padding: 10px;
-  border-radius: 12px;
+  font: 0.875rem/1.4 ui-monospace, Menlo, monospace;
+  padding: 0.6rem;
+  border-radius: 0.75rem;
   border: 1px solid var(--line);
   background: var(--surface-2);
   color: var(--text);
@@ -713,7 +1160,7 @@ dialog#io-dialog::backdrop {
 .stats-grid {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 8px 16px;
+  gap: 0.5rem 1rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -732,24 +1179,28 @@ dialog#io-dialog::backdrop {
   position: fixed;
   z-index: 30;
   left: 50%;
-  top: calc(var(--safe-top) + 64px);
+  top: calc(var(--safe-top) + 5.6rem);
   translate: -50% 0;
   display: grid;
   justify-items: center;
-  gap: 6px;
-  width: min(92vw, 420px);
+  gap: 0.375rem;
+  width: min(92vw, 26rem);
   pointer-events: none;
 }
 
+body:has(.build-bar:not([hidden])) .toasts {
+  top: calc(var(--safe-top) + 10.5rem);
+}
+
 .toast {
-  padding: 10px 16px;
-  border-radius: 14px;
+  padding: 0.6rem 1rem;
+  border-radius: 0.875rem;
   background: var(--surface-solid);
   box-shadow: var(--shadow);
   border: 1px solid var(--line);
   font-weight: 600;
   text-align: center;
-  animation: toast-in var(--dur) ease-out;
+  animation: toast-in var(--dur) cubic-bezier(0.3, 1.5, 0.5, 1);
 }
 
 .toast.warn {
@@ -762,21 +1213,21 @@ dialog#io-dialog::backdrop {
 
 .toast.leaving {
   opacity: 0;
-  translate: 0 -8px;
+  translate: 0 -0.5rem;
   transition:
     opacity var(--dur),
     translate var(--dur);
 }
 
 .toast button {
-  margin-left: 10px;
+  margin-left: 0.6rem;
   pointer-events: auto;
 }
 
 @keyframes toast-in {
   from {
     opacity: 0;
-    translate: 0 -10px;
+    transform: translateY(-0.6rem) scale(0.95);
   }
 }
 
@@ -787,7 +1238,7 @@ dialog#io-dialog::backdrop {
   z-index: 50;
   display: grid;
   place-items: center;
-  padding: calc(var(--safe-top) + 20px) 20px calc(var(--safe-bottom) + 20px);
+  padding: calc(var(--safe-top) + 1.25rem) 1.25rem calc(var(--safe-bottom) + 1.25rem);
   background:
     radial-gradient(circle at 50% 30%, rgb(255 255 255 / 0.18), transparent 60%),
     linear-gradient(#78b956, #3f7d34);
@@ -803,13 +1254,13 @@ dialog#io-dialog::backdrop {
 .start-card {
   display: grid;
   justify-items: center;
-  gap: 12px;
-  padding: 28px 24px;
-  border-radius: 28px;
+  gap: 0.75rem;
+  padding: 1.75rem 1.5rem;
+  border-radius: 1.75rem;
   background: var(--surface);
   box-shadow: var(--shadow);
   text-align: center;
-  max-width: 360px;
+  max-width: 23rem;
 }
 
 .start-card h1 {
@@ -831,5 +1282,6 @@ dialog#io-dialog::backdrop {
 .start-summary {
   margin: 0;
   color: var(--muted);
-  line-height: 1.4;
+  line-height: 1.45;
+  white-space: pre-line;
 }

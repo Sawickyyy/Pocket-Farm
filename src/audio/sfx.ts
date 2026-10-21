@@ -1,26 +1,52 @@
-// Efekty dźwiękowe syntezowane w Web Audio – zero plików audio, działa offline.
-// iOS wymaga utworzenia/wznowienia AudioContext w obsłudze gestu użytkownika (ekran „Dotknij, aby zagrać”).
+// Efekty dźwiękowe syntezowane w Web Audio (zero plików – działa offline) z panoramą stereo wg pozycji na ekranie.
+// iOS wymaga utworzenia/wznowienia AudioContext w obsłudze gestu (ekran „Dotknij, aby zagrać”).
 
-export type SfxName = 'till' | 'plant' | 'water' | 'harvest' | 'coin' | 'levelUp' | 'error' | 'click' | 'unlock';
+export type SfxName =
+  | 'till'
+  | 'plant'
+  | 'water'
+  | 'harvest'
+  | 'coin'
+  | 'levelUp'
+  | 'error'
+  | 'click'
+  | 'unlock'
+  | 'animal'
+  | 'splash'
+  | 'craft'
+  | 'build';
 
-export class Sfx {
-  private ctx: AudioContext | null = null;
-  private master: GainNode | null = null;
+/** Pozycja źródła: pan -1..1 (lewo–prawo), gain 0..1 (odległość/poza ekranem). */
+export interface Spatial {
+  pan: number;
+  gain: number;
+}
+
+export class AudioEngine {
+  ctx: AudioContext | null = null;
+  sfxBus: GainNode | null = null;
+  musicBus: GainNode | null = null;
   private noise: AudioBuffer | null = null;
-  enabled = true;
+  sfxEnabled = true;
+  onCaption: ((name: SfxName) => void) | null = null;
 
   /** Wywołać synchronicznie w obsłudze pointerup/click. */
   unlock(): void {
     try {
       if (!this.ctx) {
         this.ctx = new AudioContext({ latencyHint: 'interactive' });
-        this.master = this.ctx.createGain();
-        this.master.gain.value = 0.5;
-        this.master.connect(this.ctx.destination);
+        const master = this.ctx.createGain();
+        master.gain.value = 0.9;
+        master.connect(this.ctx.destination);
+        this.sfxBus = this.ctx.createGain();
+        this.sfxBus.gain.value = 0.5;
+        this.sfxBus.connect(master);
+        this.musicBus = this.ctx.createGain();
+        this.musicBus.gain.value = 0.14;
+        this.musicBus.connect(master);
         this.noise = this.makeNoise(this.ctx);
       }
       if (this.ctx.state !== 'running') void this.ctx.resume();
-      // Cichy bufor – klasyczny sposób na pełne odblokowanie audio w Safari.
       const src = this.ctx.createBufferSource();
       src.buffer = this.ctx.createBuffer(1, 1, 22050);
       src.connect(this.ctx.destination);
@@ -39,46 +65,70 @@ export class Sfx {
     if (this.ctx?.state === 'running') void this.ctx.suspend();
   }
 
-  play(name: SfxName): void {
+  get running(): boolean {
+    return this.ctx?.state === 'running';
+  }
+
+  play(name: SfxName, where: Spatial = { pan: 0, gain: 1 }): void {
     const ctx = this.ctx;
-    if (!this.enabled || !ctx || !this.master || ctx.state !== 'running') return;
+    if (!this.sfxEnabled || !ctx || !this.sfxBus || ctx.state !== 'running' || where.gain <= 0.01) return;
+    this.onCaption?.(name);
+    const out = ctx.createGain();
+    out.gain.value = where.gain;
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = Math.max(-1, Math.min(1, where.pan));
+    out.connect(panner).connect(this.sfxBus);
     const t = ctx.currentTime + 0.005;
     switch (name) {
       case 'till':
-        this.noiseBurst(t, 0.12, 600, 0.6);
-        this.tone(t, 90, 0.1, 'sine', 0.5, 60);
+        this.noiseBurst(out, t, 0.12, 600, 0.6);
+        this.tone(out, t, 90, 0.1, 'sine', 0.5, 60);
         break;
       case 'plant':
-        this.tone(t, 520, 0.08, 'triangle', 0.35, 780);
+        this.tone(out, t, 520, 0.08, 'triangle', 0.35, 780);
         break;
       case 'water':
-        this.noiseBurst(t, 0.25, 2400, 0.35, 'bandpass');
-        this.tone(t + 0.02, 900, 0.06, 'sine', 0.15, 1300);
+        this.noiseBurst(out, t, 0.25, 2400, 0.35, 'bandpass');
+        this.tone(out, t + 0.02, 900, 0.06, 'sine', 0.15, 1300);
         break;
       case 'harvest':
-        this.tone(t, 660, 0.09, 'triangle', 0.35);
-        this.tone(t + 0.07, 990, 0.12, 'triangle', 0.3);
+        this.tone(out, t, 660, 0.09, 'triangle', 0.35);
+        this.tone(out, t + 0.07, 990, 0.12, 'triangle', 0.3);
         break;
       case 'coin':
-        this.tone(t, 1320, 0.06, 'square', 0.12);
-        this.tone(t + 0.06, 1760, 0.14, 'square', 0.12);
+        this.tone(out, t, 1320, 0.06, 'square', 0.12);
+        this.tone(out, t + 0.06, 1760, 0.14, 'square', 0.12);
         break;
       case 'unlock':
-        [523, 659, 784].forEach((f, i) => this.tone(t + i * 0.06, f, 0.12, 'triangle', 0.3));
+        [523, 659, 784].forEach((f, i) => this.tone(out, t + i * 0.06, f, 0.12, 'triangle', 0.3));
         break;
       case 'levelUp':
-        [523, 659, 784, 1047].forEach((f, i) => this.tone(t + i * 0.09, f, 0.18, 'triangle', 0.35));
+        [523, 659, 784, 1047].forEach((f, i) => this.tone(out, t + i * 0.09, f, 0.18, 'triangle', 0.35));
         break;
       case 'error':
-        this.tone(t, 180, 0.14, 'sawtooth', 0.15, 140);
+        this.tone(out, t, 180, 0.14, 'sawtooth', 0.15, 140);
         break;
       case 'click':
-        this.tone(t, 1200, 0.03, 'sine', 0.15);
+        this.tone(out, t, 1200, 0.03, 'sine', 0.15);
+        break;
+      case 'animal':
+        this.tone(out, t, 260, 0.35, 'sawtooth', 0.12, 200);
+        this.tone(out, t, 262, 0.35, 'triangle', 0.1, 190);
+        break;
+      case 'splash':
+        this.noiseBurst(out, t, 0.35, 1200, 0.45, 'bandpass');
+        break;
+      case 'craft':
+        this.tone(out, t, 880, 0.08, 'square', 0.1);
+        this.tone(out, t + 0.1, 1175, 0.16, 'triangle', 0.2);
+        break;
+      case 'build':
+        [0, 0.12, 0.24].forEach((d) => this.noiseBurst(out, t + d, 0.06, 900, 0.5));
         break;
     }
   }
 
-  private tone(t: number, freq: number, dur: number, type: OscillatorType, vol: number, slideTo?: number): void {
+  private tone(dest: AudioNode, t: number, freq: number, dur: number, type: OscillatorType, vol: number, slideTo?: number): void {
     const ctx = this.ctx!;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -88,12 +138,12 @@ export class Sfx {
     gain.gain.setValueAtTime(0.0001, t);
     gain.gain.exponentialRampToValueAtTime(vol, t + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    osc.connect(gain).connect(this.master!);
+    osc.connect(gain).connect(dest);
     osc.start(t);
     osc.stop(t + dur + 0.02);
   }
 
-  private noiseBurst(t: number, dur: number, freq: number, vol: number, type: BiquadFilterType = 'lowpass'): void {
+  private noiseBurst(dest: AudioNode, t: number, dur: number, freq: number, vol: number, type: BiquadFilterType = 'lowpass'): void {
     const ctx = this.ctx!;
     const src = ctx.createBufferSource();
     src.buffer = this.noise;
@@ -103,7 +153,7 @@ export class Sfx {
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(filter).connect(gain).connect(this.master!);
+    src.connect(filter).connect(gain).connect(dest);
     src.start(t);
     src.stop(t + dur);
   }

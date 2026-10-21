@@ -1,0 +1,14 @@
+[
+  { "id": "flour", "building": "mill", "inputs": [{ "item": "wheat", "qty": 2 }], "output": { "item": "flour", "qty": 1 }, "minutes": 30 },
+  { "id": "hay", "building": "mill", "inputs": [{ "item": "wheat", "qty": 1 }], "output": { "item": "hay", "qty": 4 }, "minutes": 15 },
+  { "id": "cornmeal", "building": "mill", "inputs": [{ "item": "corn", "qty": 2 }], "output": { "item": "feed", "qty": 6 }, "minutes": 20 },
+  { "id": "bread", "building": "bakery", "inputs": [{ "item": "flour", "qty": 1 }, { "item": "egg", "qty": 1 }], "output": { "item": "bread", "qty": 1 }, "minutes": 60 },
+  { "id": "pie", "building": "bakery", "inputs": [{ "item": "pumpkin", "qty": 1 }, { "item": "flour", "qty": 1 }, { "item": "egg", "qty": 1 }], "output": { "item": "pie", "qty": 1 }, "minutes": 120 },
+  { "id": "cheese", "building": "dairy", "inputs": [{ "item": "milk", "qty": 2 }], "output": { "item": "cheese", "qty": 1 }, "minutes": 90 },
+  { "id": "cloth", "building": "loom", "inputs": [{ "item": "wool", "qty": 2 }], "output": { "item": "cloth", "qty": 1 }, "minutes": 120 },
+  { "id": "jam", "building": "preserves", "inputs": [{ "item": "strawberry", "qty": 3 }], "output": { "item": "jam", "qty": 1 }, "minutes": 60 },
+  { "id": "winterjam", "building": "preserves", "inputs": [{ "item": "snowberry", "qty": 3 }], "output": { "item": "winterjam", "qty": 1 }, "minutes": 60 },
+  { "id": "compost", "building": "composter", "inputs": [{ "item": "radish", "qty": 3 }], "output": { "item": "compost", "qty": 2 }, "minutes": 30 },
+  { "id": "compost_kale", "building": "composter", "inputs": [{ "item": "kale", "qty": 2 }], "output": { "item": "compost", "qty": 2 }, "minutes": 30 },
+  { "id": "superfert", "building": "composter", "inputs": [{ "item": "manure", "qty": 1 }, { "item": "compost", "qty": 1 }], "output": { "item": "superfert", "qty": 1 }, "minutes": 60 }
+]

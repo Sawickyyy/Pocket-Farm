@@ -1,0 +1,10 @@
+[
+  { "id": "ania", "color": "#e2486a", "loves": ["pie", "bread"], "likes": ["wheat", "egg", "flour", "strawberry"], "orders": ["wheat", "egg", "flour", "bread", "radish", "pumpkin"],
+    "rewards": [{ "hearts": 2, "coins": 120 }, { "hearts": 4, "item": "compost", "qty": 6 }, { "hearts": 6, "coins": 500 }, { "hearts": 8, "item": "superfert", "qty": 5 }, { "hearts": 10, "coins": 2000 }] },
+  { "id": "bogdan", "color": "#6f8f4a", "loves": ["cheese", "corn"], "likes": ["milk", "wood", "carrot", "kale"], "orders": ["corn", "carrot", "milk", "cheese", "wood", "kale"],
+    "rewards": [{ "hearts": 2, "coins": 120 }, { "hearts": 4, "item": "hay", "qty": 20 }, { "hearts": 6, "coins": 500 }, { "hearts": 8, "item": "manure", "qty": 10 }, { "hearts": 10, "coins": 2000 }] },
+  { "id": "celina", "color": "#7fa7d9", "loves": ["jam", "sunflower", "cloth"], "likes": ["strawberry", "wildflower", "tomato", "winterjam"], "orders": ["strawberry", "tomato", "sunflower", "jam", "wildflower", "snowberry"],
+    "rewards": [{ "hearts": 2, "coins": 120 }, { "hearts": 4, "item": "compost", "qty": 6 }, { "hearts": 6, "coins": 500 }, { "hearts": 8, "item": "superfert", "qty": 5 }, { "hearts": 10, "coins": 2000 }] },
+  { "id": "darek", "color": "#3a9be0", "loves": ["moonfish", "pike"], "likes": ["roach", "perch", "carp", "trout", "shell", "glowcap"], "orders": ["roach", "perch", "carp", "trout", "mushroom", "berries"],
+    "rewards": [{ "hearts": 2, "coins": 120 }, { "hearts": 4, "item": "feed", "qty": 20 }, { "hearts": 6, "coins": 500 }, { "hearts": 8, "item": "superfert", "qty": 5 }, { "hearts": 10, "coins": 2000 }] }
+]

@@ -1,7 +1,7 @@
 {
   "name": "pocket-farm",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Casualowa gra farmerska 2D na iPhone'a (PWA, Phaser 4).",
   "scripts": {
@@ -23,5 +23,8 @@
     "vite": "~8.3.4",
     "vite-plugin-pwa": "~2.0.0",
     "vitest": "~5.0.5"
+  },
+  "engines": {
+    "node": ">=22.12"
   }
 }

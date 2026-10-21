@@ -1,70 +1,59 @@
 # Pocket Farm
 
 Casualowa gra farmerska 2D (widok z góry) na iPhone'a: Safari 26 / iOS 26, PWA działające offline.
-Pętla: **zaoraj → posiej → podlej → poczekaj → zbierz → sprzedaj → kup ulepszenia**.
 
-Stos: TypeScript 7 (strict) · Phaser 4.1 (TilemapGPULayer + SpriteGPULayer) · Vite 8 · Vitest 5 · idb-keyval · vite-plugin-pwa (Workbox).
+Stos: TypeScript 7 (strict) · Phaser 4.1 (TilemapGPULayer, SpriteGPULayer, oświetlenie, filtry) · Vite 8 · Vitest 5 · Web Worker · idb-keyval · vite-plugin-pwa (Workbox).
+
+## Systemy gry
+
+| System | Gdzie | Dane |
+| --- | --- | --- |
+| Pory roku i pogoda (deszcz podlewa, upał wysusza, uprawy więdną poza sezonem) | `sim/calendar.ts`, `sim/systems/fields.ts` | `weather.json`, `crops.json` |
+| Dzień i noc (oświetlenie Phasera, latarnie, świecące rośliny nocne) | `render/layers/Lighting.ts` | `buildings.json` (`light`) |
+| Gleba: wilgoć, żyzność, nawozy, płodozmian | `sim/systems/fields.ts` | `crops.json` (`soil`), `items.json` (`fertility`) |
+| Jakość plonów: zwykła / srebrna ★ / złota ★★ | `fields.ts`, `animals.ts`, `exploration.ts` | – |
+| Zwierzęta: głód, sympatia, produkty | `sim/systems/animals.ts` | `animals.json` |
+| Przetwórstwo z kolejkami (pszenica → mąka → chleb) | `sim/systems/processing.ts` | `recipes.json` |
+| Rynek dynamiczny (nasycenie, popyt dnia, festyny) | `sim/systems/market.ts` | `items.json` |
+| Mieszkańcy: zamówienia, prezenty, serca i nagrody | `sim/systems/village.ts` | `npcs.json` |
+| Drzewko umiejętności (rolnictwo, hodowla, handel) | `sim/systems/skills.ts`, `ctx.mod()` | `skills.json` |
+| Budowanie i dekoracje (swobodne rozmieszczanie) | `sim/systems/building.ts`, `ui/buildMode.ts` | `buildings.json` |
+| Festyny, zadania dzienne/tygodniowe, osiągnięcia | `sim/systems/progress.ts` | `festivals.json`, `quests.json`, `achievements.json` |
+| Mapa proceduralna z mgłą, zbieractwo, łowienie | `sim/world.ts`, `sim/systems/exploration.ts` | `forage.json`, `fish.json` |
+| Samouczek | `sim/systems/tutorial.ts`, `ui/tutorial.ts` | `tutorial.json` |
+
+## Architektura
+
+- **Data-driven:** uprawy, przedmioty, ryby, zwierzęta, budynki, receptury, mieszkańcy, umiejętności, zadania, osiągnięcia, festyny i pogoda są w `src/content/data/*.json`. `validateContent()` (test) pilnuje spójności odwołań, a test i18n – nazw w obu językach.
+- **Deterministyczna symulacja:** stały krok 10 minut gry (`STEP_MS`), stan generatora losowego w zapisie, pogoda = funkcja (seed, dzień). Po powrocie gracza czas jest nadrabiany krok po kroku (limit 24 h rzeczywistych) z podsumowaniem na ekranie startowym.
+- **Web Worker:** `sim/worker.ts` uruchamia `sim/engine.ts`; wątek główny (`sim/host.ts`) wysyła komendy i dostaje stan + zdarzenia. Bez Workera ten sam silnik działa w wątku głównym.
+- **Event bus:** systemy emitują zdarzenia (`sim/events.ts`), na których działają zadania, osiągnięcia, samouczek, a w UI – efekty, dźwięk i komunikaty.
+- **Czas:** 1 godzina gry = 1 minuta, doba = 24 min, sezon = 7 dni.
 
 ## Uruchomienie
 
 ```bash
 npm install
 npm run dev          # vite --host – adres "Network" otwórz w Safari na iPhonie (ta sama sieć Wi-Fi)
-npm test             # testy logiki (Vitest)
-npm run build        # sprawdzenie typów (tsc) + build produkcyjny do dist/
-npm run preview      # podgląd builda (z service workerem) – też --host
-npm run icons        # ponowne wygenerowanie ikon PWA do public/icons
+npm test             # testy Vitest (każdy system symulacji, zapis/migracje, i18n, gesty, kamera)
+npm run build        # tsc (TS 7) + build produkcyjny do dist/
+npm run preview      # podgląd builda z service workerem (--host)
 ```
 
-> Service worker działa tylko w `preview`/produkcji i tylko przez HTTPS (lub `localhost`).
-> Do testu PWA na iPhonie wdróż build na HTTPS (poniżej) albo użyj tunelu, np. `npx cloudflared tunnel --url http://localhost:4173`.
+**Narzędzie debugowania:** dodaj `?debug` do adresu (albo 5 razy dotknij numeru wersji w Ustawieniach) → Ustawienia → Narzędzia debugowania: tempo czasu 1–300×, +monety/XP, przeskok o 1/6/24 h, odkrycie mapy, dojrzewanie roślin, podgląd stanu.
 
-## Wdrożenie jako strona statyczna
+## Wdrożenie
 
-`dist/` to zwykłe pliki statyczne – wystarczy dowolny hosting z HTTPS:
+Vercel: projekt połączony z repozytorium (`vercel.json` – Vite, `dist`, nagłówki cache dla `sw.js` i zasobów). Każdy push na `main` wdraża się automatycznie.
 
-- **Netlify / Cloudflare Pages / Vercel**: komenda `npm run build`, katalog `dist`.
-- **GitHub Pages** (podścieżka): `BASE_PATH=/nazwa-repo/ npm run build` i opublikuj `dist/`.
+Inne hostingi statyczne: `npm run build` i publikacja `dist/` (GitHub Pages: `BASE_PATH=/nazwa-repo/ npm run build`).
 
-Na iPhonie: Safari → Udostępnij → „Do ekranu początkowego”. Po pierwszym uruchomieniu gra działa offline.
+## Podmiana grafiki
 
-## Struktura
+Grafika jest rysowana kodem (`render/art/`) z opisów `art` w JSON-ach. Nazwy klatek atlasu (`crop_<id>_<0-4>`, `b_<budynek>`, `tree_<oak|pine>_<sezon>`, `animal_<id>_<0|1>`, `item_<id>`, `icon_*`, `p_*`, `fog`) i tileset 2×16 kafli 128 px (`Tile`) to kontrakt – prawdziwy atlas z tymi nazwami podmienia grafikę bez zmian w logice.
 
-```
-src/
-  main.ts                 bootstrap: zapis, store, UI, Phaser, cykl życia strony, ekran startowy
-  core/store.ts           reaktywny store (subscribe/select)
-  game/content.ts         balans: uprawy, ulepszenia, siatka, ceny
-  game/state.ts           model GameState + stan początkowy
-  game/logic.ts           czysta logika (till/plant/water/harvest/sklep), wzrost ze znaczników czasu
-  game/progression.ts     XP i poziomy
-  game/controller.ts      intencje gracza → logika → store + zdarzenia (efekty, dźwięk, UI)
-  save/saveManager.ts     IndexedDB (debounce 1 s) + kopia w localStorage, visibilitychange/pagehide
-  save/migrations.ts      wersjonowanie, migracje, normalizacja zapisu
-  save/codec.ts           eksport/import zapisu jako tekst z sumą kontrolną
-  input/gestures.ts       rozpoznawanie tap / drag / pinch (bez DOM, testowalne)
-  input/pointerInput.ts   Pointer Events → gesty → scena/kontroler
-  render/FarmScene.ts     scena Phasera: TilemapGPULayer (ziemia), SpriteGPULayer (rośliny, ikony)
-  render/ParticleLayer.ts cząsteczki na SpriteGPULayer (ruch liczony w shaderze)
-  render/cameraModel.ts   matematyka kamery (fit, pan, zoom wokół punktu)
-  render/proceduralArt.ts grafika zastępcza (Canvas 2D) – kontrakt nazw klatek atlasu
-  render/phaserShim.ts    obejście błędu Phasera 4.1 (globalny `Phaser` w ESM)
-  audio/sfx.ts            dźwięki syntezowane w Web Audio
-  ui/*                    HUD, pasek narzędzi, sklep, menu, toasty (HTML + CSS)
-  pwa/register.ts         rejestracja service workera z pytaniem o odświeżenie
-tests/                    Vitest: logika, poziomy, store, zapis/migracje/eksport, gesty, kamera
-```
+## Obejścia błędów Phasera
 
-## Podmiana grafiki na atlas
-
-`render/proceduralArt.ts` definiuje nazwy klatek (`radish_0..3`, `carrot_0..3`, …, `icon_lock`, `icon_drop`,
-`icon_ready`, `p_dirt`, `p_water`, …) i tileset 8×1 kafli 128 px (`Tile.*`). Aby użyć prawdziwych grafik,
-w `FarmScene` dodaj `preload()` z `this.load.atlas('sprites', 'sprites.png', 'sprites.json')` oraz
-`this.load.image('tiles', 'tiles.png')` – `createTextures()` pominie wtedy rysowanie, bo tekstury już istnieją.
-SpriteGPULayer wymaga atlasu z jednego obrazka (bez multi-atlasu).
-
-## Znane obejścia Phasera
-
-- **4.1.0**: `SpriteGPULayer` odwołuje się do globalnego `Phaser` → `render/phaserShim.ts` (naprawione w 4.2).
-- **4.1 i 4.2.1**: `TilemapGPULayer` dodaje pozycję warstwy dwukrotnie → warstwa leży w (0,0), a siatka pól
-  jest przesunięta w świecie (`GRID_X/GRID_Y` w `FarmScene.ts`).
+- **4.1.0:** `SpriteGPULayer` odwołuje się do globalnego `Phaser` → `render/phaserShim.ts` (naprawione w 4.2).
+- **4.1 i 4.2.1:** `TilemapGPULayer` dolicza pozycję warstwy dwukrotnie → warstwa ziemi leży w (0,0).
+- Animacje członków `SpriteGPULayer` z `loop: false` i easingiem innym niż Linear/Gravity liczą „repeats” z amplitudy → cząsteczki używają tylko Linear/Gravity.

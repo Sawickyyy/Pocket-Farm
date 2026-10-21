@@ -1,0 +1,6 @@
+[
+  { "id": "flowers", "season": "spring", "day": 3, "item": "wildflower", "qty": 5, "coins": 400, "xp": 60, "unlock": "statue_spring", "market": ["strawberry", "carrot", "wildflower"], "mult": 1.4 },
+  { "id": "harvest_sun", "season": "summer", "day": 3, "item": "sunflower", "qty": 4, "coins": 700, "xp": 90, "unlock": "statue_summer", "market": ["tomato", "sunflower", "wheat"], "mult": 1.4 },
+  { "id": "pumpkin_fair", "season": "autumn", "day": 3, "item": "pumpkin", "qty": 2, "coins": 900, "xp": 120, "unlock": "statue_autumn", "market": ["pumpkin", "corn", "pie"], "mult": 1.5 },
+  { "id": "winter_lights", "season": "winter", "day": 3, "item": "glowcap", "qty": 4, "coins": 900, "xp": 120, "unlock": "statue_winter", "market": ["kale", "snowberry", "winterjam"], "mult": 1.4 }
+]

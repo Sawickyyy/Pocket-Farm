@@ -1,45 +1,147 @@
-// Most: natywne Pointer Events na elemencie gry → GestureRecognizer → kontroler i kamera sceny.
-// Używamy własnej obsługi zamiast wejścia Phasera, żeby mieć pełną kontrolę nad tap/drag/pinch.
+// Pointer Events na elemencie gry → GestureRecognizer → trasowanie: budowanie, zwierzęta, pola, budynki,
+// zbieractwo, łowienie, odkrywanie mgły. Przeciąganie po polu = akcja na wielu polach, poza polem = przesuwanie mapy.
 
-import type { GameController } from '../game/controller';
+import { CONTENT } from '../content/content';
+import { t } from '../i18n/i18n';
 import type { FarmScene } from '../render/FarmScene';
+import { canUnlock, plotUnlockCost } from '../sim/systems/fields';
+import { objectAt } from '../sim/systems/building';
+import { canExplore, exploreCost, forageReady, isRevealed } from '../sim/systems/exploration';
+import { START_UNLOCKED } from '../sim/initialState';
+import { MAP_H, MAP_W, biomeAt, chunkOfTile, generateWorld, plotAtTile, tileIndex } from '../sim/world';
+import type { App } from '../ui/app';
+import type { BuildMode } from '../ui/buildMode';
+import { viewCtx } from '../ui/view';
 import { GestureRecognizer } from './gestures';
 
-export function bindPointerInput(
-  el: HTMLElement,
-  scene: FarmScene,
-  controller: GameController,
-  dpr: () => number,
-  onFirstInteraction: () => void,
-): () => void {
+export function bindPointerInput(el: HTMLElement, scene: FarmScene, app: App, build: BuildMode, dpr: () => number, onFirstInteraction: () => void): () => void {
+  let dragMode: 'tool' | 'pan' | 'build' | null = null;
   let lastDragPlot: number | null = null;
+  let lastPan = { x: 0, y: 0 };
 
   const toLocal = (x: number, y: number): [number, number] => {
     const r = el.getBoundingClientRect();
     return [(x - r.left) * dpr(), (y - r.top) * dpr()];
   };
+  const tileUnder = (x: number, y: number) => scene.tileAt(...toLocal(x, y));
+  const plotUnder = (x: number, y: number) => {
+    const tl = tileUnder(x, y);
+    return plotAtTile(tl.x, tl.y);
+  };
+
+  function tap(x: number, y: number): void {
+    const state = app.store.get();
+    const tile = tileUnder(x, y);
+    scene.showHighlight(null);
+    if (build.active) {
+      build.pointTile(tile.x, tile.y);
+      return;
+    }
+    if (tile.x < 0 || tile.y < 0 || tile.x >= MAP_W || tile.y >= MAP_H) return;
+
+    const animal = scene.animalAt(...toLocal(x, y));
+    if (animal !== null) {
+      const a = state.animals.find((v) => v.id === animal);
+      if (a) {
+        app.openSheet('building', a.home);
+        return;
+      }
+    }
+
+    const plot = plotAtTile(tile.x, tile.y);
+    if (plot !== null) {
+      const p = state.plots[plot]!;
+      if (!p.unlocked) {
+        if (!canUnlock(state, plot)) {
+          app.toasts.show(t('fail.not-adjacent'), 'warn');
+          return;
+        }
+        const cost = plotUnlockCost(state, START_UNLOCKED.length);
+        const missing = cost - state.coins;
+        app.confirm(
+          t('unlock.title'),
+          t('unlock.text', { cost }) + (missing > 0 ? `<br><small>${t('unlock.missing', { n: missing })}</small>` : ''),
+          t('common.buy'),
+          () => void app.send({ type: 'unlockPlot', plot }),
+          missing > 0,
+        );
+        return;
+      }
+      void app.send({ type: 'useTool', plot });
+      return;
+    }
+
+    const obj = objectAt(state, CONTENT, tile.x, tile.y);
+    if (obj && CONTENT.buildings[obj.type]?.kind !== 'path') {
+      app.openSheet('building', obj.uid);
+      return;
+    }
+
+    const chunk = chunkOfTile(tile.x, tile.y);
+    if (!isRevealed(state, tile.x, tile.y)) {
+      if (!canExplore(state, chunk)) {
+        app.toasts.show(t('fail.hidden'), 'warn');
+        return;
+      }
+      const cost = exploreCost(state);
+      app.confirm(t('explore.title'), t('explore.text', { cost }), t('explore.go'), () => void app.send({ type: 'explore', chunk }), state.coins < cost);
+      return;
+    }
+
+    const world = generateWorld(state.seed);
+    const ti = tileIndex(tile.x, tile.y);
+    if (world.forage[ti] && forageReady(viewCtx(state), ti)) {
+      void app.send({ type: 'forage', tile: ti });
+      return;
+    }
+    if (biomeAt(world, tile.x, tile.y) === 'water') {
+      if (state.tool === 'rod') void app.send({ type: 'castLine', tile: ti });
+      else app.toasts.show(t('hint.rod'));
+    }
+  }
 
   const recognizer = new GestureRecognizer({
-    tap(x, y) {
-      const plot = scene.plotAt(...toLocal(x, y));
-      scene.showHighlight(null);
-      if (plot !== null) controller.tapPlot(plot);
-    },
+    tap,
     dragStart(x, y) {
-      lastDragPlot = scene.plotAt(...toLocal(x, y));
-      if (lastDragPlot !== null) {
-        scene.showHighlight(lastDragPlot);
-        controller.dragPlot(lastDragPlot);
+      if (build.active) {
+        dragMode = 'build';
+        const tl = tileUnder(x, y);
+        build.pointTile(tl.x, tl.y);
+        return;
+      }
+      const plot = plotUnder(x, y);
+      if (plot !== null && app.store.get().plots[plot]?.unlocked) {
+        dragMode = 'tool';
+        lastDragPlot = plot;
+        const tl = tileUnder(x, y);
+        scene.showHighlight(tl);
+        void app.send({ type: 'useTool', plot, silent: true }, true);
+      } else {
+        dragMode = 'pan';
+        scene.cam.stop();
+        lastPan = { x, y };
       }
     },
     dragMove(x, y) {
-      const plot = scene.plotAt(...toLocal(x, y));
-      if (plot === null || plot === lastDragPlot) return;
-      lastDragPlot = plot;
-      scene.showHighlight(plot);
-      controller.dragPlot(plot);
+      if (dragMode === 'build') {
+        const tl = tileUnder(x, y);
+        build.pointTile(tl.x, tl.y);
+      } else if (dragMode === 'tool') {
+        const plot = plotUnder(x, y);
+        if (plot === null || plot === lastDragPlot) return;
+        lastDragPlot = plot;
+        scene.showHighlight(tileUnder(x, y));
+        void app.send({ type: 'useTool', plot, silent: true }, true);
+      } else if (dragMode === 'pan') {
+        const d = dpr();
+        scene.cam.pan((x - lastPan.x) * d, (y - lastPan.y) * d);
+        scene.applyCamera();
+        lastPan = { x, y };
+      }
     },
     dragEnd() {
+      if (dragMode === 'pan' && !app.reducedMotion()) scene.cam.release();
+      dragMode = null;
       lastDragPlot = null;
       scene.showHighlight(null);
     },
@@ -52,6 +154,7 @@ export function bindPointerInput(
     },
     pinchEnd() {
       scene.showHighlight(null);
+      if (!app.reducedMotion()) scene.cam.release();
     },
   });
 
@@ -64,20 +167,20 @@ export function bindPointerInput(
     try {
       el.setPointerCapture(e.pointerId);
     } catch {
-      // wskaźnik mógł już zniknąć (np. bardzo krótki tap) – przechwycenie nie jest wtedy potrzebne
+      // wskaźnik mógł już zniknąć (bardzo krótki tap) – przechwycenie nie jest wtedy potrzebne
     }
+    scene.cam.stop();
     recognizer.down(point(e));
-    if (recognizer.currentMode === 'pending') {
-      scene.showHighlight(scene.plotAt(...toLocal(e.clientX, e.clientY)));
-    } else {
-      scene.showHighlight(null);
-    }
+    if (recognizer.currentMode === 'pending' && !build.active) {
+      const tl = tileUnder(e.clientX, e.clientY);
+      scene.showHighlight(plotAtTile(tl.x, tl.y) !== null ? tl : null);
+    } else scene.showHighlight(null);
   };
   const onMove = (e: PointerEvent) => {
     e.preventDefault();
-    // Na ekranach 120 Hz Safari łączy zdarzenia – bierzemy wszystkie pośrednie punkty, żeby nie gubić pól.
-    const events = e.getCoalescedEvents?.() ?? [];
-    if (events.length > 1 && recognizer.currentMode === 'drag') for (const c of events) recognizer.move(point(c));
+    // Na ekranach 120 Hz Safari łączy zdarzenia – bierzemy pośrednie punkty, żeby nie gubić pól przy przeciąganiu.
+    const coalesced = e.getCoalescedEvents?.() ?? [];
+    if (coalesced.length > 1 && recognizer.currentMode === 'drag' && dragMode === 'tool') for (const c of coalesced) recognizer.move(point(c));
     else recognizer.move(point(e));
   };
   const onUp = (e: PointerEvent) => {
@@ -85,8 +188,6 @@ export function bindPointerInput(
     recognizer.up(point(e));
   };
   const onCancel = (e: PointerEvent) => recognizer.cancel(point(e));
-
-  // Mysz/trackpad na desktopie: kółko = zoom (wygodne przy testach w przeglądarce).
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
     const [lx, ly] = toLocal(e.clientX, e.clientY);

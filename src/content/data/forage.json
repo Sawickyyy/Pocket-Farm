@@ -1,0 +1,9 @@
+[
+  { "biome": "forest", "item": "wood", "seasons": ["spring", "summer", "autumn", "winter"], "weight": 4 },
+  { "biome": "forest", "item": "mushroom", "seasons": ["autumn", "spring"], "weight": 5 },
+  { "biome": "forest", "item": "berries", "seasons": ["summer", "autumn"], "weight": 5 },
+  { "biome": "meadow", "item": "wildflower", "seasons": ["spring", "summer"], "weight": 6 },
+  { "biome": "meadow", "item": "herb", "seasons": ["spring", "summer", "autumn"], "weight": 4 },
+  { "biome": "sand", "item": "shell", "seasons": ["spring", "summer", "autumn", "winter"], "weight": 5 },
+  { "biome": "forest", "item": "herb", "seasons": ["winter"], "weight": 2 }
+]

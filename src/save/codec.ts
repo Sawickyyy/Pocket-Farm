@@ -1,6 +1,6 @@
 // Eksport / import zapisu jako tekst: "PFARM1." + base64url(JSON) + "." + suma kontrolna.
 
-import type { GameState } from '../game/state';
+import type { GameState } from '../sim/types';
 import { SaveError, loadFromUnknown } from './migrations';
 
 const PREFIX = 'PFARM1.';

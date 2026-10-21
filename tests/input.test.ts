@@ -81,21 +81,23 @@ describe('GestureRecognizer', () => {
 
 describe('CameraModel', () => {
   const viewport = { width: 1170, height: 2532, insetTop: 300, insetBottom: 400 };
+  const field = { x: 0, y: 0, w: 768, h: 1024 };
+  const bounds = { x: -500, y: -500, w: 1768, h: 2024 };
 
-  it('dopasowuje siatkę do widocznego obszaru między paskami', () => {
-    const cam = new CameraModel(768, 1024);
+  it('dopasowuje pole do widocznego obszaru między paskami', () => {
+    const cam = new CameraModel(field, bounds);
     cam.setViewport(viewport, 0);
     cam.fit();
     expect(cam.zoom).toBeCloseTo(Math.min(1170 / 768, (2532 - 700) / 1024));
-    // środek świata trafia w środek widocznego obszaru
-    const visibleMidY = 300 + (2532 - 700) / 2;
-    const p = cam.toWorld(1170 / 2, visibleMidY);
+    const p = cam.toWorld(1170 / 2, 300 + (2532 - 700) / 2);
     expect(p.x).toBeCloseTo(384);
     expect(p.y).toBeCloseTo(512);
+    const back = cam.toScreen(p.x, p.y);
+    expect(back.y).toBeCloseTo(300 + (2532 - 700) / 2);
   });
 
-  it('zoom wokół punktu zostawia ten punkt świata pod palcami', () => {
-    const cam = new CameraModel(768, 1024);
+  it('zoom wokół punktu zostawia ten punkt pod palcami', () => {
+    const cam = new CameraModel(field, bounds);
     cam.setViewport(viewport, 0);
     cam.fit();
     const before = cam.toWorld(400, 1200);
@@ -105,14 +107,39 @@ describe('CameraModel', () => {
     expect(after.y).toBeCloseTo(before.y);
   });
 
-  it('ogranicza zoom i przesuwanie', () => {
-    const cam = new CameraModel(768, 1024);
+  it('ogranicza zoom i przesuwanie do granic', () => {
+    const cam = new CameraModel(field, bounds);
     cam.setViewport(viewport, 0);
     cam.fit();
     cam.zoomAt(100, 0, 0);
     expect(cam.zoom).toBeCloseTo(cam.maxZoom);
     cam.pan(-1e6, -1e6);
-    expect(cam.focusX).toBe(768);
-    expect(cam.focusY).toBe(1024);
+    expect(cam.focusX).toBe(bounds.x + bounds.w);
+    expect(cam.focusY).toBe(bounds.y + bounds.h);
+  });
+
+  it('inercja po puszczeniu palca wygasa', () => {
+    const cam = new CameraModel(field, bounds);
+    cam.setViewport(viewport, 0);
+    cam.fit();
+    cam.pan(-30, 0, 1000);
+    cam.release(1010);
+    const x0 = cam.focusX;
+    expect(cam.update(16)).toBe(true);
+    expect(cam.focusX).toBeGreaterThan(x0);
+    for (let i = 0; i < 500; i++) cam.update(16);
+    expect(cam.velX).toBe(0);
+    expect(cam.update(16)).toBe(false);
+  });
+
+  it('płynne przejście do celu', () => {
+    const cam = new CameraModel(field, bounds);
+    cam.setViewport(viewport, 0);
+    cam.fit();
+    cam.focusOn(0, 0, cam.fitZoom, true);
+    cam.update(16);
+    expect(cam.focusX).toBeGreaterThan(0);
+    for (let i = 0; i < 200; i++) cam.update(16);
+    expect(cam.focusX).toBe(0);
   });
 });

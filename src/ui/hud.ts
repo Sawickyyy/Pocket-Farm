@@ -1,136 +1,152 @@
-// Górny pasek (monety, poziom, menu), dolny pasek narzędzi i wybór nasion.
+// Górny pasek (monety, poziom, menu), zegar z pogodą, dolny pasek narzędzi i nakładka pogody.
 
-import type { Store } from '../core/store';
-import { CROP_IDS, CROPS, TOOL_IDS, TOOL_NAMES, type ToolId } from '../game/content';
-import type { GameController } from '../game/controller';
-import { growDuration } from '../game/logic';
-import { levelFromXp, levelProgress } from '../game/progression';
-import type { GameState } from '../game/state';
-import { $ } from './dom';
-import { formatDuration, formatNumber } from './format';
-import { CROP_ICONS, TOOL_ICONS } from './icons';
+import { itemIconUrl } from '../render/art/atlas';
+import { fmt, onLanguageChange, t } from '../i18n/i18n';
+import { DAY_MS, HOUR_MS, calendarAt } from '../sim/calendar';
+import { countItem, levelProgress } from '../sim/ctx';
+import { activeFestival } from '../sim/systems/progress';
+import { TOOL_IDS, type GameState, type ToolId } from '../sim/types';
+import type { App } from './app';
+import { $, h } from './dom';
+import { WEATHER_ICON, clockText } from './format';
+import { TOOL_ICONS } from './icons';
+import { viewCtx } from './view';
 
-export function mountHud(store: Store<GameState>, controller: GameController, onClick: () => void): void {
+export function mountHud(app: App): { coinTarget(): { x: number; y: number } | null } {
+  const { store } = app;
   const coinsEl = $<HTMLOutputElement>('#coins');
-  const coinsBox = coinsEl.closest('.coins');
+  const coinsBox = $('.coins');
   const levelEl = $('#level');
   const xpFill = $('#xp-fill');
+  const spBadge = $('#sp-badge');
+  const clock = $('#clock');
   const toolbar = $('#toolbar');
-  const seedPicker = $('#seed-picker');
-  const seedList = $('#seed-list');
-  const statsBody = $('#stats-body');
+  const weather = $('#weather');
 
   // ---------- pasek narzędzi
-  const toolButtons = new Map<ToolId, HTMLButtonElement>();
-  for (const tool of TOOL_IDS) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'tool';
-    b.dataset.tool = tool;
-    b.setAttribute('aria-pressed', 'false');
-    b.innerHTML = `<span class="ico">${TOOL_ICONS[tool]}</span><span class="label">${TOOL_NAMES[tool]}</span>`;
-    if (tool === 'seeds') b.insertAdjacentHTML('beforeend', '<span class="badge"></span>');
+  const buttons = new Map<ToolId | 'hub', HTMLButtonElement>();
+  for (const tool of [...TOOL_IDS, 'hub'] as const) {
+    const b = h('button', { class: 'tool', type: 'button', attrs: { 'data-tool': tool } }, h('span', { class: 'ico' }), h('span', { class: 'label' }), h('span', { class: 'badge' }));
+    if (tool !== 'hub') b.setAttribute('aria-pressed', 'false');
     b.addEventListener('click', () => {
-      onClick();
+      app.click();
       const s = store.get();
-      // Drugie tapnięcie w aktywne „Nasiona” otwiera wybór gatunku.
-      if (tool === 'seeds' && s.tool === 'seeds') seedPicker.showPopover();
-      else controller.selectTool(tool);
+      if (tool === 'hub') app.openSheet('hub');
+      else if (tool === 'seeds' && s.tool === 'seeds') app.openSheet('seedPicker');
+      else if (tool === 'fertilizer' && s.tool === 'fertilizer') app.openSheet('fertPicker');
+      else void app.send({ type: 'selectTool', tool });
     });
-    toolButtons.set(tool, b);
+    buttons.set(tool, b);
     toolbar.append(b);
   }
-  const shopBtn = document.createElement('button');
-  shopBtn.type = 'button';
-  shopBtn.className = 'tool';
-  shopBtn.setAttribute('popovertarget', 'shop');
-  shopBtn.innerHTML = `<span class="ico">${TOOL_ICONS.shop}</span><span class="label">Sklep</span><span class="badge"></span>`;
-  shopBtn.addEventListener('click', onClick);
-  toolbar.append(shopBtn);
 
   const renderTools = (s: GameState) => {
-    for (const [tool, b] of toolButtons) b.setAttribute('aria-pressed', String(s.tool === tool));
-    const seedsBtn = toolButtons.get('seeds');
-    if (seedsBtn) {
-      seedsBtn.querySelector('.ico')!.innerHTML = CROP_ICONS[s.selectedSeed];
-      seedsBtn.querySelector('.label')!.textContent = CROPS[s.selectedSeed].name;
-      const badge = seedsBtn.querySelector<HTMLElement>('.badge')!;
-      badge.textContent = String(s.seeds[s.selectedSeed]);
-      badge.toggleAttribute('data-zero', false);
-      seedsBtn.setAttribute('aria-label', `Nasiona: ${CROPS[s.selectedSeed].name}, ${s.seeds[s.selectedSeed]} szt.`);
+    for (const [tool, b] of buttons) {
+      const ico = b.querySelector('.ico')!;
+      const label = b.querySelector('.label')!;
+      const badge = b.querySelector<HTMLElement>('.badge')!;
+      if (tool !== 'hub') b.setAttribute('aria-pressed', String(s.tool === tool));
+      let html = '';
+      let text = t(`tool.${tool}`);
+      let count = '';
+      if (tool === 'seeds') {
+        html = `<img src="${itemIconUrl(s.selectedSeed, 64)}" alt="">`;
+        count = String(s.seeds[s.selectedSeed] ?? 0);
+      } else if (tool === 'fertilizer') {
+        html = `<img src="${itemIconUrl(s.selectedFertilizer, 64)}" alt="">`;
+        count = String(countItem(s, s.selectedFertilizer));
+      } else if (tool === 'hub') {
+        html = TOOL_ICONS.hub;
+        const ready =
+          [...s.quests.daily, ...s.quests.weekly].filter((q) => !q.claimed && q.progress >= q.target).length +
+          s.orders.filter((o) => countItem(s, o.item) >= o.qty).length;
+        count = ready ? String(ready) : '';
+      } else html = TOOL_ICONS[tool];
+      if (ico.innerHTML !== html) ico.innerHTML = html;
+      label.textContent = text;
+      badge.textContent = count;
+      const full = tool === 'seeds' ? `${text}: ${t(`item.${s.selectedSeed}`)}` : text;
+      b.setAttribute('aria-label', count ? `${full} (${count})` : full);
     }
-    const barnCount = Object.values(s.barn).reduce((a, b) => a + b, 0);
-    const shopBadge = shopBtn.querySelector<HTMLElement>('.badge')!;
-    shopBadge.textContent = barnCount ? String(barnCount) : '';
-    shopBtn.setAttribute('aria-label', barnCount ? `Sklep, ${barnCount} plonów do sprzedania` : 'Sklep');
   };
 
-  // ---------- wybór nasion
-  const renderSeedPicker = (s: GameState) => {
-    const level = levelFromXp(s.xp);
-    seedList.replaceChildren(
-      ...CROP_IDS.map((id) => {
-        const c = CROPS[id];
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'seed-option';
-        b.setAttribute('aria-pressed', String(s.selectedSeed === id));
-        const locked = level < c.unlockLevel;
-        b.disabled = locked;
-        b.innerHTML = `${CROP_ICONS[id]}<b>${c.name}</b><small>${
-          locked ? `od poz. ${c.unlockLevel}` : `${s.seeds[id]} szt. · ${formatDuration(growDuration(id, s.upgrades))}`
-        }</small>`;
-        b.addEventListener('click', () => {
-          onClick();
-          controller.selectSeed(id);
-          seedPicker.hidePopover();
-        });
-        return b;
-      }),
-    );
-  };
-  seedPicker.addEventListener('beforetoggle', (e) => {
-    if ((e as ToggleEvent).newState === 'open') renderSeedPicker(store.get());
-  });
-
-  // ---------- monety i poziom
-  let lastCoins = store.get().coins;
-  const renderCoins = (s: GameState) => {
-    coinsEl.value = formatNumber(s.coins);
-    if (s.coins > lastCoins && coinsBox) {
+  // ---------- monety z „toczącym się” licznikiem
+  let shownCoins = store.get().coins;
+  let anim = 0;
+  const animateCoins = (target: number) => {
+    cancelAnimationFrame(anim);
+    const from = shownCoins;
+    if (target > from) {
       coinsBox.classList.remove('bump');
-      void (coinsBox as HTMLElement).offsetWidth;
+      void coinsBox.offsetWidth;
       coinsBox.classList.add('bump');
     }
-    lastCoins = s.coins;
-  };
-  const renderLevel = (s: GameState) => {
-    const p = levelProgress(s.xp);
-    levelEl.textContent = String(p.level);
-    xpFill.style.width = `${Math.round(p.ratio * 100)}%`;
-    $('#level-btn').setAttribute('aria-label', `Poziom ${p.level}, ${p.current} z ${p.needed} XP`);
+    if (app.reducedMotion() || Math.abs(target - from) < 2) {
+      shownCoins = target;
+      coinsEl.value = fmt(target);
+      return;
+    }
+    const start = performance.now();
+    const step = (now: number) => {
+      const k = Math.min(1, (now - start) / 450);
+      shownCoins = Math.round(from + (target - from) * (1 - (1 - k) ** 3));
+      coinsEl.value = fmt(shownCoins);
+      if (k < 1) anim = requestAnimationFrame(step);
+    };
+    anim = requestAnimationFrame(step);
   };
 
-  const renderStats = (s: GameState) => {
-    const p = levelProgress(s.xp);
-    statsBody.innerHTML = `
-      <h2>Poziom ${p.level}</h2>
-      <dl class="stats-grid">
-        <dt>Doświadczenie</dt><dd>${p.current} / ${p.needed} XP</dd>
-        <dt>Zebrane plony</dt><dd>${formatNumber(s.stats.harvested)}</dd>
-        <dt>Zarobione monety</dt><dd>${formatNumber(s.stats.earned)}</dd>
-        <dt>Pola</dt><dd>${s.plots.filter((x) => x.unlocked).length} / ${s.plots.length}</dd>
-      </dl>`;
-  };
-  $('#stats-pop').addEventListener('beforetoggle', (e) => {
-    if ((e as ToggleEvent).newState === 'open') renderStats(store.get());
+  // ---------- pogoda (CSS)
+  const drops = Array.from({ length: 40 }, () => {
+    const i = document.createElement('i');
+    i.style.left = `${Math.random() * 110}%`;
+    i.style.animationDuration = `${0.6 + Math.random() * 0.5}s`;
+    i.style.animationDelay = `${-Math.random() * 2}s`;
+    return i;
   });
+  weather.append(...drops);
+  let lastWeather = '';
 
   const render = (s: GameState) => {
     renderTools(s);
-    renderCoins(s);
-    renderLevel(s);
+    if (s.coins !== shownCoins) animateCoins(s.coins);
+    const p = levelProgress(s.xp);
+    levelEl.textContent = String(p.level);
+    xpFill.style.width = `${Math.round(p.ratio * 100)}%`;
+    spBadge.hidden = s.skillPoints <= 0;
+    spBadge.textContent = String(s.skillPoints);
+    $('#level-btn').setAttribute('aria-label', t('hud.level', { level: p.level, cur: p.current, need: p.needed }));
+    const cal = calendarAt(s.clock.simMs, s.seed);
+    const hour = ((s.clock.simMs + s.clock.accMs) % DAY_MS) / HOUR_MS;
+    const fest = activeFestival(viewCtx(s));
+    clock.innerHTML = `${WEATHER_ICON[cal.weather] ?? ''} ${clockText(hour)} · ${t(`season.${cal.season}`)} ${cal.dayOfSeason + 1}${
+      fest ? `<span class="fest">🎪 ${t('hud.festival')}</span>` : ''
+    }`;
+    clock.setAttribute('aria-label', `${t(`weather.${cal.weather}`)}, ${clockText(hour)}, ${t(`season.${cal.season}`)}`);
+    if (cal.weather !== lastWeather) {
+      lastWeather = cal.weather;
+      weather.className = `weather ${cal.weather}`;
+    }
   };
+
+  $('#level-btn').addEventListener('click', () => {
+    app.click();
+    app.openSheet('skills');
+  });
+  $('#menu-btn').addEventListener('click', () => {
+    app.click();
+    app.openSheet('settings');
+  });
+
+  coinsEl.value = fmt(shownCoins);
   render(store.get());
-  store.subscribe((s) => render(s));
+  store.subscribe(render);
+  onLanguageChange(() => render(store.get()));
+
+  return {
+    coinTarget() {
+      const r = coinsBox.getBoundingClientRect();
+      return { x: r.left + 20, y: r.top + r.height / 2 };
+    },
+  };
 }

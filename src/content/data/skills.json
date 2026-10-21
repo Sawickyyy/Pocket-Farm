@@ -1,0 +1,14 @@
+[
+  { "id": "green_thumb", "branch": "farming", "cost": 1, "requires": [], "effects": [{ "type": "growthSpeed", "value": 0.1 }] },
+  { "id": "rich_soil", "branch": "farming", "cost": 1, "requires": [], "effects": [{ "type": "soilSaving", "value": 0.3 }] },
+  { "id": "quality_eye", "branch": "farming", "cost": 2, "requires": ["green_thumb"], "effects": [{ "type": "cropQuality", "value": 0.08 }] },
+  { "id": "master_farmer", "branch": "farming", "cost": 3, "requires": ["quality_eye", "rich_soil"], "effects": [{ "type": "growthSpeed", "value": 0.15 }, { "type": "cropQuality", "value": 0.05 }] },
+  { "id": "gentle_hands", "branch": "husbandry", "cost": 1, "requires": [], "effects": [{ "type": "affection", "value": 0.5 }] },
+  { "id": "well_fed", "branch": "husbandry", "cost": 1, "requires": [], "effects": [{ "type": "hungerSaving", "value": 0.3 }] },
+  { "id": "productive", "branch": "husbandry", "cost": 2, "requires": ["gentle_hands"], "effects": [{ "type": "productSpeed", "value": 0.2 }] },
+  { "id": "shepherd", "branch": "husbandry", "cost": 3, "requires": ["productive", "well_fed"], "effects": [{ "type": "animalQuality", "value": 0.1 }, { "type": "productSpeed", "value": 0.1 }] },
+  { "id": "haggler", "branch": "trade", "cost": 1, "requires": [], "effects": [{ "type": "sellBonus", "value": 0.08 }] },
+  { "id": "market_sense", "branch": "trade", "cost": 1, "requires": [], "effects": [{ "type": "marketRecovery", "value": 0.5 }] },
+  { "id": "artisan", "branch": "trade", "cost": 2, "requires": ["haggler"], "effects": [{ "type": "queueSlots", "value": 1 }, { "type": "processSpeed", "value": 0.2 }] },
+  { "id": "tycoon", "branch": "trade", "cost": 3, "requires": ["artisan", "market_sense"], "effects": [{ "type": "sellBonus", "value": 0.1 }, { "type": "bulkSelling", "value": 0.3 }, { "type": "orderBonus", "value": 0.25 }] }
+]

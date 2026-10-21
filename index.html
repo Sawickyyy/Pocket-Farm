@@ -10,106 +10,106 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Farma" />
     <meta name="format-detection" content="telephone=no" />
-    <meta name="description" content="Pocket Farm – mała farma w kieszeni. Siej, podlewaj, zbieraj i sprzedawaj." />
+    <meta name="description" content="Pocket Farm – farma w kieszeni: uprawy, zwierzęta, przetwórstwo, wioska i wyprawy." />
     <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>Pocket Farm</title>
   </head>
   <body>
-    <div id="game" aria-label="Farma – plansza gry" role="application"></div>
+    <!-- Filtr daltonizacji dla interfejsu HTML (macierz ustawiana z JS). -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <filter id="cb-filter" color-interpolation-filters="linearRGB">
+        <feColorMatrix id="cb-matrix" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0" />
+      </filter>
+    </svg>
 
-    <header class="topbar">
-      <div class="stat coins" aria-label="Monety">
-        <span class="coin" aria-hidden="true"></span>
-        <output id="coins">0</output>
-      </div>
-      <button id="level-btn" class="stat level" type="button" popovertarget="stats-pop" aria-label="Poziom i doświadczenie">
-        <span class="level-badge" id="level">1</span>
-        <span class="xp"><span class="xp-fill" id="xp-fill"></span></span>
-      </button>
-      <button id="menu-btn" class="icon-btn" type="button" popovertarget="menu" aria-label="Menu">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
-      </button>
-    </header>
+    <div id="game" role="application" data-i18n-aria="app.title"></div>
+    <div id="weather" class="weather" aria-hidden="true"></div>
 
-    <nav class="toolbar" role="toolbar" aria-label="Narzędzia">
-      <div class="toolbar-inner" id="toolbar"></div>
-    </nav>
-
-    <!-- Wybór nasion (otwierany drugim tapnięciem w „Nasiona”) -->
-    <div id="seed-picker" popover class="sheet small" aria-label="Wybierz nasiona">
-      <h2>Wybierz nasiona</h2>
-      <div class="seed-list" id="seed-list"></div>
-    </div>
-
-    <!-- Sklep -->
-    <div id="shop" popover class="sheet" aria-labelledby="shop-title">
-      <div class="sheet-head">
-        <h2 id="shop-title">Sklep</h2>
-        <button class="close" type="button" popovertarget="shop" popovertargetaction="hide" aria-label="Zamknij">✕</button>
-      </div>
-      <div class="tabs" role="tablist">
-        <button role="tab" type="button" data-tab="seeds" aria-selected="true">Nasiona</button>
-        <button role="tab" type="button" data-tab="sell" aria-selected="false">Sprzedaż</button>
-        <button role="tab" type="button" data-tab="upgrades" aria-selected="false">Ulepszenia</button>
-      </div>
-      <div class="shop-body" id="shop-body" role="tabpanel"></div>
-    </div>
-
-    <!-- Statystyki poziomu -->
-    <div id="stats-pop" popover class="sheet small" aria-label="Postęp">
-      <div id="stats-body"></div>
-    </div>
-
-    <!-- Menu -->
-    <div id="menu" popover class="sheet" aria-labelledby="menu-title">
-      <div class="sheet-head">
-        <h2 id="menu-title">Menu</h2>
-        <button class="close" type="button" popovertarget="menu" popovertargetaction="hide" aria-label="Zamknij">✕</button>
-      </div>
-      <div class="menu-list">
-        <button type="button" id="sound-toggle" class="row-btn" role="switch" aria-checked="true">
-          <span>Dźwięk</span><span class="switch" aria-hidden="true"></span>
+    <div class="ui-layer">
+      <header class="topbar">
+        <div class="stat coins" data-i18n-aria="hud.coins">
+          <span class="coin" aria-hidden="true"></span>
+          <output id="coins">0</output>
+        </div>
+        <button id="level-btn" class="stat level" type="button">
+          <span class="level-badge" id="level">1</span>
+          <span class="xp"><span class="xp-fill" id="xp-fill"></span></span>
+          <span class="sp-badge" id="sp-badge" hidden></span>
         </button>
-        <button type="button" id="export-btn" class="row-btn"><span>Eksportuj zapis</span><span aria-hidden="true">⇪</span></button>
-        <button type="button" id="import-btn" class="row-btn"><span>Importuj zapis</span><span aria-hidden="true">⇩</span></button>
-        <button type="button" id="recenter-btn" class="row-btn"><span>Wyśrodkuj widok</span><span aria-hidden="true">⌖</span></button>
-        <details class="help">
-          <summary>Jak grać</summary>
-          <ol>
-            <li><b>Motyka</b> – zaoraj pole (przeciągnij palcem, by orać wiele pól).</li>
-            <li><b>Nasiona</b> – posiej. Dotknij przycisku ponownie, by zmienić gatunek.</li>
-            <li><b>Konewka</b> – podlej. Roślina rośnie dopiero po podlaniu, także gdy gra jest zamknięta.</li>
-            <li><b>Sierp</b> – zbierz plony. Dojrzałe rośliny zbierzesz też tapnięciem dowolnym narzędziem.</li>
-            <li>Sprzedawaj plony w <b>Sklepie</b>, kupuj nasiona, ulepszenia i nowe pola (dotknij pola z kłódką).</li>
-            <li>Dwa palce: przesuwanie i zoom planszy.</li>
-          </ol>
-          <p class="hint">Safari może usunąć dane rzadko używanych stron – co jakiś czas zrób <b>eksport zapisu</b>.</p>
-        </details>
-        <p class="hint" id="storage-info"></p>
+        <button id="menu-btn" class="icon-btn" type="button" data-i18n-aria="hud.menu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+        </button>
+      </header>
+      <div class="clock" id="clock" role="status"></div>
+
+      <div id="build-bar" class="build-bar" hidden>
+        <p id="build-msg"></p>
+        <div class="row">
+          <button type="button" class="btn ghost" id="build-cancel" data-i18n="build.cancel"></button>
+          <button type="button" class="btn danger" id="build-remove" data-i18n="build.remove" hidden></button>
+          <button type="button" class="btn primary" id="build-confirm" data-i18n="build.confirm"></button>
+        </div>
       </div>
+
+      <div id="captions" class="captions" aria-hidden="true"></div>
+
+      <div id="tutorial" class="tutorial" hidden role="dialog" aria-live="polite">
+        <p id="tutorial-text"></p>
+        <div class="row">
+          <button type="button" class="btn ghost" id="tutorial-skip" data-i18n="common.skip"></button>
+          <button type="button" class="btn primary" id="tutorial-next" data-i18n="common.next"></button>
+        </div>
+      </div>
+
+      <nav class="toolbar" role="toolbar">
+        <div class="toolbar-inner" id="toolbar"></div>
+      </nav>
     </div>
 
-    <!-- Zakup pola -->
-    <div id="unlock-pop" popover class="sheet small" aria-labelledby="unlock-title">
-      <h2 id="unlock-title">Nowe pole</h2>
-      <p id="unlock-text"></p>
+    <!-- Jeden arkusz na wszystkie panele (zawartość podmieniana). -->
+    <div id="sheet" popover class="sheet" aria-labelledby="sheet-title">
+      <div class="sheet-head">
+        <button class="back" type="button" id="sheet-back" hidden aria-label="←">←</button>
+        <h2 id="sheet-title"></h2>
+        <button class="close" type="button" id="sheet-close" data-i18n-aria="common.close">✕</button>
+      </div>
+      <div class="tabs" role="tablist" id="sheet-tabs" hidden></div>
+      <div class="sheet-body" id="sheet-body" role="tabpanel"></div>
+    </div>
+
+    <!-- Potwierdzenie (zakup pola, wyprawa, rozbiórka). -->
+    <div id="confirm" popover class="sheet small" aria-labelledby="confirm-title">
+      <h2 id="confirm-title"></h2>
+      <p id="confirm-text"></p>
       <div class="row">
-        <button type="button" class="btn ghost" popovertarget="unlock-pop" popovertargetaction="hide">Anuluj</button>
-        <button type="button" class="btn primary" id="unlock-confirm">Kup</button>
+        <button type="button" class="btn ghost" id="confirm-no" data-i18n="common.cancel"></button>
+        <button type="button" class="btn primary" id="confirm-yes"></button>
       </div>
     </div>
 
-    <!-- Eksport / import -->
+    <!-- Minigra łowienia. -->
+    <div id="fishing" class="fishing" hidden>
+      <div class="fishing-card">
+        <h2 data-i18n="fish.title"></h2>
+        <div class="fish-track" id="fish-track">
+          <div class="fish-zone" id="fish-zone"></div>
+          <div class="fish-marker" id="fish-marker">🐟</div>
+        </div>
+        <p class="hint" data-i18n="fish.hint"></p>
+        <button type="button" class="btn primary big" id="fish-strike" data-i18n="fish.reel"></button>
+      </div>
+    </div>
+
     <dialog id="io-dialog" aria-labelledby="io-title">
       <form method="dialog" class="io-form">
-        <h2 id="io-title">Zapis</h2>
+        <h2 id="io-title"></h2>
         <p id="io-desc" class="hint"></p>
         <textarea id="io-text" rows="6" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
         <p id="io-error" class="error" role="alert"></p>
         <div class="row">
-          <button value="cancel" class="btn ghost" type="submit">Zamknij</button>
-          <button id="io-action" class="btn primary" type="button">Kopiuj</button>
+          <button value="cancel" class="btn ghost" type="submit" data-i18n="common.close"></button>
+          <button id="io-action" class="btn primary" type="button"></button>
         </div>
       </form>
     </dialog>
@@ -119,13 +119,13 @@
     <div id="start-screen" class="start-screen">
       <div class="start-card">
         <div class="logo" aria-hidden="true">🌱</div>
-        <h1>Pocket Farm</h1>
-        <p id="start-summary" class="start-summary">Wczytywanie…</p>
-        <button id="start-btn" class="btn primary big" type="button" disabled>Dotknij, aby zagrać</button>
+        <h1 data-i18n="app.title">Pocket Farm</h1>
+        <p id="start-summary" class="start-summary">…</p>
+        <button id="start-btn" class="btn primary big" type="button" disabled data-i18n="start.tap">Dotknij, aby zagrać</button>
       </div>
     </div>
 
-    <noscript>Ta gra wymaga JavaScriptu.</noscript>
+    <noscript>Ta gra wymaga JavaScriptu. / This game requires JavaScript.</noscript>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

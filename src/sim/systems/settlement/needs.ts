@@ -1,6 +1,6 @@
 // Potrzeby, posiłki i szczęście (docs/plan-osada.md §7). STUB – moduł „praca i potrzeby”.
 
-import type { NeedId } from '../../../content/content';
+import { parseKey, type Content, type NeedId } from '../../../content/content';
 import type { Ctx } from '../../ctx';
 import type { GameState, Resident } from '../../types';
 
@@ -22,11 +22,15 @@ export function needTargets(ctx: Ctx, r: Resident): Record<NeedId, number> {
   return { food: 1, housing: 1, work: 1, safety: 1, fun: 1 };
 }
 
-/** Punkty odżywcze dostępne w magazynie (bez rezerwy). */
-export function foodStock(s: GameState, c: import('../../../content/content').Content): number {
-  void s;
-  void c;
-  return 0;
+/** Punkty odżywcze dostępne w magazynie (bez rezerwy, każda jakość). */
+export function foodStock(s: GameState, c: Content): number {
+  let points = 0;
+  for (const [key, n] of Object.entries(s.inventory)) {
+    const { id } = parseKey(key);
+    const value = c.settlement.foods[id];
+    if (value && n > 0 && !s.settlement.reserved.includes(id)) points += value * n;
+  }
+  return points;
 }
 
 /** Średnie szczęście mieszkańców (1, gdy brak mieszkańców). */

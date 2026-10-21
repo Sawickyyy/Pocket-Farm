@@ -3,6 +3,7 @@
 import type { CommandResult } from '../../commands';
 import { fail, type Ctx } from '../../ctx';
 import type { GameState } from '../../types';
+import { activeEvent } from './common';
 
 /** Co godzinę: palenie się i gaszenie, wygasanie wydarzeń, koniec epidemii. */
 export function eventsHour(ctx: Ctx, hour: number): void {
@@ -17,21 +18,17 @@ export function eventsDay(ctx: Ctx): void {
 
 /** Czy zwierzęta w budynku `uid` chorują (hak w updateAnimals). */
 export function animalHomeSick(s: GameState, uid: number): boolean {
-  void s;
-  void uid;
-  return false;
+  return !!activeEvent(s, 'epidemic', uid);
 }
 
 /** Mnożnik cen (kryzys gospodarczy ×0,7) – rynek i karawany. */
 export function priceMult(s: GameState): number {
-  void s;
-  return 1;
+  return activeEvent(s, 'crisis') ? 0.7 : 1;
 }
 
 /** Rozrywka z wydarzeń (festyn +0,15). */
 export function funBoost(s: GameState): number {
-  void s;
-  return 0;
+  return activeEvent(s, 'festival') ? 0.15 : 0;
 }
 
 export function treatAnimals(ctx: Ctx, home: number): CommandResult {

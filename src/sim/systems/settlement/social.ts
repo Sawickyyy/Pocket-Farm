@@ -19,9 +19,15 @@ export function partnerOf(s: GameState, id: number): number | null {
 
 /** Wpływ relacji na szczęście: +0,03/przyjaciel (max 0,09), +0,05 partner, −0,05/konflikt. */
 export function relationBonus(s: GameState, id: number): number {
-  void s;
-  void id;
-  return 0;
+  let friends = 0;
+  let bonus = 0;
+  for (const r of s.settlement.relations) {
+    if (r.a !== id && r.b !== id) continue;
+    if (r.kind === 'friend') friends++;
+    else if (r.kind === 'partner') bonus += 0.05;
+    else if (r.kind === 'conflict') bonus -= 0.05;
+  }
+  return bonus + Math.min(0.09, friends * 0.03);
 }
 
 /** Usuwa relacje mieszkańca (wyjazd). */

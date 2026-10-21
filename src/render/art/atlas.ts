@@ -8,6 +8,7 @@ import { drawIsoBuilding } from './isoBuilding';
 import { PALETTE, STYLE_NONE, stylize, watercolor, type StyleOptions } from './palette';
 import { drawAnimal, drawBuilding, drawCrop, drawIcon, drawItem, drawTree } from './subjects';
 import { drawVillager } from './villager';
+import { drawMenuIcon } from './menuIcons';
 
 export const TILE = 128;
 export const TILES_KEY = 'tiles';
@@ -510,6 +511,14 @@ export function villagerIconUrl(id: string, size = 96, c: Content = CONTENT): st
     // portret: głowa i ramiona, powiększone
     ctx.scale((size / TILE) * 1.45, (size / TILE) * 1.45);
     drawVillager(ctx, def, 0, TILE / 2 / 1.45 + 0, TILE / 2 / 1.45 + 18);
+  });
+}
+
+/** Malowana ikona menu (sakiewka, stragan, młotek…) do interfejsu HTML. */
+export function menuIconUrl(name: string, size = 96): string {
+  return iconUrl(`m:${name}@${size}`, size, (ctx) => {
+    ctx.scale(size / TILE, size / TILE);
+    drawMenuIcon(ctx, name);
   });
 }
 

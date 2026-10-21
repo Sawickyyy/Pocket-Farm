@@ -79,6 +79,36 @@ describe('GestureRecognizer', () => {
   });
 });
 
+describe('przytrzymanie (podgląd)', () => {
+  function fakeTimers() {
+    let fn: (() => void) | null = null;
+    return { timers: { set: (f: () => void) => ((fn = f), 1), clear: () => (fn = null) }, fire: () => fn?.() };
+  }
+
+  it('przytrzymanie wywołuje podgląd i nie daje tapu', () => {
+    const h = { ...handlers(), longPress: vi.fn(), longPressEnd: vi.fn() };
+    const t = fakeTimers();
+    const g = new GestureRecognizer(h, 10, 450, t.timers);
+    g.down({ id: 1, x: 5, y: 5 });
+    t.fire();
+    expect(h.longPress).toHaveBeenCalledWith(5, 5);
+    g.up({ id: 1, x: 5, y: 5 });
+    expect(h.longPressEnd).toHaveBeenCalledOnce();
+    expect(h.tap).not.toHaveBeenCalled();
+  });
+
+  it('ruch przed upływem czasu anuluje przytrzymanie', () => {
+    const h = { ...handlers(), longPress: vi.fn() };
+    const t = fakeTimers();
+    const g = new GestureRecognizer(h, 10, 450, t.timers);
+    g.down({ id: 1, x: 0, y: 0 });
+    g.move({ id: 1, x: 30, y: 0 });
+    t.fire();
+    expect(h.longPress).not.toHaveBeenCalled();
+    expect(h.dragStart).toHaveBeenCalled();
+  });
+});
+
 describe('CameraModel', () => {
   const viewport = { width: 1170, height: 2532, insetTop: 300, insetBottom: 400 };
   const field = { x: 0, y: 0, w: 768, h: 1024 };

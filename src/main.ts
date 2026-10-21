@@ -20,6 +20,7 @@ import { BuildMode } from './ui/buildMode';
 import { $ } from './ui/dom';
 import { handleEvents } from './ui/feedback';
 import { Fishing } from './ui/fishing';
+import { mountBeacons } from './ui/beacons';
 import { mountHud } from './ui/hud';
 import { registerBuild } from './ui/panels/build';
 import { registerEconomy } from './ui/panels/economy';
@@ -153,6 +154,7 @@ async function boot(): Promise<void> {
   registerProgress(app, sheets);
   registerSettings(app, sheets, () => persisted);
   const hud = mountHud(app);
+  mountBeacons(app, dpr);
   build = new BuildMode(app);
   fishing = new Fishing(app);
   mountTutorial(app);

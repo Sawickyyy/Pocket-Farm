@@ -35,6 +35,18 @@ export function qualityTier(score: number): Quality {
   return 0;
 }
 
+/**
+ * Szacowany czas (ms gry = ms rzeczywiste przy 1×) do dojrzenia przy obecnej żyzności, o ile gleba nie wyschnie.
+ * null = roślina nie rośnie (sucha gleba, zwiędła) albo już gotowa.
+ */
+export function cropEtaMs(ctx: Ctx, plot: Plot): number | null {
+  const crop = plot.crop;
+  const def = crop && ctx.c.crop[crop.id];
+  if (!crop || !def || crop.withered || crop.growth >= 1 || plot.moisture <= 0) return null;
+  const speed = 1 + mod(ctx.s, ctx.c, 'growthSpeed');
+  return ((1 - crop.growth) * def.growMin * HOUR_MS) / (growthRate(plot.fertility) * speed);
+}
+
 const at = (plot: number) => {
   const t = plotTile(plot);
   return { x: t.x + 0.5, y: t.y + 0.5 };

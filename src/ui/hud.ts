@@ -40,6 +40,7 @@ export function mountHud(app: App): { coinTarget(): { x: number; y: number } | n
     toolbar.append(b);
   }
 
+  const iconHtml = new Map<ToolId | 'hub', string>();
   const renderTools = (s: GameState) => {
     for (const [tool, b] of buttons) {
       const ico = b.querySelector('.ico')!;
@@ -62,7 +63,12 @@ export function mountHud(app: App): { coinTarget(): { x: number; y: number } | n
           s.orders.filter((o) => countItem(s, o.item) >= o.qty).length;
         count = ready ? String(ready) : '';
       } else html = TOOL_ICONS[tool];
-      if (ico.innerHTML !== html) ico.innerHTML = html;
+      // porównujemy z zapamiętanym napisem: serializacja innerHTML (SVG) różni się od źródła,
+      // więc porównanie z innerHTML podmieniałoby ikonę przy każdej klatce stanu
+      if (iconHtml.get(tool) !== html) {
+        iconHtml.set(tool, html);
+        ico.innerHTML = html;
+      }
       label.textContent = text;
       badge.textContent = count;
       const full = tool === 'seeds' ? `${text}: ${t(`item.${s.selectedSeed}`)}` : text;

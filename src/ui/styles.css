@@ -1484,3 +1484,480 @@ dialog#io-dialog {
   outline: 0.2rem solid #ffcf7a;
   box-shadow: 0 0 0 0.35rem rgba(255, 207, 122, 0.35), 0 0.3rem 0.8rem rgba(74, 46, 26, 0.18);
 }
+
+/* ================================================================ bajkowy interfejs 2: wstążki, baner, pieczęcie */
+
+/* ---------- komunikaty: wstążki nad paskiem narzędzi */
+.toasts {
+  top: auto;
+  bottom: calc(var(--safe-bottom) + 6.4rem);
+  gap: 0.45rem;
+}
+
+body:has(.build-bar:not([hidden])) .toasts {
+  top: auto;
+  bottom: calc(var(--safe-bottom) + 6.4rem);
+}
+
+.toast {
+  --ribbon: #fff3d6;
+  --ribbon-deep: #c99a6b;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  padding: 0.5rem 1.7rem;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(var(--ribbon), color-mix(in srgb, var(--ribbon) 82%, var(--ribbon-deep)));
+  box-shadow:
+    inset 0 0.18rem 0 rgb(255 255 255 / 0.45),
+    inset 0 -0.18rem 0 rgb(0 0 0 / 0.08);
+  /* końce wstążki wycięte w „jaskółczy ogon” */
+  clip-path: polygon(0 0, 100% 0, calc(100% - 0.75rem) 50%, 100% 100%, 0 100%, 0.75rem 50%);
+  filter: drop-shadow(0 0.2rem 0 rgb(122 80 46 / 0.3)) drop-shadow(0 0.4rem 0.6rem rgb(60 30 50 / 0.2));
+  color: #4a2e1a;
+  font-size: 0.92rem;
+  animation: ribbon-in 420ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.toast.good {
+  --ribbon: #8fd872;
+  --ribbon-deep: #3f8a34;
+  color: #fff;
+  text-shadow: 0 1px 0 rgb(30 70 20 / 0.45);
+}
+
+.toast.warn {
+  --ribbon: #f6a08a;
+  --ribbon-deep: #c4452f;
+  color: #4a1a10;
+}
+
+.toast-text::before {
+  content: '✿ ';
+  opacity: 0.75;
+}
+
+.toast.warn .toast-text::before {
+  content: '! ';
+}
+
+.toast.leaving {
+  opacity: 0;
+  translate: 0 0.6rem;
+  scale: 0.9;
+  transition:
+    opacity 240ms,
+    translate 240ms,
+    scale 240ms;
+}
+
+@keyframes ribbon-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.8rem) scaleX(0.4);
+  }
+  60% {
+    transform: translateY(-0.15rem) scaleX(1.05);
+  }
+}
+
+/* ---------- baner na ważne chwile */
+.banner {
+  position: fixed;
+  z-index: 35;
+  left: 50%;
+  top: calc(var(--safe-top) + 28vh);
+  translate: -50% 0;
+  display: grid;
+  justify-items: center;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.banner.show {
+  opacity: 1;
+  animation: banner-in 620ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.banner.leaving {
+  opacity: 0;
+  translate: -50% -1.2rem;
+  transition:
+    opacity 300ms,
+    translate 300ms;
+}
+
+.banner-icon {
+  font-size: 3.2rem;
+  line-height: 1;
+  margin-bottom: -0.6rem;
+  z-index: 1;
+  filter: drop-shadow(0 0.25rem 0 rgb(74 46 26 / 0.25));
+  animation: banner-icon 1.2s ease-in-out infinite;
+}
+
+.banner-ribbon {
+  display: grid;
+  justify-items: center;
+  min-width: 15rem;
+  padding: 0.85rem 2.8rem 0.75rem;
+  background: linear-gradient(#ffcf6a, #f2a93a);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 1.2rem) 50%, 100% 100%, 0 100%, 1.2rem 50%);
+  box-shadow:
+    inset 0 0.25rem 0 rgb(255 255 255 / 0.5),
+    inset 0 -0.3rem 0 rgb(160 90 10 / 0.35);
+  filter: drop-shadow(0 0.3rem 0 #b0701a) drop-shadow(0 0.8rem 1.4rem rgb(60 30 50 / 0.35));
+  color: #5a3208;
+  text-align: center;
+}
+
+.banner-ribbon strong {
+  font-size: 1.6rem;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 0 rgb(255 255 255 / 0.55);
+}
+
+.banner-ribbon small {
+  font-size: 0.9rem;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.banner-stars {
+  position: absolute;
+  inset: -1.5rem -2rem;
+  background:
+    radial-gradient(circle, #fff6c4 0 0.18rem, transparent 0.2rem) 10% 30% / 2rem 2rem no-repeat,
+    radial-gradient(circle, #ffd1e8 0 0.15rem, transparent 0.17rem) 88% 20% / 2rem 2rem no-repeat,
+    radial-gradient(circle, #fff6c4 0 0.22rem, transparent 0.24rem) 82% 85% / 2rem 2rem no-repeat,
+    radial-gradient(circle, #c9f0ff 0 0.15rem, transparent 0.17rem) 6% 80% / 2rem 2rem no-repeat;
+  animation: twinkle 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes banner-in {
+  from {
+    opacity: 0;
+    transform: scale(0.3) rotate(-6deg);
+  }
+  55% {
+    transform: scale(1.08) rotate(1deg);
+  }
+}
+
+@keyframes banner-icon {
+  50% {
+    transform: translateY(-0.35rem) rotate(6deg) scale(1.06);
+  }
+}
+
+@keyframes twinkle {
+  to {
+    opacity: 0.35;
+    transform: scale(1.06);
+  }
+}
+
+/* ---------- pasek narzędzi: nazwa tylko przy wybranym narzędziu, które „wyskakuje” w górę */
+.toolbar-inner {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.15rem;
+}
+
+/* przeszycie jak na płóciennej torbie */
+.toolbar-inner::after {
+  content: '';
+  position: absolute;
+  inset: 0.28rem;
+  border: 2px dashed rgb(201 154 107 / 0.55);
+  border-radius: 1.2rem;
+  pointer-events: none;
+}
+
+.tool {
+  flex: 1 1 0;
+  min-width: 0;
+  transition:
+    flex-grow 260ms cubic-bezier(0.3, 1.5, 0.5, 1),
+    transform 260ms cubic-bezier(0.3, 1.5, 0.5, 1),
+    background-color var(--dur);
+}
+
+.tool .label {
+  display: none;
+}
+
+.tool svg,
+.tool img {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+}
+
+.tool[aria-pressed='true'] {
+  flex-grow: 1.7;
+  z-index: 1;
+  transform: translateY(-0.5rem);
+  border: 2px solid var(--accent-deep);
+  box-shadow:
+    inset 0 -0.2rem 0 var(--accent-deep),
+    0 0.3rem 0 rgb(63 138 52 / 0.35),
+    0 0.5rem 0.8rem rgb(60 30 50 / 0.2);
+}
+
+.tool[aria-pressed='true'] .label,
+.tool[data-tool='hub'] .label {
+  display: block;
+}
+
+.tool[aria-pressed='true'] svg,
+.tool[aria-pressed='true'] img {
+  animation: tool-pop 420ms cubic-bezier(0.3, 1.8, 0.5, 1);
+}
+
+@keyframes tool-pop {
+  from {
+    transform: scale(0.6) rotate(-12deg);
+  }
+}
+
+/* „Farma” jako drewniany szyld */
+.tool[data-tool='hub'] {
+  background: linear-gradient(#f3d9a8, #e2bb7f);
+  border: 2px solid var(--frame);
+  box-shadow: inset 0 -0.2rem 0 rgb(160 110 60 / 0.5);
+  color: #5a3a1e;
+}
+
+.tool .badge {
+  border: 2px solid #fff6e4;
+  box-shadow: 0 0.12rem 0 rgb(122 80 46 / 0.35);
+}
+
+.tool[data-tool='hub'] .badge:not(:empty) {
+  background: radial-gradient(circle at 35% 30%, #f07a6a, #c4452f 70%);
+  color: #fff;
+  animation: seal-pulse 1.6s ease-in-out infinite;
+}
+
+/* ---------- menu „Farma”: malowane ikony i pieczęcie */
+.hub-tile .menu-icon {
+  width: 3.4rem;
+  height: 3.4rem;
+  filter: drop-shadow(0 0.2rem 0 rgb(74 46 26 / 0.18));
+  transition: transform 260ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.hub-tile:active .menu-icon {
+  transform: scale(0.88) rotate(-4deg);
+}
+
+.hub-tile .badge.seal {
+  background: radial-gradient(circle at 35% 30%, #f07a6a, #c4452f 70%);
+  color: #fff;
+  border: 2px solid #fff6e4;
+  animation: seal-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes seal-pulse {
+  50% {
+    transform: scale(1.15) rotate(-6deg);
+  }
+}
+
+/* ---------- podgląd grządki: dymek z pergaminu */
+.peek {
+  position: fixed;
+  z-index: 32;
+  width: min(17rem, calc(100vw - 1rem));
+  padding: 0.7rem 0.85rem 0.8rem;
+  border: 2px solid var(--frame);
+  border-radius: 1.1rem;
+  background-color: var(--surface-solid);
+  background-image:
+    radial-gradient(circle at 20% 15%, rgb(255 255 255 / 0.4), transparent 40%),
+    radial-gradient(circle at 85% 90%, rgb(201 154 107 / 0.14), transparent 45%);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  pointer-events: none;
+  animation: peek-in 260ms cubic-bezier(0.3, 1.6, 0.5, 1);
+  transform-origin: var(--tail, 50%) 100%;
+}
+
+.peek.below {
+  transform-origin: var(--tail, 50%) 0;
+}
+
+.peek::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--tail, 50%) - 0.55rem);
+  bottom: -0.62rem;
+  width: 1rem;
+  height: 1rem;
+  background: var(--surface-solid);
+  border-right: 2px solid var(--frame);
+  border-bottom: 2px solid var(--frame);
+  rotate: 45deg;
+}
+
+.peek.below::after {
+  top: -0.62rem;
+  bottom: auto;
+  rotate: 225deg;
+}
+
+.peek h3 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+
+.peek p {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.peek-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.45rem;
+}
+
+.peek-stars {
+  font-size: 1.1rem;
+  color: var(--silver);
+}
+
+.peek-stars.q1 {
+  color: #9aa8b5;
+  text-shadow: 0 0 0.4rem rgb(200 220 240 / 0.8);
+}
+
+.peek-stars.q2 {
+  color: var(--gold);
+  text-shadow: 0 0 0.5rem rgb(255 210 80 / 0.8);
+}
+
+.peek-meter {
+  display: grid;
+  grid-template-columns: 4.6rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.peek-bar {
+  height: 0.7rem;
+  border: 2px solid var(--frame);
+  border-radius: 999px;
+  background: rgb(201 154 107 / 0.18);
+  overflow: hidden;
+}
+
+.peek-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #a6e38a, #5fae4a);
+  transition: width 400ms;
+}
+
+.peek-meter.water .peek-bar i {
+  background: linear-gradient(90deg, #a8e0ff, #4ea3dc);
+}
+
+.peek-meter.soil .peek-bar i {
+  background: linear-gradient(90deg, #e8c48a, #9a6a3c);
+}
+
+@keyframes peek-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+/* ---------- znaczniki przy krawędzi ekranu: pieczęcie ze strzałką */
+.beacons {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.beacon {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3.3rem;
+  height: 3.3rem;
+  margin: -1.65rem 0 0 -1.65rem;
+  padding: 0;
+  border: 3px solid #f2c94c;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fffaf0, var(--surface-solid) 70%);
+  box-shadow:
+    0 0 0 2px var(--frame),
+    0 0.25rem 0 rgb(122 80 46 / 0.35),
+    0 0 1rem rgb(255 220 120 / 0.55);
+  pointer-events: auto;
+}
+
+.beacon img {
+  display: block;
+  width: 2.2rem;
+  height: 2.2rem;
+  margin: auto;
+  animation: beacon-bob 1.4s ease-in-out infinite;
+}
+
+.beacon-arrow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.beacon-arrow::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -0.85rem;
+  margin-top: -0.45rem;
+  border-left: 0.75rem solid #f2c94c;
+  border-top: 0.45rem solid transparent;
+  border-bottom: 0.45rem solid transparent;
+  filter: drop-shadow(0 0.1rem 0 rgb(122 80 46 / 0.4));
+}
+
+.beacon-count {
+  position: absolute;
+  right: -0.35rem;
+  bottom: -0.3rem;
+  min-width: 1.2rem;
+  padding: 0 0.25rem;
+  border: 2px solid #fff6e4;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.05rem;
+}
+
+.beacon-count:empty {
+  display: none;
+}
+
+@keyframes beacon-bob {
+  50% {
+    transform: translateY(-0.18rem) scale(1.06);
+  }
+}

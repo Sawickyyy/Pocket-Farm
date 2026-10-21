@@ -7,6 +7,8 @@ import type { SimEvent } from '../sim/events';
 import type { App } from './app';
 import { keyLabel } from './format';
 
+const SEASON_ICON: Record<string, string> = { spring: '🌸', summer: '🌻', autumn: '🍂', winter: '❄️' };
+
 const SOUND: Partial<Record<SimEvent['type'], SfxName>> = {
   tilled: 'till',
   planted: 'plant',
@@ -63,7 +65,7 @@ export function handleEvents(app: App, events: readonly SimEvent[]): void {
     }
     switch (e.type) {
       case 'levelUp':
-        app.toasts.show(t('toast.levelUp', { level: e.level, coins: e.reward }), 'good');
+        app.toasts.banner(t('banner.level', { level: e.level }), t('banner.levelReward', { coins: e.reward }), '🌟');
         break;
       case 'sold':
         sold.qty += e.qty;
@@ -89,7 +91,7 @@ export function handleEvents(app: App, events: readonly SimEvent[]): void {
         app.toasts.show(t('toast.questClaimed', { coins: fmt(e.coins) }), 'good');
         break;
       case 'achievement':
-        app.toasts.show(t('toast.achievement', { name: t(`achievement.${e.id}`), coins: fmt(e.coins) }), 'good');
+        app.toasts.banner(t('banner.achievement'), `${t(`achievement.${e.id}`)} · +${fmt(e.coins)}`, '🏆');
         break;
       case 'festivalDone':
         app.toasts.show(t('toast.festival', { name: buildingName(e.unlock) }), 'good');
@@ -104,7 +106,7 @@ export function handleEvents(app: App, events: readonly SimEvent[]): void {
         app.toasts.show(t('toast.newDay', { day: e.day + 1, weather: t(`weather.${e.weather}`) }));
         break;
       case 'season':
-        app.toasts.show(t('toast.season', { season: t(`season.${e.season}`) }), 'good');
+        app.toasts.banner(t('toast.season', { season: t(`season.${e.season}`) }), '', SEASON_ICON[e.season] ?? '🍃');
         break;
       case 'withered':
         app.toasts.show(t('toast.withered'), 'warn');

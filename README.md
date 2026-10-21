@@ -52,6 +52,15 @@ Bez Blendera i prawdziwych modeli 3D – efekt „filmowy” robimy w kodzie, w 
 
 Ograniczenie: to wciąż grafika 2D rysowana proceduralnie. Prawdziwy wygląd z filmu (modele 3D, mapy normalnych pod oświetlenie Phasera) wymaga renderów z Blendera podmienionych przez `load.atlas` z tymi samymi nazwami klatek.
 
+## Interfejs bajkowy
+
+- **Wstążki zamiast okienek**: komunikaty to zielone/różowe/kremowe wstążki z wyciętymi końcami, w kolejce nad paskiem narzędzi (najwyżej dwie naraz).
+- **Baner na ważne chwile**: awans poziomu, nowa pora roku i osiągnięcia pokazują złotą wstęgę z ikoną i iskierkami; kolejne awanse podmieniają treść zamiast się piętrzyć.
+- **Pasek narzędzi**: nazwa tylko przy wybranym narzędziu, które wyskakuje w górę; przeszycie jak na płóciennej torbie, „Farma” jako drewniany szyld z czerwoną pieczęcią, gdy coś czeka.
+- **Menu „Farma”**: malowane ikony (sakiewka, stragan, młotek, chatka, zwój, gwiazdka, koszyk, zębatka) zamiast emoji.
+- **Podgląd grządki**: przytrzymanie palca na polu pokazuje dymek z czasem do zbioru, wodą, żyznością i przewidywaną jakością.
+- **Pieczęcie przy krawędzi**: gdy gotowe plony, produkty zwierząt lub wyroby maszyn są poza kadrem, przy brzegu ekranu pojawia się pieczęć ze strzałką; dotknięcie przenosi tam kamerę.
+
 ## Wioska i mapa
 
 - Mapa 64×64 (fragmenty mgły 8×8), farma 16×16 w środku. Zapis v3: migracja przesuwa budynki i odkryte fragmenty starej mapy 48×48.

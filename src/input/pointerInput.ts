@@ -12,12 +12,15 @@ import { MAP_H, MAP_W, biomeAt, chunkOfTile, generateWorld, plotAtTile, tileInde
 import type { App } from '../ui/app';
 import type { BuildMode } from '../ui/buildMode';
 import { viewCtx } from '../ui/view';
+import { PlotPeek } from '../ui/peek';
 import { GestureRecognizer } from './gestures';
 
 export function bindPointerInput(el: HTMLElement, scene: FarmScene, app: App, build: BuildMode, dpr: () => number, onFirstInteraction: () => void): () => void {
   let dragMode: 'tool' | 'pan' | 'build' | null = null;
   let lastDragPlot: number | null = null;
   let lastPan = { x: 0, y: 0 };
+  const peek = new PlotPeek(() => app.store.get());
+  const unsubscribePeek = app.store.subscribe(() => peek.visible && peek.render());
 
   const toLocal = (x: number, y: number): [number, number] => {
     const r = el.getBoundingClientRect();
@@ -169,6 +172,21 @@ export function bindPointerInput(el: HTMLElement, scene: FarmScene, app: App, bu
       scene.showHighlight(null);
       if (!app.reducedMotion()) scene.cam.release();
     },
+    longPress(x, y) {
+      // Podgląd działa na grządkach; gdzie indziej przytrzymanie zachowuje się jak zwykły tap.
+      const plot = build.active ? null : plotUnder(x, y);
+      if (plot === null) {
+        tap(x, y);
+        return;
+      }
+      app.click();
+      scene.showHighlight(tileUnder(x, y));
+      peek.show(plot, x, y);
+    },
+    longPressEnd() {
+      peek.hide();
+      scene.showHighlight(null);
+    },
   });
 
   const point = (e: PointerEvent) => ({ id: e.pointerId, x: e.clientX, y: e.clientY });
@@ -218,6 +236,7 @@ export function bindPointerInput(el: HTMLElement, scene: FarmScene, app: App, bu
   el.addEventListener('contextmenu', (e) => e.preventDefault());
 
   return () => {
+    unsubscribePeek();
     el.removeEventListener('pointerdown', onDown);
     el.removeEventListener('pointermove', onMove);
     el.removeEventListener('pointerup', onUp);

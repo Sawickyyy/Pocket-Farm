@@ -421,5 +421,22 @@
   "festival.winter_lights": "Zimowe Światła",
   "hint.rod": "Wybierz wędkę, aby łowić ryby.",
   "settings.fx": "Efekty filmowe (kolory pór roku, poświata, winieta, świetliki)",
-  "settings.dof": "Głębia ostrości – efekt makiety (mocniej obciąża telefon)"
+  "settings.dof": "Głębia ostrości – efekt makiety (mocniej obciąża telefon)",
+  "banner.level": "Poziom {level}!",
+  "banner.levelReward": "+{coins} monet · +1 punkt umiejętności",
+  "banner.achievement": "Nowe osiągnięcie!",
+  "peek.locked": "Zarośnięte pole",
+  "peek.untilled": "Dzika trawa – użyj motyki",
+  "peek.tilled": "Zaorana grządka – czas siać",
+  "peek.water": "Woda",
+  "peek.soil": "Żyzność",
+  "peek.growth": "Wzrost",
+  "peek.ready": "Gotowe do zbioru!",
+  "peek.withered": "Zwiędła – usuń motyką lub sierpem",
+  "peek.thirsty": "Czeka na wodę",
+  "peek.eta": "Gotowe za ok. {time}",
+  "peek.night": "rośnie nocą",
+  "beacon.crops": "Gotowe plony – pokaż",
+  "beacon.animals": "Zwierzęta mają produkty – pokaż",
+  "beacon.machines": "Wyroby czekają w budynku – pokaż"
 }

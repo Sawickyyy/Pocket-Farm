@@ -2,7 +2,7 @@
 
 import { CONTENT, parseKey } from '../../content/content';
 import { fmt, itemName, t } from '../../i18n/i18n';
-import { itemIconUrl } from '../../render/art/atlas';
+import { itemIconUrl, menuIconUrl } from '../../render/art/atlas';
 import { HOUR_MS } from '../../sim/calendar';
 import { countItem, levelOf, mod } from '../../sim/ctx';
 import { growthRate } from '../../sim/systems/fields';
@@ -22,25 +22,26 @@ export function registerEconomy(app: App, sheets: SheetManager): void {
   sheets.register({
     id: 'hub',
     title: () => t('hub.title'),
-    sig: (s) => JSON.stringify([s.quests, s.orders.length, s.skillPoints]),
+    sig: (s) => JSON.stringify([s.quests, s.orders, s.skillPoints, Object.keys(s.inventory).length]),
     render(body, s) {
       const claimable = [...s.quests.daily, ...s.quests.weekly].filter((q) => !q.claimed && q.progress >= q.target).length;
       const deliverable = s.orders.filter((o) => countItem(s, o.item) >= o.qty).length;
-      const tiles: [string, string, string, number][] = [
-        ['market', '💰', t('hub.market'), 0],
-        ['shop', '🏪', t('hub.shop'), 0],
-        ['build', '🔨', t('hub.build'), 0],
-        ['village', '🏘️', t('hub.village'), deliverable],
-        ['progress', '📜', t('hub.progress'), claimable],
-        ['skills', '🌟', t('hub.skills'), s.skillPoints],
-        ['inventory', '🧺', t('hub.inventory'), 0],
-        ['settings', '⚙️', t('hub.settings'), 0],
+      const sellable = Object.keys(s.inventory).filter((k) => (s.inventory[k] ?? 0) > 0).length;
+      const tiles: [string, string, number, boolean][] = [
+        ['market', t('hub.market'), sellable, false],
+        ['shop', t('hub.shop'), 0, false],
+        ['build', t('hub.build'), 0, false],
+        ['village', t('hub.village'), deliverable, true],
+        ['progress', t('hub.progress'), claimable, true],
+        ['skills', t('hub.skills'), s.skillPoints, true],
+        ['inventory', t('hub.inventory'), 0, false],
+        ['settings', t('hub.settings'), 0, false],
       ];
       body.replaceChildren(
         h(
           'div',
           { class: 'hub-grid' },
-          ...tiles.map(([id, emoji, label, badge]) =>
+          ...tiles.map(([id, label, badge, urgent]) =>
             h(
               'button',
               {
@@ -53,9 +54,10 @@ export function registerEconomy(app: App, sheets: SheetManager): void {
                   },
                 },
               },
-              h('span', { class: 'emoji', text: emoji, attrs: { 'aria-hidden': 'true' } }),
+              h('img', { class: 'menu-icon', attrs: { src: menuIconUrl(id), alt: '', width: '56', height: '56' } }),
               h('span', { text: label }),
-              badge ? h('span', { class: 'badge', text: String(badge) }) : null,
+              // czerwona pieczęć = czeka nagroda/dostawa; złota = po prostu jest coś do sprzedania
+              badge ? h('span', { class: urgent ? 'badge seal' : 'badge', text: String(badge) }) : null,
             ),
           ),
         ),

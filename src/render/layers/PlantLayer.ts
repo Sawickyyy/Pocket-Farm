@@ -87,7 +87,7 @@ export class PlantLayer {
       else if (isReady(crop)) icon = 'icon_ready';
       const m = this.count + i;
       if (!icon) this.set(m, '', null);
-      else if (icon === 'icon_lock') this.set(m, `${icon}`, { x, y: y - 20, frame: icon, scaleX: 0.8, scaleY: 0.8, alpha: 0.9 });
+      else if (icon === 'icon_lock') this.set(m, `${icon}`, { x, y: y - 16, frame: icon, scaleX: 0.55, scaleY: 0.55, alpha: 0.7 });
       else {
         const iy = y - 110;
         this.set(m, `${icon}:${motion}`, {

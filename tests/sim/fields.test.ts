@@ -167,3 +167,23 @@ describe('gleba: żyzność, nawozy, płodozmian', () => {
     expect(calendarAt(21 * HOUR_MS, 1).isNight).toBe(true);
   });
 });
+
+import { cropEtaMs } from '../../src/sim/systems/fields';
+import { makeCtx } from '../../src/sim/ctx';
+import { EventBus } from '../../src/core/eventBus';
+
+describe('podgląd grządki', () => {
+  it('czas do zbioru maleje z postępem i znika przy suchej glebie', () => {
+    const sim = makeSim();
+    tillPlantWater(sim, P);
+    const ctx = () => makeCtx(sim.state, new EventBus(), calendarAt(sim.state.clock.simMs, sim.state.seed));
+    const eta0 = cropEtaMs(ctx(), sim.state.plots[P]!)!;
+    expect(eta0).toBeGreaterThan(0);
+    sim.advance(HOUR_MS / 2);
+    const eta1 = cropEtaMs(ctx(), sim.state.plots[P]!)!;
+    expect(eta1).toBeLessThan(eta0);
+    expect(eta1).toBeCloseTo(eta0 - HOUR_MS / 2, -4);
+    sim.state.plots[P]!.moisture = 0;
+    expect(cropEtaMs(ctx(), sim.state.plots[P]!)).toBeNull();
+  });
+});

@@ -421,5 +421,22 @@
   "festival.winter_lights": "Winter Lights",
   "hint.rod": "Pick the rod to go fishing.",
   "settings.fx": "Cinematic effects (seasonal colours, glow, vignette, fireflies)",
-  "settings.dof": "Depth of field – miniature look (heavier on the phone)"
+  "settings.dof": "Depth of field – miniature look (heavier on the phone)",
+  "banner.level": "Level {level}!",
+  "banner.levelReward": "+{coins} coins · +1 skill point",
+  "banner.achievement": "New achievement!",
+  "peek.locked": "Overgrown plot",
+  "peek.untilled": "Wild grass – use the hoe",
+  "peek.tilled": "Tilled bed – time to sow",
+  "peek.water": "Water",
+  "peek.soil": "Fertility",
+  "peek.growth": "Growth",
+  "peek.ready": "Ready to harvest!",
+  "peek.withered": "Withered – clear it with the hoe or sickle",
+  "peek.thirsty": "Waiting for water",
+  "peek.eta": "Ready in about {time}",
+  "peek.night": "grows at night",
+  "beacon.crops": "Crops ready – show",
+  "beacon.animals": "Animals have products – show",
+  "beacon.machines": "Goods waiting in a building – show"
 }

@@ -5,7 +5,7 @@ import type { Content } from '../../content/content';
 import { daylight } from '../../sim/calendar';
 import { isReady } from '../../sim/systems/fields';
 import type { Calendar, GameState } from '../../sim/types';
-import { plotTile } from '../../sim/world';
+import { VILLAGE_DECO, VILLAGE_HOUSES, plotTile } from '../../sim/world';
 import { project } from '../iso';
 
 // Bajkowa krzywa światła: granatowa noc, różowo-fioletowy zmierzch, złoty poranek, ciepły dzień.
@@ -69,6 +69,17 @@ export class Lighting {
       const p = project(o.x + def.size[0], o.y + def.size[1] / 2);
       wanted.set(`w${o.uid}`, { x: p.x, y: p.y - 50, radius: 230, color: 0xffc46b, intensity: 0.9 });
     }
+    // Wioska: okna domów mieszkańców i latarnie przy ulicy.
+    for (const h of VILLAGE_HOUSES) {
+      const p = project(h.x + 2, h.y + 1);
+      wanted.set(`h${h.npc}`, { x: p.x, y: p.y - 50, radius: 230, color: 0xffc46b, intensity: 0.9 });
+    }
+    VILLAGE_DECO.forEach((d, i) => {
+      const def = this.content.buildings[d.type];
+      if (!def?.light) return;
+      const p = project(d.x + 0.5, d.y + 0.5);
+      wanted.set(`v${i}`, { x: p.x, y: p.y - 60, radius: def.light.radius, color: hex(def.light.color), intensity: def.light.intensity });
+    });
     state.plots.forEach((p, i) => {
       const def = p.crop && this.content.crop[p.crop.id];
       if (!def?.night || !isReady(p.crop)) return;

@@ -81,6 +81,26 @@ describe('migracja v1 → v2', () => {
   });
 });
 
+describe('migracja v2 → v3 (większa mapa)', () => {
+  it('przesuwa budynki i odkryte fragmenty, osusza puste grządki', () => {
+    const v2 = JSON.parse(JSON.stringify(sampleState())) as Record<string, any>;
+    v2.version = 2;
+    v2.objects = [{ uid: 1, type: 'coop', x: 16, y: 16 }];
+    v2.nextUid = 2;
+    v2.world.revealed = [14, 15, 20, 21, 13]; // stare fragmenty 6×6 (13 = na lewo od farmy)
+    v2.world.forage = { '100': 5 };
+    const p = START_UNLOCKED[1]!;
+    v2.plots[p] = { ...v2.plots[p], tilled: true, moisture: 1, crop: null };
+    const s = loadFromUnknown(v2, T0);
+    expect(s.version).toBe(SAVE_VERSION);
+    expect(s.objects[0]).toMatchObject({ x: 24, y: 24 });
+    expect(s.world.revealed).toEqual(expect.arrayContaining([27, 28, 35, 36, 26, 43, 44]));
+    expect(s.world.forage).toEqual({});
+    expect(s.plots[p]!.moisture).toBe(0);
+    expect(s.plots[START_UNLOCKED[0]!]!.crop?.id).toBe('radish');
+  });
+});
+
 describe('normalizacja', () => {
   it('poprawny stan przechodzi bez zmian', () => {
     const s = sampleState();

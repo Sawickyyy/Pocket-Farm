@@ -4,6 +4,7 @@ import { CONTENT, type Content } from '../content/content';
 import { hash32 } from '../core/rng';
 import { START_SIM_MS } from '../sim/calendar';
 import { PLOT_COUNT, createInitialState, createPlot, defaultSettings } from '../sim/initialState';
+import { CHUNK, CHUNKS_X, MAP_SHIFT_V3 } from '../sim/world';
 import { SAVE_VERSION, TOOL_IDS, type CropState, type GameState, type Plot, type Settings } from '../sim/types';
 
 type AnyRecord = Record<string, unknown>;
@@ -61,6 +62,21 @@ function v1ToV2(d: AnyRecord): AnyRecord {
   };
 }
 
+/** v2 → v3: mapa 48×48 → 64×64 (wszystko przesunięte o 8 kafli = 1 fragment), sucha gleba pustych grządek. */
+function v2ToV3(d: AnyRecord): AnyRecord {
+  const OLD_CHUNKS_X = 6;
+  const shift = MAP_SHIFT_V3;
+  const k = shift / CHUNK;
+  const world = isObj(d.world) ? d.world : {};
+  const revealed = Array.isArray(world.revealed)
+    ? world.revealed.filter((c): c is number => Number.isInteger(c) && c >= 0 && c < OLD_CHUNKS_X * OLD_CHUNKS_X).map((c) => (c % OLD_CHUNKS_X) + k + (Math.floor(c / OLD_CHUNKS_X) + k) * CHUNKS_X)
+    : undefined;
+  const objects = Array.isArray(d.objects) ? d.objects.map((o) => (isObj(o) ? { ...o, x: num(o.x, 0) + shift, y: num(o.y, 0) + shift } : o)) : d.objects;
+  const plots = Array.isArray(d.plots) ? d.plots.map((p) => (isObj(p) && !isObj(p.crop) ? { ...p, moisture: 0 } : p)) : d.plots;
+  // Pozycje zbieractwa zależą od nowej mapy – liczniki odrastania zaczynamy od nowa.
+  return { ...d, objects, plots, world: { ...world, ...(revealed ? { revealed } : {}), forage: {}, pendingFish: null } };
+}
+
 function levelFromXp(xp: number): number {
   let l = 1;
   while (xp >= 5 * (l + 1) * l) l++;
@@ -70,6 +86,7 @@ function levelFromXp(xp: number): number {
 /** Migracje z wersji N do N+1. */
 export const MIGRATIONS: Record<number, Migration> = {
   1: v1ToV2,
+  2: v2ToV3,
 };
 
 export function migrate(data: AnyRecord, migrations: Record<number, Migration> = MIGRATIONS, target = SAVE_VERSION): AnyRecord {

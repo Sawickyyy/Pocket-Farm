@@ -1,8 +1,8 @@
-// Model stanu gry (wersja 2). Stan jest zwykłym JSON-em: klonuje się go przez postMessage i zapisuje w IndexedDB.
+// Model stanu gry (wersja 3). Stan jest zwykłym JSON-em: klonuje się go przez postMessage i zapisuje w IndexedDB.
 
 import type { Season, WeatherId } from '../content/content';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export type ToolId = 'hoe' | 'seeds' | 'can' | 'fertilizer' | 'sickle' | 'rod';
 export const TOOL_IDS: readonly ToolId[] = ['hoe', 'seeds', 'can', 'fertilizer', 'sickle', 'rod'];

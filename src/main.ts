@@ -125,7 +125,7 @@ async function boot(): Promise<void> {
     click: () => audio.play('click'),
     scene: () => scene,
     reducedMotion,
-    openSheet: (id, arg) => sheets.open(id, arg),
+    openSheet: (id, arg, tab) => sheets.open(id, arg, tab),
     closeSheet: () => sheets.close(),
     confirm(title, html, yes, fn, disabled = false) {
       $('#confirm-title').textContent = title;

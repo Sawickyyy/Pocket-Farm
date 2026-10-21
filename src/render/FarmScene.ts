@@ -14,6 +14,7 @@ import { buildingPlacement, project, projectedBounds, unproject } from './iso';
 import { colorMatrix20, type ColorblindMode } from './colorblind';
 import { AmbientLayer } from './layers/AmbientLayer';
 import { AnimalLayer } from './layers/AnimalLayer';
+import { VillagerLayer } from './layers/VillagerLayer';
 import { FogLayer } from './layers/FogLayer';
 import { GroundLayer } from './layers/GroundLayer';
 import { Lighting } from './layers/Lighting';
@@ -50,6 +51,7 @@ export class FarmScene extends Phaser.Scene {
   private lighting!: Lighting;
   private particles!: ParticleLayer;
   private ambient!: AmbientLayer;
+  private villagers!: VillagerLayer;
   private vignette: Phaser.Filters.Vignette | null = null;
   private fx = true;
   private highlight!: Phaser.GameObjects.Graphics;
@@ -78,6 +80,7 @@ export class FarmScene extends Phaser.Scene {
     this.plants = new PlantLayer(this, PLOT_COUNT);
     this.objects = new ObjectLayer(this, this.world, CONTENT);
     this.animals = new AnimalLayer(this, CONTENT, () => !this.deps.reducedMotion());
+    this.villagers = new VillagerLayer(this, CONTENT, () => !this.deps.reducedMotion());
     this.fog = new FogLayer(this);
     this.particles = new ParticleLayer(this);
     this.ambient = new AmbientLayer(this, state.seed);
@@ -128,6 +131,7 @@ export class FarmScene extends Phaser.Scene {
     this.lighting.update(hour, cal);
     this.ambient.update(cal, 1 - daylight(hour), this.fx && !this.deps.reducedMotion());
     this.animals.update(time, state);
+    this.villagers.update(time, delta, cal);
     this.particles.update();
     if (this.cam.update(delta)) this.applyCamera();
   }
@@ -200,6 +204,18 @@ export class FarmScene extends Phaser.Scene {
   screenOfTile(at: { x: number; y: number }): { x: number; y: number } {
     const p = project(at.x, at.y);
     return this.cam.toScreen(p.x, p.y);
+  }
+
+  /** Mieszkaniec albo jego dom pod punktem ekranu → id postaci (dotknięcie postaci ją wita). */
+  villagerAt(sx: number, sy: number): string | null {
+    const w = this.worldAt(sx, sy);
+    const npc = this.villagers.hit(w.x, w.y);
+    if (npc) {
+      const at = this.villagers.greet(npc, this.time.now);
+      if (at) this.floatText(at, '♥', '#ff8fb1');
+      return npc;
+    }
+    return this.objects.houseAt(w.x, w.y);
   }
 
   animalAt(sx: number, sy: number): number | null {

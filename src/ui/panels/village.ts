@@ -2,7 +2,7 @@
 
 import { CONTENT, parseKey } from '../../content/content';
 import { fmt, itemName, npcName, t } from '../../i18n/i18n';
-import { itemIconUrl } from '../../render/art/atlas';
+import { itemIconUrl, villagerIconUrl } from '../../render/art/atlas';
 import { countItem } from '../../sim/ctx';
 import { activeFestival, festivalKey } from '../../sim/systems/progress';
 import { giftReaction, hearts as heartCount } from '../../sim/systems/village';
@@ -24,7 +24,7 @@ export function registerVillage(app: App, sheets: SheetManager): void {
       { id: 'people', label: t('village.people') },
     ],
     sig: (s, tab) => tab + JSON.stringify([s.orders, s.npcs, s.inventory, s.festivalsDone, s.lastDay]),
-    render(body, s, tab) {
+    render(body, s, tab, arg) {
       const ctx = viewCtx(s);
       if (tab === 'orders') {
         const parts: (HTMLElement | null)[] = [];
@@ -65,10 +65,12 @@ export function registerVillage(app: App, sheets: SheetManager): void {
             const st = s.npcs[n.id]!;
             const hrt = heartCount(st.friendship);
             const gifted = st.giftDay === ctx.cal.day;
-            const icon = h('div', { class: 'thumb', html: `<span style="font-size:1.8rem;color:${n.color}" aria-hidden="true">●</span>` });
+            const icon = h('div', { class: 'thumb', html: `<img src="${villagerIconUrl(n.id)}" alt="" width="56" height="56">` });
+            const focused = arg === n.id;
+            if (focused) requestAnimationFrame(() => body.querySelector('.card.focus')?.scrollIntoView({ block: 'nearest' }));
             return h(
               'div',
-              { class: 'card' },
+              { class: focused ? 'card focus' : 'card' },
               icon,
               h(
                 'div',

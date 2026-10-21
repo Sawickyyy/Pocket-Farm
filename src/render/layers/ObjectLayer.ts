@@ -4,8 +4,8 @@
 import type Phaser from 'phaser';
 import type { Content } from '../../content/content';
 import type { Calendar, GameState } from '../../sim/types';
-import { MAP_H, MAP_W, chunkOfTile, tileIndex, type WorldMap } from '../../sim/world';
-import { SPRITES_KEY, buildingFrame, treeFrame } from '../art/atlas';
+import { MAP_H, MAP_W, VILLAGE_DECO, VILLAGE_HOUSES, chunkOfTile, tileIndex, type WorldMap } from '../../sim/world';
+import { SPRITES_KEY, buildingFrame, houseDef, houseFrame, treeFrame } from '../art/atlas';
 import { buildingFrameSize, buildingPlacement, project } from '../iso';
 
 interface Item {
@@ -28,13 +28,15 @@ export interface HitRect {
   sortY: number;
 }
 
-const CAPACITY = 2200;
+const CAPACITY = 4200;
 const TREE_H = 192;
 
 export class ObjectLayer {
   readonly layer: Phaser.GameObjects.SpriteGPULayer;
   private key = '';
   hits: HitRect[] = [];
+  /** Domy mieszkańców (stałe) – dotknięcie otwiera wioskę. */
+  private readonly houseHits: (Omit<HitRect, 'uid'> & { npc: string })[] = [];
 
   constructor(
     scene: Phaser.Scene,
@@ -78,12 +80,39 @@ export class ObjectLayer {
       const y0 = p.y - size.h * p.originY * p.scale;
       this.hits.push({ uid: o.uid, x0, y0, x1: x0 + size.w * p.scale, y1: y0 + size.h * p.scale, sortY: p.sortY });
     }
+    this.houseHits.length = 0;
+    for (const hs of VILLAGE_HOUSES) {
+      const npc = this.content.npc[hs.npc];
+      if (!npc) continue;
+      const def = houseDef(npc);
+      const p = buildingPlacement(def, hs.x, hs.y);
+      items.push({ x: p.x, y: p.y, frame: houseFrame(hs.npc), sortY: p.sortY, scale: p.scale, originX: p.originX, originY: p.originY });
+      const size = buildingFrameSize(def);
+      const x0 = p.x - size.w * p.originX * p.scale;
+      const y0 = p.y - size.h * p.originY * p.scale;
+      this.houseHits.push({ npc: hs.npc, x0, y0, x1: x0 + size.w * p.scale, y1: y0 + size.h * p.scale, sortY: p.sortY });
+    }
+    for (const d of VILLAGE_DECO) {
+      const def = this.content.buildings[d.type];
+      if (!def) continue;
+      const p = buildingPlacement(def, d.x, d.y);
+      items.push({ x: p.x, y: p.y, frame: buildingFrame(d.type), sortY: p.sortY, scale: p.scale, originX: p.originX, originY: p.originY });
+    }
     items.sort((a, b) => a.sortY - b.sortY);
 
     if (this.layer.memberCount) this.layer.removeMembers(0, this.layer.memberCount);
     for (const it of items.slice(0, CAPACITY)) {
       this.layer.addMember({ x: it.x, y: it.y, frame: it.frame, originX: it.originX, originY: it.originY, scaleX: it.scale, scaleY: it.scale });
     }
+  }
+
+  /** Dom mieszkańca pod punktem. */
+  houseAt(wx: number, wy: number): string | null {
+    let best: (typeof this.houseHits)[number] | null = null;
+    for (const r of this.houseHits) {
+      if (wx >= r.x0 && wx <= r.x1 && wy >= r.y0 && wy <= r.y1 && (!best || r.sortY > best.sortY)) best = r;
+    }
+    return best?.npc ?? null;
   }
 
   /** Budynek pod punktem (najbliższy widza, czyli o największej głębi). */

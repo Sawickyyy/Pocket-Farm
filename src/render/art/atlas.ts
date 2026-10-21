@@ -1,12 +1,13 @@
 // Budowa tekstur z grafiki proceduralnej: tileset (2×16 kafli) i atlas sprite'ów (pakowanie półkowe).
 // Nazwy klatek są kontraktem – prawdziwy atlas (load.atlas) z tymi samymi nazwami podmienia grafikę bez zmian w kodzie.
 
-import { CONTENT, SEASONS, type Content, type Season } from '../../content/content';
+import { CONTENT, SEASONS, type BuildingDef, type Content, type NpcDef, type Season } from '../../content/content';
 import { ellipse, makeCanvas, rng, rrect, shade, type Ctx2D } from './draw';
 import { buildingFrameSize, isBox } from '../iso';
 import { drawIsoBuilding } from './isoBuilding';
 import { PALETTE, STYLE_NONE, stylize, watercolor, type StyleOptions } from './palette';
 import { drawAnimal, drawBuilding, drawCrop, drawIcon, drawItem, drawTree } from './subjects';
+import { drawVillager } from './villager';
 
 export const TILE = 128;
 export const TILES_KEY = 'tiles';
@@ -39,6 +40,13 @@ export const buildingFrame = (id: string) => `b_${id}`;
 export const treeFrame = (kind: 'oak' | 'pine', season: Season) => `tree_${kind}_${season}`;
 export const animalFrame = (id: string, f: number) => `animal_${id}_${f}`;
 export const itemFrame = (id: string) => `item_${id}`;
+export const villagerFrame = (id: string, f: number) => `villager_${id}_${f}`;
+export const houseFrame = (id: string) => `house_${id}`;
+
+/** Dom mieszkańca jako bryła izometryczna 2×2 (dach w kolorze postaci). */
+export function houseDef(npc: NpcDef): BuildingDef {
+  return { id: `house_${npc.id}`, kind: 'home', size: [2, 2], cost: 0, level: 1, art: { wall: '#f6e7cf', roof: npc.color } };
+}
 
 // ------------------------------------------------------------------ tileset
 
@@ -120,7 +128,32 @@ function soilTile(ctx: Ctx2D, ox: number, oy: number, base: string, deep: string
       ctx.stroke();
     }
   }
-  if (wet) for (let i = 0; i < 3; i++) ellipse(ctx, ox + 30 + r() * 68, oy + 30 + r() * 68, 6, 3, 'rgba(160,210,255,0.35)');
+  if (wet) {
+    // mokra: ciemna, z błękitnymi kałużkami i połyskiem
+    for (let i = 0; i < 4; i++) {
+      const x = ox + 28 + r() * 70;
+      const y = oy + 28 + r() * 70;
+      ellipse(ctx, x, y, 9, 4.5, 'rgba(120,190,255,0.5)');
+      ellipse(ctx, x - 3, y - 1.5, 3, 1.4, 'rgba(235,248,255,0.85)');
+    }
+  } else {
+    // sucha: jasna, spękana i zakurzona
+    ctx.strokeStyle = 'rgba(120,80,40,0.45)';
+    ctx.lineWidth = 1.6;
+    for (let i = 0; i < 4; i++) {
+      let x = ox + 22 + r() * 84;
+      let y = oy + 22 + r() * 84;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      for (let k = 0; k < 3; k++) {
+        x += (r() - 0.5) * 16;
+        y += (r() - 0.5) * 16;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    for (let i = 0; i < 6; i++) ellipse(ctx, ox + 16 + r() * 96, oy + 16 + r() * 96, 4, 2.5, 'rgba(255,236,200,0.45)');
+  }
 }
 
 export function drawTileset(): HTMLCanvasElement {
@@ -300,6 +333,12 @@ export function drawSpriteAtlas(c: Content = CONTENT): { canvas: HTMLCanvasEleme
   for (const a of c.animalList) {
     for (const f of [0, 1]) entries.push({ name: animalFrame(a.id, f), w: TILE, h: TILE, draw: (ctx, x, y) => drawAnimal(ctx, a, f, x + TILE / 2, y + TILE / 2), style: { outline: 3, shade: true } });
   }
+  for (const n of c.npcs) {
+    for (const f of [0, 1, 2]) entries.push({ name: villagerFrame(n.id, f), w: TILE, h: TILE, draw: (ctx, x, y) => drawVillager(ctx, n, f, x + TILE / 2, y + TILE / 2), style: { outline: 3, shade: true } });
+    const hd = houseDef(n);
+    const hs = buildingFrameSize(hd);
+    entries.push({ name: houseFrame(n.id), w: hs.w, h: hs.h, draw: (ctx, x, y) => drawIsoBuilding(ctx, hd, x, y), style: { outline: 4, shade: true } });
+  }
   for (const icon of ICONS) entries.push({ name: icon, w: TILE, h: TILE, draw: (ctx, x, y) => drawIcon(ctx, icon, x + TILE / 2, y + TILE / 2), style: { outline: 3, shade: false } });
   for (const item of c.itemList) {
     const draw = itemIconDrawer(c, item.id);
@@ -461,6 +500,16 @@ export function animalIconUrl(id: string, size = 96, c: Content = CONTENT): stri
     if (!def) return;
     ctx.scale(size / TILE, size / TILE);
     drawAnimal(ctx, def, 0, TILE / 2, TILE / 2);
+  });
+}
+
+export function villagerIconUrl(id: string, size = 96, c: Content = CONTENT): string {
+  return iconUrl(`v:${id}@${size}`, size, (ctx) => {
+    const def = c.npc[id];
+    if (!def) return;
+    // portret: głowa i ramiona, powiększone
+    ctx.scale((size / TILE) * 1.45, (size / TILE) * 1.45);
+    drawVillager(ctx, def, 0, TILE / 2 / 1.45 + 0, TILE / 2 / 1.45 + 18);
   });
 }
 

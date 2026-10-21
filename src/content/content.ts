@@ -19,7 +19,7 @@ import weatherJson from './data/weather.json';
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'] as const;
 export type Season = (typeof SEASONS)[number];
 export type WeatherId = 'sun' | 'cloud' | 'rain' | 'heat' | 'snow';
-export type Biome = 'grass' | 'forest' | 'water' | 'sand' | 'meadow' | 'farm';
+export type Biome = 'grass' | 'forest' | 'water' | 'sand' | 'meadow' | 'farm' | 'village';
 
 export interface Art {
   shape?: string;

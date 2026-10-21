@@ -1478,3 +1478,9 @@ dialog#io-dialog {
 .fish-track {
   border: 2px solid var(--frame);
 }
+
+/* Mieszkaniec wybrany dotknięciem na mapie */
+.card.focus {
+  outline: 0.2rem solid #ffcf7a;
+  box-shadow: 0 0 0 0.35rem rgba(255, 207, 122, 0.35), 0 0.3rem 0.8rem rgba(74, 46, 26, 0.18);
+}

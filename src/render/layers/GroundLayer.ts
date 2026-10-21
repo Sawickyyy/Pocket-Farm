@@ -54,7 +54,7 @@ export class GroundLayer {
         let tile: number;
         const plot = plotAtTile(x, y);
         if (plot !== null) tile = this.fieldTile(state, state.plots[plot]!, plot);
-        else if (paths.has(i)) tile = Tile.Path;
+        else if (paths.has(i) || this.world.road[i]) tile = Tile.Path;
         else {
           switch (this.world.biome[i]) {
             case BiomeId.water:

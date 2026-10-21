@@ -158,3 +158,24 @@ describe('zadania, osiągnięcia, festyny', () => {
     void findDay;
   });
 });
+
+import { FARM as FARM_V, VILLAGE_HOUSES, chunkOfTile, isRoad, inFarm } from '../../src/sim/world';
+
+describe('wioska mieszkańców', () => {
+  it('domy i drogi leżą w odkrytej wiosce, poza farmą i wodą, dla wielu seedów', () => {
+    for (const seed of [1, 7, 42, 1234, 99999]) {
+      const world = generateWorld(seed);
+      for (const h of VILLAGE_HOUSES) {
+        for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) {
+          const i = (h.y + dy) * MAP_W + h.x + dx;
+          expect(world.biome[i]).toBe(BiomeId.village);
+          expect(world.road[i]).toBe(0);
+          expect(START_CHUNKS).toContain(chunkOfTile(h.x + dx, h.y + dy));
+        }
+      }
+      // dróżka od bramy farmy do ulicy jest ciągła
+      for (let y = FARM_V.y + FARM_V.h; y <= 44; y++) expect(isRoad(32, y)).toBe(true);
+      expect(inFarm(32, FARM_V.y + FARM_V.h)).toBe(false);
+    }
+  });
+});

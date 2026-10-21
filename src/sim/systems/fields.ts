@@ -50,12 +50,12 @@ export function updateFields(ctx: Ctx, dt: number): void {
 
   s.plots.forEach((plot, i) => {
     if (!plot.unlocked) return;
-    // Wilgotność gleby
+    // Wilgotność gleby: deszcz i zraszacz podlewają tylko obsiane grządki – świeżo zaorana ziemia jest sucha.
     if (plot.tilled || plot.crop) {
-      if (weather.wet) plot.moisture = 1;
+      if (weather.wet && plot.crop) plot.moisture = 1;
       else plot.moisture = Math.max(0, plot.moisture - (dt / HOUR_MS) * DRY_PER_HOUR * weather.dry);
-      if (sprinkled.has(i)) plot.moisture = Math.max(plot.moisture, 0.8);
-    }
+      if (plot.crop && sprinkled.has(i)) plot.moisture = Math.max(plot.moisture, 0.8);
+    } else plot.moisture = 0;
     const crop = plot.crop;
     if (!crop || crop.withered || crop.growth >= 1) return;
     const def = c.crop[crop.id];
@@ -113,6 +113,7 @@ export function till(ctx: Ctx, i: number): CommandResult {
   if (plot.crop) return fail('occupied');
   if (plot.tilled) return fail('already-tilled');
   plot.tilled = true;
+  plot.moisture = 0;
   ctx.bus.emit({ type: 'tilled', plot: i, at: at(i) });
   return OK;
 }
@@ -122,6 +123,7 @@ export function clear(ctx: Ctx, i: number): CommandResult {
   if (!plot?.crop?.withered) return fail('invalid');
   plot.crop = null;
   plot.tilled = false;
+  plot.moisture = 0;
   ctx.bus.emit({ type: 'cleared', plot: i, at: at(i) });
   return OK;
 }
@@ -192,6 +194,7 @@ export function harvest(ctx: Ctx, i: number): CommandResult {
   plot.lastCrop = crop.id;
   plot.crop = null;
   plot.tilled = false;
+  plot.moisture = 0;
 
   stat(ctx, 'harvested');
   if (quality === 2) stat(ctx, 'gold');

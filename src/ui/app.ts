@@ -18,7 +18,7 @@ export interface App {
   click(): void;
   scene(): FarmScene | null;
   reducedMotion(): boolean;
-  openSheet(id: string, arg?: unknown): void;
+  openSheet(id: string, arg?: unknown, tab?: string): void;
   closeSheet(): void;
   confirm(title: string, html: string, yes: string, onYes: () => void, disabled?: boolean): void;
   startBuild(type: string): void;

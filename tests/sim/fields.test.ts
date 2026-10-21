@@ -48,12 +48,18 @@ describe('pola: pętla i wzrost', () => {
     expect(sim2.state.plots[P]!.crop).toBeNull();
   });
 
-  it('deszcz podlewa pola, upał wysusza je szybciej', () => {
+  it('deszcz podlewa obsiane pola, upał wysusza je szybciej', () => {
     const seed = 42;
     const rainDay = findDay(seed, 'rain', 0);
     const sim = makeSim((s) => setTime(s, rainDay, 8), seed);
     ok(sim, { type: 'useTool', plot: P });
     sim.advance(HOUR_MS);
+    // świeżo zaorana, pusta grządka zostaje sucha nawet w deszczu
+    expect(sim.state.plots[P]!.moisture).toBe(0);
+    sim.state.seeds.radish = 1;
+    ok(sim, { type: 'selectSeed', crop: 'radish' });
+    ok(sim, { type: 'useTool', plot: P });
+    sim.advance(HOUR_MS / 6);
     expect(sim.state.plots[P]!.moisture).toBe(1);
 
     const heatDay = findDay(seed, 'heat', 1);
@@ -81,6 +87,21 @@ describe('pola: pętla i wzrost', () => {
     sim.state.plots[P]!.moisture = 1;
     sim.advance(4 * HOUR_MS); // → 22:00
     expect(sim.state.plots[P]!.crop!.growth).toBeGreaterThan(0);
+  });
+});
+
+describe('wilgotność nowych grządek', () => {
+  it('po zbiorze i ponownej orce grządka jest sucha', () => {
+    const sim = makeSim();
+    tillPlantWater(sim, P);
+    sim.advance(2 * HOUR_MS);
+    ok(sim, { type: 'selectTool', tool: 'sickle' });
+    ok(sim, { type: 'useTool', plot: P });
+    expect(sim.state.plots[P]!.moisture).toBe(0);
+    ok(sim, { type: 'selectTool', tool: 'hoe' });
+    ok(sim, { type: 'useTool', plot: P });
+    expect(sim.state.plots[P]!.tilled).toBe(true);
+    expect(sim.state.plots[P]!.moisture).toBe(0);
   });
 });
 

@@ -14,7 +14,16 @@ export type SfxName =
   | 'animal'
   | 'splash'
   | 'craft'
-  | 'build';
+  | 'build'
+  // dźwięki materiałów interfejsu: drewno, papier, płótno, złoto, wosk (ceramika = 'click')
+  | 'wood'
+  | 'paper'
+  | 'cloth'
+  | 'gold'
+  | 'wax';
+
+/** Dźwięki interfejsu (materiały) – bez napisów, żeby nie zalewać ekranu. */
+const UI_SOUNDS = new Set<SfxName>(['click', 'wood', 'paper', 'cloth', 'gold', 'wax']);
 
 /** Pozycja źródła: pan -1..1 (lewo–prawo), gain 0..1 (odległość/poza ekranem). */
 export interface Spatial {
@@ -72,7 +81,7 @@ export class AudioEngine {
   play(name: SfxName, where: Spatial = { pan: 0, gain: 1 }): void {
     const ctx = this.ctx;
     if (!this.sfxEnabled || !ctx || !this.sfxBus || ctx.state !== 'running' || where.gain <= 0.01) return;
-    this.onCaption?.(name);
+    if (!UI_SOUNDS.has(name)) this.onCaption?.(name);
     const out = ctx.createGain();
     out.gain.value = where.gain;
     const panner = ctx.createStereoPanner();
@@ -109,7 +118,26 @@ export class AudioEngine {
         this.tone(out, t, 180, 0.14, 'sawtooth', 0.15, 140);
         break;
       case 'click':
-        this.tone(out, t, 1200, 0.03, 'sine', 0.15);
+        // ceramika: miękkie „pyk”
+        this.tone(out, t, 880, 0.05, 'sine', 0.18, 1320);
+        break;
+      case 'wood':
+        this.tone(out, t, 220, 0.06, 'triangle', 0.25, 160);
+        this.noiseBurst(out, t, 0.04, 1800, 0.18, 'bandpass');
+        break;
+      case 'paper':
+        this.noiseBurst(out, t, 0.12, 4200, 0.12, 'highpass');
+        break;
+      case 'cloth':
+        this.noiseBurst(out, t, 0.09, 900, 0.16, 'bandpass');
+        break;
+      case 'gold':
+        this.tone(out, t, 1568, 0.18, 'sine', 0.14);
+        this.tone(out, t + 0.05, 2093, 0.22, 'sine', 0.1);
+        break;
+      case 'wax':
+        this.tone(out, t, 140, 0.08, 'sine', 0.3, 90);
+        this.noiseBurst(out, t, 0.05, 600, 0.2);
         break;
       case 'animal':
         this.tone(out, t, 260, 0.35, 'sawtooth', 0.12, 200);

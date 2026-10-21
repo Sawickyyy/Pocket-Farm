@@ -8,9 +8,9 @@ import type { Calendar, GameState } from '../../sim/types';
 import { VILLAGE_DECO, VILLAGE_HOUSES, plotTile } from '../../sim/world';
 import { project } from '../iso';
 
-// Bajkowa krzywa światła: granatowa noc, różowo-fioletowy zmierzch, złoty poranek, ciepły dzień.
-const NIGHT = [0x52, 0x5c, 0xa8];
-const DUSK = [0xf2, 0x9c, 0xc0];
+// Bajkowa krzywa światła: chłodna morska noc, brzoskwiniowy zmierzch, złoty poranek, ciepły dzień.
+const NIGHT = [0x4a, 0x6a, 0x9a];
+const DUSK = [0xff, 0xa8, 0x70];
 const MORNING = [0xff, 0xd9, 0xa0];
 const DAY = [0xff, 0xfa, 0xee];
 

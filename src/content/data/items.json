@@ -15,7 +15,7 @@
   { "id": "jam", "kind": "artisan", "price": 150, "art": { "shape": "jar", "color": "#d6304a" } },
   { "id": "winterjam", "kind": "artisan", "price": 260, "art": { "shape": "jar", "color": "#bfe3ff" } },
   { "id": "mushroom", "kind": "forage", "price": 25, "quality": true, "art": { "shape": "mushroom", "color": "#b5651d" } },
-  { "id": "berries", "kind": "forage", "price": 18, "quality": true, "art": { "shape": "berry", "color": "#5a3fa0" } },
+  { "id": "berries", "kind": "forage", "price": 18, "quality": true, "art": { "shape": "berry", "color": "#2f4f9a" } },
   { "id": "wildflower", "kind": "forage", "price": 14, "quality": true, "art": { "shape": "flower", "color": "#f7a1c4" } },
   { "id": "herb", "kind": "forage", "price": 16, "quality": true, "art": { "shape": "herb", "color": "#6cbf3c" } },
   { "id": "wood", "kind": "forage", "price": 6, "art": { "shape": "log", "color": "#8a5a2e" } },

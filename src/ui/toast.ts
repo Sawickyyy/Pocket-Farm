@@ -87,7 +87,8 @@ export class Toasts {
    * Wstęga na środku ekranu. Kolejne wywołania w trakcie wyświetlania podmieniają treść
    * (np. dwa awanse z rzędu pokazują tylko ostatni poziom) zamiast piętrzyć banery.
    */
-  banner(title: string, subtitle = '', icon = '✨', ms = 2600): void {
+  /** `icon` = nazwa malowanej ikony (klasa .ic-<nazwa>). */
+  banner(title: string, subtitle = '', icon = 'sparkle', ms = 2600): void {
     clearTimeout(this.bannerTimer);
     let el = this.bannerEl;
     if (!el) {
@@ -101,7 +102,7 @@ export class Toasts {
       el.classList.remove('show', 'leaving');
       void el.offsetWidth;
     }
-    el.querySelector('.banner-icon')!.textContent = icon;
+    el.querySelector('.banner-icon')!.innerHTML = `<i class="ic ic-${icon}"></i>`;
     el.querySelector('strong')!.textContent = title;
     const small = el.querySelector('small')!;
     small.textContent = subtitle;

@@ -385,7 +385,7 @@
   "skill.tycoon.desc": "Prices +10%, bulk sales hurt prices less, better orders.",
   "quest.harvest": "Harvest crops ({n})",
   "quest.water": "Water plots ({n})",
-  "quest.earn": "Earn at the market: {n} 🪙",
+  "quest.earn": "Earn at the market: {n} coins",
   "quest.feed": "Feed animals ({n}×)",
   "quest.produce": "Make goods ({n})",
   "quest.fish": "Catch fish ({n})",
@@ -438,5 +438,6 @@
   "peek.night": "grows at night",
   "beacon.crops": "Crops ready – show",
   "beacon.animals": "Animals have products – show",
-  "beacon.machines": "Goods waiting in a building – show"
+  "beacon.machines": "Goods waiting in a building – show",
+  "common.back": "Back"
 }

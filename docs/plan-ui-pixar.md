@@ -6,7 +6,7 @@ przygotowanie, dobicie ruchu) i być spójne ze światem gry.
 
 **Twarde zasady:**
 
-1. **Zero fioletu.** Żaden kolor interfejsu ani grafiki nie może mieć odcienia z przedziału 255°–335° (fiolety, lawendy,
+1. **Zero fioletu.** Żaden kolor interfejsu ani grafiki nie może mieć odcienia z przedziału 240°–320° (fiolety, lawendy,
    purpury, wrzosy). Pilnuje tego test automatyczny (etap 1).
 2. **Zero „Liquid Glass”.** Bez `backdrop-filter`, rozmytego szkła i przezroczystych tafli. Wszystkie powierzchnie są
    nieprzezroczyste i mają fizyczny materiał.
@@ -390,7 +390,7 @@ src/ui/components/        – małe fabryki DOM (button(), toggle(), card(), she
   - animacje tylko na `transform` i `opacity`;
   - ikony generowane w czasie poniżej 80 ms przy starcie.
 - **Testy:**
-  - `theme.test.ts` – każdy kolor w CSS i w kodzie rysującym ma odcień spoza 255°–335° (strażnik „zero fioletu”), a pary tekst/tło mają kontrast co najmniej 4,5:1;
+  - `theme.test.ts` – każdy kolor w CSS i w kodzie rysującym ma odcień spoza 240°–320° (strażnik „zero fioletu”), a pary tekst/tło mają kontrast co najmniej 4,5:1;
   - `uiIcons.test.ts` – każda ikona z listy istnieje i ma niepustą sylwetkę;
   - zrzuty e2e każdego panelu w obu motywach (Playwright), porównywane ręcznie na etapach.
 

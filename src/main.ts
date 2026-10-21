@@ -2,7 +2,7 @@ import './ui/styles.css';
 import Phaser from 'phaser';
 import './render/phaserShim';
 import { Music } from './audio/music';
-import { AudioEngine } from './audio/sfx';
+import { AudioEngine, type SfxName } from './audio/sfx';
 import { createStore } from './core/store';
 import { detectLanguage, onLanguageChange, setLanguage, t, translateDom } from './i18n/i18n';
 import { bindPointerInput } from './input/pointerInput';
@@ -29,6 +29,7 @@ import { registerSettings } from './ui/panels/settings';
 import { registerVillage } from './ui/panels/village';
 import { SheetManager } from './ui/sheet';
 import { Toasts } from './ui/toast';
+import { installIconStyles } from './ui/uiIcons';
 import { mountCaptions, mountTutorial } from './ui/tutorial';
 
 const MAX_DPR = 3;
@@ -61,7 +62,22 @@ function reportText(r: CatchUpReport | null, fresh: boolean): string {
   return lines.join('\n');
 }
 
+/** Ostatni dotknięty element – app.click() gra dźwięk materiału, z którego jest zrobiony. */
+let lastPointerTarget: Element | null = null;
+document.addEventListener('pointerdown', (e) => (lastPointerTarget = e.target as Element), { capture: true, passive: true });
+
+function materialSound(el: Element | null): SfxName {
+  if (!el) return 'click';
+  if (el.closest('.btn.reward')) return 'gold';
+  if (el.closest("[role='tab']")) return 'cloth';
+  if (el.closest('.tool, .sheet-head, .build-bar')) return 'wood';
+  if (el.closest('.row-btn, .setting, .card, .peek')) return 'paper';
+  if (el.closest('.badge, .sp-badge')) return 'wax';
+  return 'click';
+}
+
 async function boot(): Promise<void> {
+  installIconStyles();
   const startBtn = $<HTMLButtonElement>('#start-btn');
   const startSummary = $('#start-summary');
   const toasts = new Toasts($('#toasts'));
@@ -123,7 +139,7 @@ async function boot(): Promise<void> {
       }
       return false;
     },
-    click: () => audio.play('click'),
+    click: () => audio.play(materialSound(lastPointerTarget)),
     scene: () => scene,
     reducedMotion,
     openSheet: (id, arg, tab) => sheets.open(id, arg, tab),
@@ -256,6 +272,7 @@ async function boot(): Promise<void> {
   // ---------------------------------------------------------------- ekran startowy
   const report = await sim.ready;
   startSummary.textContent = reportText(report, !saved);
+  if (report && (report.days > 0 || report.harvestReady)) document.querySelector<HTMLElement>('.start-card .mascot')?.setAttribute('data-mood', 'cheer');
   startBtn.disabled = false;
   startBtn.addEventListener(
     'click',
@@ -296,4 +313,5 @@ void boot().catch((err) => {
   console.error(err);
   const s = document.getElementById('start-summary');
   if (s) s.textContent = t('start.error');
+  document.querySelector<HTMLElement>('.start-card .mascot')?.setAttribute('data-mood', 'sad');
 });

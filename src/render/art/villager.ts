@@ -13,7 +13,7 @@ interface Look {
 const LOOKS: Record<string, Look> = {
   ania: { hair: '#f2c46a', skin: '#ffd9c0', style: 'pigtails' },
   bogdan: { hair: '#7a4a2a', skin: '#f2c4a0', style: 'beard' },
-  celina: { hair: '#3a2a3a', skin: '#f6d2b8', style: 'bun' },
+  celina: { hair: '#3a2a1e', skin: '#f6d2b8', style: 'bun' },
   darek: { hair: '#c0602a', skin: '#ffd2b0', style: 'cap' },
 };
 
@@ -41,10 +41,10 @@ export function drawVillager(ctx: Ctx2D, npc: NpcDef, frame: number, cx: number,
   const bob = frame === 1 ? -2 : 0;
   const blink = frame === 2;
 
-  ellipse(ctx, cx, cy + 50, 24, 7, 'rgba(40,20,50,0.25)');
+  ellipse(ctx, cx, cy + 50, 24, 7, 'rgba(50,35,20,0.25)');
   // nogi i buciki
-  rrect(ctx, cx - 10 + step, cy + 26, 8, 22, 4, '#5a4a6a');
-  rrect(ctx, cx + 2 - step, cy + 26, 8, 22, 4, '#5a4a6a');
+  rrect(ctx, cx - 10 + step, cy + 26, 8, 22, 4, '#4a5a6a');
+  rrect(ctx, cx + 2 - step, cy + 26, 8, 22, 4, '#4a5a6a');
   ellipse(ctx, cx - 6 + step, cy + 48, 7, 4, '#4a2e1a');
   ellipse(ctx, cx + 6 - step, cy + 48, 7, 4, '#4a2e1a');
   // tułów (sukienka/kubraczek) – zaokrąglony jak ziarenko

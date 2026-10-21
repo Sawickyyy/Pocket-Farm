@@ -7,6 +7,7 @@ import { questReward } from '../../sim/systems/progress';
 import type { Quest } from '../../sim/types';
 import type { App } from '../app';
 import { h } from '../dom';
+import { ic, icEl } from '../uiIcons';
 import type { SheetManager } from '../sheet';
 import { viewCtx } from '../view';
 import { bar, btn, card, coins, grid } from './common';
@@ -29,7 +30,7 @@ export function registerProgress(app: App, sheets: SheetManager): void {
           const r = questReward(ctx, q, weekly);
           const done = q.progress >= q.target;
           const el = card(null, t(`quest.${q.tpl}`, { n: fmt(q.target) }), `${fmt(q.progress)}/${fmt(q.target)} · ${coins(fmt(r.coins))} · +${r.xp} XP`, [
-            q.claimed ? h('span', { text: '✓' }) : btn(t('progress.claim'), () => void app.send({ type: 'claimQuest', id: q.id }), { disabled: !done, small: true }),
+            q.claimed ? icEl('check', 'big') : btn(t('progress.claim'), () => void app.send({ type: 'claimQuest', id: q.id }), { disabled: !done, small: true, reward: true }),
           ], { cls: q.claimed ? 'done' : '' });
           el.querySelector('p')?.after(bar(q.progress / q.target));
           return el;
@@ -48,7 +49,7 @@ export function registerProgress(app: App, sheets: SheetManager): void {
             CONTENT.achievements.map((a) => {
               const done = s.achievements[a.id] !== undefined;
               const cur = Math.min(a.target, s.stats[a.stat] ?? 0);
-              const el = card(null, `${done ? '🏆' : '🔒'} ${t(`achievement.${a.id}`)}`, `${t(`stat.${a.stat}`)}: ${fmt(cur)}/${fmt(a.target)} · ${coins(fmt(a.coins))}`, [], { cls: done ? '' : 'done' });
+              const el = card(null, `${ic(done ? 'trophy' : 'lock')} ${t(`achievement.${a.id}`)}`, `${t(`stat.${a.stat}`)}: ${fmt(cur)}/${fmt(a.target)} · ${coins(fmt(a.coins))}`, [], { cls: done ? '' : 'done' });
               el.querySelector('p')?.after(bar(cur / a.target));
               return el;
             }),
@@ -88,7 +89,7 @@ export function registerProgress(app: App, sheets: SheetManager): void {
                     const have = s.skills.includes(sk.id);
                     const check = canLearn(s, CONTENT, sk.id);
                     const req = sk.requires.length ? t('skills.requires', { list: sk.requires.map((r) => t(`skill.${r}`)).join(', ') }) : '';
-                    return card(null, `${have ? '✅' : '⭐'} ${t(`skill.${sk.id}`)}`, `${t(`skill.${sk.id}.desc`)}${req ? `<br>${req}` : ''}`, [
+                    return card(null, `${ic(have ? 'star-gold' : 'star-empty')} ${t(`skill.${sk.id}`)}`, `${t(`skill.${sk.id}.desc`)}${req ? `<br>${req}` : ''}`, [
                       have ? h('span', { text: t('skills.learned') }) : btn(t('skills.learn', { n: sk.cost }), () => void app.send({ type: 'unlockSkill', id: sk.id }), { disabled: !check.ok, small: true }),
                     ], { cls: have ? 'done' : '' });
                   }),

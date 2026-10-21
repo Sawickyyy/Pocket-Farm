@@ -10,6 +10,7 @@ import { SELL_ALL_KINDS, priceTrend, quote, unitPrice } from '../../sim/systems/
 import type { GameState } from '../../sim/types';
 import type { App } from '../app';
 import { h } from '../dom';
+import { ic, icEl } from '../uiIcons';
 import { formatDuration, keyLabelHtml } from '../format';
 import type { SheetManager } from '../sheet';
 import { viewCtx } from '../view';
@@ -54,7 +55,7 @@ export function registerEconomy(app: App, sheets: SheetManager): void {
                   },
                 },
               },
-              h('img', { class: 'menu-icon', attrs: { src: menuIconUrl(id), alt: '', width: '56', height: '56' } }),
+              h('span', { class: 'stamp' }, h('img', { class: 'menu-icon', attrs: { src: menuIconUrl(id), alt: '', width: '56', height: '56' } })),
               h('span', { text: label }),
               // czerwona pieczęć = czeka nagroda/dostawa; złota = po prostu jest coś do sprzedania
               badge ? h('span', { class: urgent ? 'badge seal' : 'badge', text: String(badge) }) : null,
@@ -74,15 +75,15 @@ export function registerEconomy(app: App, sheets: SheetManager): void {
       const inSeason = c.seasons.includes(ctx.cal.season);
       const time = formatDuration((c.growMin * HOUR_MS) / growthRate(0.6) / (1 + mod(s, CONTENT, 'growthSpeed')));
       const seasons = c.seasons.map((x) => t(`season.${x}`)).join(', ');
-      const desc = `${coins(c.seed)} · ~${time} · ${seasons}${c.night ? ` · 🌙 ${t('shop.night')}` : ''}<br>${t('shop.have', { n: s.seeds[c.id] ?? 0 })} · <b>${inSeason ? t('shop.inSeason') : t('shop.outSeason')}</b>`;
+      const desc = `${coins(c.seed)} · ~${time} · ${seasons}${c.night ? ` · ${ic('moon')} ${t('shop.night')}` : ''}<br>${t('shop.have', { n: s.seeds[c.id] ?? 0 })} · <b>${inSeason ? t('shop.inSeason') : t('shop.outSeason')}</b>`;
       const actions = locked
         ? []
         : [
             btn('+1', () => void app.send({ type: 'buySeeds', crop: c.id, qty: 1 }), { primary: false, disabled: s.coins < c.seed, small: true }),
             btn('+5', () => void app.send({ type: 'buySeeds', crop: c.id, qty: 5 }), { disabled: s.coins < c.seed * 5, small: true }),
           ];
-      if (onPick && !locked) actions.unshift(btn('✓', () => onPick(c.id), { primary: s.selectedSeed !== c.id, small: true, aria: t('tool.pickSeed') }));
-      return card(itemIconUrl(c.id), `${itemName(c.id)}${s.selectedSeed === c.id && onPick ? ' ✓' : ''}`, desc, actions, {
+      if (onPick && !locked) actions.unshift(btn('', () => onPick(c.id), { primary: s.selectedSeed !== c.id, small: true, aria: t('tool.pickSeed'), icon: 'check' }));
+      return card(itemIconUrl(c.id), `${itemName(c.id)}${s.selectedSeed === c.id && onPick ? ` ${ic('check')}` : ''}`, desc, actions, {
         note: locked ? t('shop.fromLevel', { level: c.level }) : undefined,
         cls: `buy ${inSeason ? '' : 'done'}`,
       });
@@ -116,8 +117,8 @@ export function registerEconomy(app: App, sheets: SheetManager): void {
       body.replaceChildren(
         grid(
           ferts.map((f) =>
-            card(itemIconUrl(f.id), `${itemName(f.id)}${s.selectedFertilizer === f.id ? ' ✓' : ''}`, `+${Math.round((f.fertility ?? 0) * 100)}% · ${t('shop.have', { n: countItem(s, f.id) })}`, [
-              f.buy ? btn(`+5 (${f.buy * 5}🪙)`, () => void app.send({ type: 'buyItem', item: f.id, qty: 5 }), { primary: false, small: true, disabled: s.coins < f.buy * 5 }) : h('span'),
+            card(itemIconUrl(f.id), `${itemName(f.id)}${s.selectedFertilizer === f.id ? ` ${ic('check')}` : ''}`, `+${Math.round((f.fertility ?? 0) * 100)}% · ${t('shop.have', { n: countItem(s, f.id) })}`, [
+              f.buy ? btn(`+5 · ${f.buy * 5}`, () => void app.send({ type: 'buyItem', item: f.id, qty: 5 }), { primary: false, small: true, disabled: s.coins < f.buy * 5, icon: 'coin' }) : h('span'),
               btn('✓', () => {
                 app.click();
                 void app.send({ type: 'selectFertilizer', item: f.id });
@@ -173,7 +174,7 @@ export function registerEconomy(app: App, sheets: SheetManager): void {
         .filter(([key, n]) => n > 0 && SELL_ALL_KINDS.has(CONTENT.items[parseKey(key).id]?.kind ?? ''))
         .sort((a, b) => unitPrice(ctx, b[0]) - unitPrice(ctx, a[0]));
       if (!entries.length) {
-        body.replaceChildren(empty(t('market.empty')), h('p', { class: 'hint', text: t('market.hint') }));
+        body.replaceChildren(empty(t('market.empty'), 'point'), h('p', { class: 'hint', text: t('market.hint') }));
         return;
       }
       let total = 0;
@@ -181,7 +182,7 @@ export function registerEconomy(app: App, sheets: SheetManager): void {
         const { id } = parseKey(key);
         const trend = priceTrend(ctx, id);
         total += quote(ctx, key, n);
-        const chip = trend > 0 ? `<span class="chip hot">▲ ${t('market.hot')}</span>` : trend < 0 ? `<span class="chip cold">▼ ${t('market.cold')}</span>` : '';
+        const chip = trend > 0 ? `<span class="chip hot">${ic('leaf-up')}${t('market.hot')}</span>` : trend < 0 ? `<span class="chip cold">${ic('leaf-down')}${t('market.cold')}</span>` : '';
         return card(itemIconUrl(id), `${keyLabelHtml(key)} × ${n}`, `${coins(fmt(unitPrice(ctx, key)))} ${t('market.each')}${chip}`, [
           btn(t('market.one'), () => void app.send({ type: 'sell', key, qty: 1 }), { primary: false, small: true }),
           btn(`${t('market.all')} (${fmt(quote(ctx, key, n))})`, () => void app.send({ type: 'sell', key, qty: 'all' }), { small: true }),
@@ -192,8 +193,8 @@ export function registerEconomy(app: App, sheets: SheetManager): void {
         h(
           'div',
           { class: 'summary-row' },
-          h('span', { html: `${t('market.total')}: <b class="price">${fmt(total)} 🪙</b>` }),
-          btn(t('market.sellAll'), () => void app.send({ type: 'sellAll' })),
+          h('span', { html: `${t('market.total')}: <b class="price">${fmt(total)}${ic('coin')}</b>` }),
+          btn(t('market.sellAll'), () => void app.send({ type: 'sellAll' }), { reward: true, icon: 'coin' }),
         ),
         h('p', { class: 'hint', text: t('market.hint') }),
       );

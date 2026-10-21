@@ -385,7 +385,7 @@
   "skill.tycoon.desc": "Ceny +10%, sprzedaż hurtowa mniej obniża ceny, lepsze zamówienia.",
   "quest.harvest": "Zbierz plony ({n})",
   "quest.water": "Podlej pola ({n})",
-  "quest.earn": "Zarób na rynku: {n} 🪙",
+  "quest.earn": "Zarób na rynku: {n} monet",
   "quest.feed": "Nakarm zwierzęta ({n}×)",
   "quest.produce": "Wytwórz produkty ({n})",
   "quest.fish": "Złów ryby ({n})",
@@ -438,5 +438,6 @@
   "peek.night": "rośnie nocą",
   "beacon.crops": "Gotowe plony – pokaż",
   "beacon.animals": "Zwierzęta mają produkty – pokaż",
-  "beacon.machines": "Wyroby czekają w budynku – pokaż"
+  "beacon.machines": "Wyroby czekają w budynku – pokaż",
+  "common.back": "Wstecz"
 }

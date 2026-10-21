@@ -11,6 +11,7 @@ export function mountTutorial(app: App): void {
   const box = $('#tutorial');
   const text = $('#tutorial-text');
   const next = $<HTMLButtonElement>('#tutorial-next');
+  const mascot = $('#tutorial-mascot');
   let lastKey = '';
 
   next.addEventListener('click', () => {
@@ -36,6 +37,8 @@ export function mountTutorial(app: App): void {
     }
     box.hidden = false;
     text.textContent = t(`tutorial.${step.id}`);
+    const last = s.tutorial.step >= CONTENT.tutorial.length - 1;
+    mascot.dataset.mood = last ? 'cheer' : step.target ? 'point' : s.tutorial.step === 0 ? 'wave' : 'happy';
     next.hidden = step.advance !== 'next';
     if (step.target?.startsWith('tool:')) {
       document.querySelector(`.tool[data-tool="${step.target.slice(5)}"]`)?.classList.add('tut-target');

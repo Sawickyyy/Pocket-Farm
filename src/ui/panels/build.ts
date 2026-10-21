@@ -10,10 +10,11 @@ import { REFUND } from '../../sim/systems/building';
 import type { GameState } from '../../sim/types';
 import type { App } from '../app';
 import { h } from '../dom';
+import { ic, icEl } from '../uiIcons';
 import { formatDuration } from '../format';
 import type { SheetManager } from '../sheet';
 import { viewCtx } from '../view';
-import { bar, btn, card, coins, empty, grid, setBar } from './common';
+import { bar, btn, card, coins, empty, grid, hearts, setBar } from './common';
 
 export function registerBuild(app: App, sheets: SheetManager): void {
   // ---------------------------------------------------------- katalog
@@ -35,7 +36,7 @@ export function registerBuild(app: App, sheets: SheetManager): void {
             const lockedFest = b.festival && !s.unlocks.includes(b.id);
             const lockedLevel = level < b.level;
             const [w, hgt] = b.size;
-            const desc = `${b.cost ? coins(fmt(b.cost)) : '🎁'} · ${t('build.size', { w, h: hgt })}${b.capacity ? ` · ${t('home.animals', { n: 0, cap: b.capacity })}` : ''}`;
+            const desc = `${b.cost ? coins(fmt(b.cost)) : ic('gift')} · ${t('build.size', { w, h: hgt })}${b.capacity ? ` · ${t('home.animals', { n: 0, cap: b.capacity })}` : ''}`;
             return card(
               buildingIconUrl(b.id),
               buildingName(b.id),
@@ -96,7 +97,7 @@ export function registerBuild(app: App, sheets: SheetManager): void {
       const o = objectOf(s, uid);
       const def = o && CONTENT.buildings[o.type];
       if (!o || !def) {
-        body.replaceChildren(empty(t('fail.invalid')));
+        body.replaceChildren(empty(t('fail.invalid'), 'surprised'));
         return;
       }
       const parts: (HTMLElement | null)[] = [];
@@ -141,7 +142,7 @@ function homeView(app: App, s: GameState, uid: number, type: string): HTMLElemen
       })}`,
     }),
   ];
-  if (!animals.length) out.push(empty(t('home.empty')));
+  if (!animals.length) out.push(empty(t('home.empty'), 'point'));
   out.push(
     grid(
       animals.map((a) => {
@@ -151,7 +152,7 @@ function homeView(app: App, s: GameState, uid: number, type: string): HTMLElemen
           h('h4', { html: `${a.name} · ${animalName(a.kind)}${a.ready ? ` <span class="chip hot">${t('home.ready')}</span>` : ''}` }),
           h('p', { text: t('home.hunger') }),
           bar(a.hunger, a.hunger < 0.2, `h${a.id}`),
-          h('p', { text: `${t('home.affection')} ${'♥'.repeat(Math.round(a.affection * 5))}${'♡'.repeat(5 - Math.round(a.affection * 5))}` }),
+          h('p', { class: 'hearts', html: `${t('home.affection')} ${hearts(Math.round(a.affection * 5), 5)}` }),
           bar(a.progress, false, `p${a.id}`),
         );
         return h(
@@ -164,7 +165,7 @@ function homeView(app: App, s: GameState, uid: number, type: string): HTMLElemen
             { class: 'actions' },
             btn(t('home.feed'), () => void app.send({ type: 'feedAnimal', id: a.id }), { small: true, primary: false, disabled: a.hunger > 0.85 }),
             btn(t('home.pet'), () => void app.send({ type: 'petAnimal', id: a.id }), { small: true, primary: false, disabled: a.pettedDay === cal.day }),
-            btn(t('home.collect'), () => void app.send({ type: 'collectAnimal', id: a.id }), { small: true, disabled: !a.ready }),
+            btn(t('home.collect'), () => void app.send({ type: 'collectAnimal', id: a.id }), { small: true, disabled: !a.ready, reward: true }),
           ),
         );
       }),
@@ -176,7 +177,7 @@ function homeView(app: App, s: GameState, uid: number, type: string): HTMLElemen
         'div',
         { class: 'row' },
         btn(t('home.feedAll'), () => void app.send({ type: 'feedAll', home: uid }), { primary: false }),
-        btn(t('home.collectAll'), () => void app.send({ type: 'collectAll', home: uid }), { disabled: !animals.some((a) => a.ready) }),
+        btn(t('home.collectAll'), () => void app.send({ type: 'collectAll', home: uid }), { disabled: !animals.some((a) => a.ready), reward: true }),
       ),
     );
   }
@@ -224,7 +225,7 @@ function machineView(app: App, s: GameState, uid: number, type: string): HTMLEle
       'div',
       { class: 'summary-row' },
       h('span', { html: `${t('machine.output', { n: outCount })} / ${OUTPUT_CAP} ${Object.entries(m.output).map(([k, n]) => `${itemName(k)} ×${n}`).join(', ')}` }),
-      btn(t('machine.collect'), () => void app.send({ type: 'collectOutput', uid }), { disabled: !outCount }),
+      btn(t('machine.collect'), () => void app.send({ type: 'collectOutput', uid }), { disabled: !outCount, reward: true }),
     ),
   );
 
@@ -237,7 +238,7 @@ function machineView(app: App, s: GameState, uid: number, type: string): HTMLEle
           return `<span class="${have < i.qty ? 'q-miss' : ''}">${itemName(i.item)} ${Math.min(have, 99)}/${i.qty}</span>`;
         });
         const can = r.inputs.every((i) => countItem(s, i.item) >= i.qty) && m.queue.length < limit;
-        return card(itemIconUrl(r.output.item), `${itemName(r.output.item)} × ${r.output.qty}`, `${inputs.join(' + ')} · ⏱ ${formatDuration((r.minutes / 60) * HOUR_MS)}`, [
+        return card(itemIconUrl(r.output.item), `${itemName(r.output.item)} × ${r.output.qty}`, `${inputs.join(' + ')} · ${ic('timer')} ${formatDuration((r.minutes / 60) * HOUR_MS)}`, [
           btn(t('machine.make'), () => void app.send({ type: 'queueRecipe', uid, recipe: r.id }), { disabled: !can, small: true }),
         ]);
       }),

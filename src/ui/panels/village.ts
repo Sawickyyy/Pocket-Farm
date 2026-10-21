@@ -9,6 +9,7 @@ import { giftReaction, hearts as heartCount } from '../../sim/systems/village';
 import type { GameState } from '../../sim/types';
 import type { App } from '../app';
 import { h } from '../dom';
+import { ic, icEl } from '../uiIcons';
 import { keyLabelHtml } from '../format';
 import type { SheetManager } from '../sheet';
 import { viewCtx } from '../view';
@@ -35,14 +36,14 @@ export function registerVillage(app: App, sheets: SheetManager): void {
           parts.push(
             card(
               itemIconUrl(fest.item),
-              `🎪 ${t('village.festival', { name: t(`festival.${fest.id}`) })}`,
+              `${ic('tent')} ${t('village.festival', { name: t(`festival.${fest.id}`) })}`,
               done ? t('village.festivalDone') : `${t('village.festivalDeliver', { qty: fest.qty, item: itemName(fest.item) })} (${have}/${fest.qty}) · ${coins(fmt(fest.coins))}`,
-              done ? [] : [btn(t('village.deliver'), () => void app.send({ type: 'festivalDeliver' }), { disabled: have < fest.qty })],
+              done ? [] : [btn(t('village.deliver'), () => void app.send({ type: 'festivalDeliver' }), { disabled: have < fest.qty, reward: true })],
               { cls: done ? 'done' : '' },
             ),
           );
         }
-        if (!s.orders.length) parts.push(empty(t('village.noOrders')));
+        if (!s.orders.length) parts.push(empty(t('village.noOrders'), 'sleep'));
         parts.push(
           grid(
             s.orders.map((o) => {
@@ -51,7 +52,7 @@ export function registerVillage(app: App, sheets: SheetManager): void {
                 itemIconUrl(o.item),
                 `${npcName(o.npc)}: ${o.qty}× ${itemName(o.item)}`,
                 `${have}/${o.qty} · ${coins(fmt(o.coins))} · +${o.xp} XP · ${t('village.expires', { day: (o.expiresDay % 7) + 1 })}`,
-                [btn(t('village.deliver'), () => void app.send({ type: 'deliverOrder', id: o.id }), { disabled: have < o.qty })],
+                [btn(t('village.deliver'), () => void app.send({ type: 'deliverOrder', id: o.id }), { disabled: have < o.qty, reward: true })],
               );
             }),
           ),
@@ -76,11 +77,11 @@ export function registerVillage(app: App, sheets: SheetManager): void {
                 'div',
                 {},
                 h('h4', { text: `${npcName(n.id)} · ${t(`npc.${n.id}.role`)}` }),
-                h('p', { class: 'hearts', text: hearts(hrt), attrs: { 'aria-label': `${t('village.hearts')}: ${hrt}/10` } }),
+                h('p', { class: 'hearts', html: hearts(hrt), attrs: { 'aria-label': `${t('village.hearts')}: ${hrt}/10` } }),
                 h('p', { text: `${t('village.loves')}: ${n.loves.map(itemName).join(', ')}` }),
                 h('p', { text: `${t('village.likes')}: ${n.likes.map(itemName).join(', ')}` }),
               ),
-              h('div', { class: 'actions' }, btn(gifted ? '✓' : t('village.gift'), () => app.openSheet('gift', n.id), { disabled: gifted, small: true, aria: gifted ? t('village.giftDone') : t('village.gift') })),
+              h('div', { class: 'actions' }, btn(gifted ? '' : t('village.gift'), () => app.openSheet('gift', n.id), { disabled: gifted, small: true, aria: gifted ? t('village.giftDone') : t('village.gift'), icon: gifted ? 'check' : 'gift' })),
             );
           }),
         ),
@@ -107,7 +108,7 @@ export function registerVillage(app: App, sheets: SheetManager): void {
       body.replaceChildren(
         grid(
           entries.map((e) =>
-            card(itemIconUrl(parseKey(e.key).id), `${keyLabelHtml(e.key)} × ${e.n}`, e.reaction === 'love' ? `❤️ ${t('village.loves')}` : e.reaction === 'like' ? `🙂 ${t('village.likes')}` : '', [
+            card(itemIconUrl(parseKey(e.key).id), `${keyLabelHtml(e.key)} × ${e.n}`, e.reaction === 'love' ? `${ic('heart')} ${t('village.loves')}` : e.reaction === 'like' ? `${ic('smile')} ${t('village.likes')}` : '', [
               btn(t('inv.gift'), () => {
                 void app.send({ type: 'gift', npc: id, key: e.key }).then((ok) => ok && app.openSheet('village', undefined));
               }, { small: true }),

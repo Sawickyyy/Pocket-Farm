@@ -446,7 +446,7 @@ function fluffyCrown(ctx: Ctx2D, cx: number, cy: number, parts: readonly (readon
 export function drawTree(ctx: Ctx2D, kind: 'oak' | 'pine', season: Season, ox: number, oy: number, w: number, h: number): void {
   const cx = ox + w / 2;
   const base = oy + h - 16;
-  ellipse(ctx, cx, base + 4, w * 0.34, 11, 'rgba(40,20,50,0.22)');
+  ellipse(ctx, cx, base + 4, w * 0.34, 11, 'rgba(50,35,20,0.22)');
   // pień z korzonkami
   ctx.beginPath();
   ctx.moveTo(cx - 13, base + 2);
@@ -538,7 +538,7 @@ export function drawAnimal(ctx: Ctx2D, def: AnimalDef, frame: number, cx: number
   const step = frame === 1 ? 3 : -3;
   const bob = frame === 1 ? -2 : 0;
   const blink = frame === 2;
-  ellipse(ctx, cx, cy + 36, 30, 8, 'rgba(40,20,50,0.22)');
+  ellipse(ctx, cx, cy + 36, 30, 8, 'rgba(50,35,20,0.22)');
   if (def.id === 'chicken') {
     rrect(ctx, cx - 7 + step, cy + 18, 5, 16, 2.5, '#f2a93a');
     rrect(ctx, cx + 4 - step, cy + 18, 5, 16, 2.5, '#f2a93a');

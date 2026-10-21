@@ -4,7 +4,7 @@
   { "id": "mill", "kind": "machine", "size": [2, 2], "cost": 500, "level": 4, "art": { "wall": "#d8c8a8", "roof": "#7a5a3a", "emblem": "flour" } },
   { "id": "bakery", "kind": "machine", "size": [2, 2], "cost": 900, "level": 6, "art": { "wall": "#f0dcc0", "roof": "#c56a2c", "emblem": "bread" } },
   { "id": "dairy", "kind": "machine", "size": [2, 2], "cost": 800, "level": 6, "art": { "wall": "#f4f4f0", "roof": "#4a7ab8", "emblem": "cheese" } },
-  { "id": "loom", "kind": "machine", "size": [2, 2], "cost": 700, "level": 7, "art": { "wall": "#e2d6f0", "roof": "#6a4a9a", "emblem": "cloth" } },
+  { "id": "loom", "kind": "machine", "size": [2, 2], "cost": 700, "level": 7, "art": { "wall": "#f3e3c8", "roof": "#2f86c2", "emblem": "cloth" } },
   { "id": "preserves", "kind": "machine", "size": [2, 2], "cost": 600, "level": 4, "art": { "wall": "#f4e2d0", "roof": "#a83a4a", "emblem": "jam" } },
   { "id": "composter", "kind": "machine", "size": [1, 1], "cost": 150, "level": 2, "art": { "wall": "#7a5a34", "roof": "#5a4026", "emblem": "compost" } },
   { "id": "sprinkler", "kind": "sprinkler", "size": [1, 1], "cost": 200, "level": 3, "radius": 1, "art": { "wall": "#9aa4ad", "roof": "#4ea3dc" } },

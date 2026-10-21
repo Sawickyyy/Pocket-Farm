@@ -43,6 +43,8 @@ const SYNC_MS = 120;
 const DOF_KEY = 'dof-mask';
 /** Macierze 4×5: jasność do wszystkich kanałów (alfa = 1) oraz ciepłe zabarwienie poświaty. */
 const LUMA = [0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0, 0, 0, 0, 1];
+/** Ciepła sepia z przyciemnieniem dla świata za otwartym panelem. */
+const STAGE_SEPIA = [0.33, 0.6, 0.15, 0, 0.02, 0.29, 0.53, 0.13, 0, 0.01, 0.22, 0.42, 0.1, 0, 0, 0, 0, 0, 1, 0];
 const WARM_GLOW = [1, 0, 0, 0, 0, 0, 0.84, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0, 1, 0];
 
 /** Maska tilt-shiftu: przezroczysty pas w środku ekranu (ostro), pełna krycie u góry i u dołu (rozmyte). */
@@ -83,6 +85,8 @@ export class FarmScene extends Phaser.Scene {
   private bloom: { blend: Phaser.Filters.Blend; threshold: Phaser.Filters.Threshold } | null = null;
   private gradeSeason: string | null = null;
   private bloomNight = -1;
+  private stageFilter: Phaser.Filters.ColorMatrix | null = null;
+  staging = 0;
   private post: { mode: ColorblindMode; fx: boolean; dof: boolean } = { mode: 'none', fx: true, dof: false };
   private lastState: GameState | null = null;
   private lastSync = 0;
@@ -337,7 +341,31 @@ export class FarmScene extends Phaser.Scene {
       pf.blend.blendMode = Phaser.BlendModes.NORMAL;
       pf.blend.amount = 1;
     }
-    if (fx) this.vignette = list.addVignette(0.5, 0.52, 0.88, 0.32, 0x2a1a40);
+    if (fx) this.vignette = list.addVignette(0.5, 0.52, 0.88, 0.32, 0x3a2414);
+    // „Staging”: przy otwartym panelu świat dostaje ciepłą, przyciemnioną sepię (bez rozmycia szkła).
+    this.stageFilter = list.addColorMatrix();
+    this.stageFilter.colorMatrix.set(STAGE_SEPIA);
+    this.stageFilter.colorMatrix.alpha = this.staging;
+  }
+
+  /** Panel otwarty → świat w tle przyciemnia się ciepłą sepią (płynnie). */
+  setStaging(on: boolean): void {
+    const target = on ? 0.6 : 0;
+    this.tweens.killTweensOf(this);
+    if (this.deps.reducedMotion()) {
+      this.staging = target;
+      if (this.stageFilter) this.stageFilter.colorMatrix.alpha = target;
+      return;
+    }
+    this.tweens.add({
+      targets: this,
+      staging: target,
+      duration: on ? 320 : 260,
+      ease: 'Sine.easeOut',
+      onUpdate: () => {
+        if (this.stageFilter) this.stageFilter.colorMatrix.alpha = this.staging;
+      },
+    });
   }
 
   /** Colour script: zmiana pory roku przestawia korekcję; bloom rośnie o zmierzchu i nocą. */

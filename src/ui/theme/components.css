@@ -1,0 +1,799 @@
+/* ================================================================ komponenty: przyciski, panel, zakładki, karty, kontrolki */
+
+/* ---------- przyciski z glazurowanej ceramiki */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: var(--tap);
+  min-width: var(--tap);
+  margin-bottom: 0.28rem;
+  padding: 0 1.05rem;
+  border-radius: 1rem;
+  color: var(--ink);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.btn.primary {
+  --c-hi: var(--leaf);
+  --c: var(--leaf-deep);
+  --c-lo: var(--leaf-lo);
+  color: var(--on-color);
+  text-shadow: 0 1px 0 rgb(30 80 20 / 0.55);
+}
+
+.btn.reward {
+  --c-hi: var(--sun-hi);
+  --c: var(--sun);
+  --c-lo: var(--sun-lo);
+  color: #5a3208;
+  text-shadow: 0 1px 0 rgb(255 250 220 / 0.7);
+}
+
+.btn.reward:not(:disabled)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(110deg, rgb(255 255 255 / 0) 30%, rgb(255 255 255 / 0.65) 45%, rgb(255 255 255 / 0) 60%) -200% 0 / 250% 100% no-repeat;
+  animation: glint 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes glint {
+  60%,
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.btn.danger {
+  --c-hi: var(--terra);
+  --c: var(--terra-deep);
+  --c-lo: var(--terra-lo);
+  color: var(--on-color);
+  text-shadow: 0 1px 0 rgb(110 30 10 / 0.55);
+}
+
+/* drugorzędny = jasne drewno */
+.btn.ghost {
+  --c-hi: #f6dcae;
+  --c: var(--wood-hi);
+  --c-lo: var(--wood-lo);
+  color: #5a3a1e;
+}
+
+.btn.sm {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0 0.75rem;
+  border-radius: 0.85rem;
+  font-size: 0.86rem;
+}
+
+.btn.big {
+  min-height: 3.9rem;
+  padding: 0 2rem;
+  border-radius: 1.4rem;
+  font-size: 1.25rem;
+  --depth: 0.38rem;
+}
+
+/* wyłączony: matowy, bez połysku i grubości, ze spękaną glazurą */
+.btn:disabled {
+  --depth: 0.08rem;
+  background:
+    repeating-linear-gradient(35deg, rgb(0 0 0 / 0) 0 0.9rem, rgb(80 50 20 / 0.12) 0.9rem 0.98rem),
+    repeating-linear-gradient(-55deg, rgb(0 0 0 / 0) 0 1.3rem, rgb(80 50 20 / 0.1) 1.3rem 1.38rem),
+    linear-gradient(color-mix(in srgb, var(--c) 45%, #d8cbb4), color-mix(in srgb, var(--c) 40%, #c9b99c));
+  color: color-mix(in srgb, var(--ink) 55%, transparent);
+  text-shadow: none;
+}
+
+.row {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 0.9rem;
+}
+
+.summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-sm);
+  background: rgb(201 138 74 / 0.12);
+}
+
+/* ---------- panel: drewniana tablica ogłoszeń z przypiętą kartką */
+[popover] {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+  background: transparent;
+}
+
+.sheet {
+  position: fixed;
+  inset: auto 0 0 0;
+  width: auto;
+  max-width: 40rem;
+  max-height: min(84dvh, 48rem);
+  margin-inline: auto;
+  padding: 0 calc(var(--safe-right) + 0.6rem) calc(var(--safe-bottom) + 0.7rem) calc(var(--safe-left) + 0.6rem);
+  border-radius: 1.8rem 1.8rem 0 0;
+  background:
+    linear-gradient(rgb(255 240 210 / 0.2), rgb(255 240 210 / 0) 4rem),
+    repeating-linear-gradient(91deg, rgb(0 0 0 / 0) 0 1.6rem, rgb(60 30 10 / 0.14) 1.6rem 1.75rem, rgb(0 0 0 / 0) 1.75rem 3.1rem),
+    repeating-linear-gradient(88deg, rgb(255 228 180 / 0.1) 0 0.7rem, rgb(0 0 0 / 0) 0.7rem 2rem),
+    linear-gradient(var(--wood), var(--wood-lo));
+  box-shadow:
+    inset 0 0.18rem 0 rgb(255 236 200 / 0.45),
+    0 -0.6rem 2.5rem rgb(40 20 5 / 0.35);
+  overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  container-type: inline-size;
+  container-name: sheet;
+  translate: 0 100%;
+  transition:
+    translate var(--dur-panel) var(--spring-soft),
+    max-height var(--dur-panel) var(--spring-soft),
+    overlay var(--dur-panel) allow-discrete,
+    display var(--dur-panel) allow-discrete;
+}
+
+.sheet:popover-open {
+  translate: 0 var(--drag, 0px);
+}
+
+@starting-style {
+  .sheet:popover-open {
+    translate: 0 100%;
+  }
+}
+
+.sheet.dragging {
+  transition: none;
+}
+
+.sheet.full {
+  max-height: calc(100dvh - var(--safe-top) - 0.6rem);
+}
+
+/* świat za panelem przyciemnia Phaser (ciepła sepia), tło popovera zostaje lekkie */
+.sheet::backdrop {
+  background: rgb(40 25 10 / 0.18);
+}
+
+.sheet.small {
+  max-height: 62dvh;
+}
+
+.sheet-grip {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  width: 3.4rem;
+  height: 1.3rem;
+  margin: 0 auto -0.4rem;
+  padding-top: 0.45rem;
+  cursor: grab;
+  touch-action: none;
+}
+
+.sheet-grip::before {
+  content: '';
+  display: block;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: linear-gradient(var(--cream-hi), var(--cream-lo));
+  box-shadow: 0 0.12rem 0 var(--wood-dark);
+}
+
+/* nagłówek: deska z wypalonym tytułem */
+.sheet-head {
+  position: sticky;
+  top: 0.9rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0.4rem;
+  padding: 0.45rem 0.55rem 0.45rem 1rem;
+  border-radius: 1rem;
+  touch-action: none;
+  --wood-hi: var(--wood-mid);
+  --wood: var(--wood-deep);
+}
+
+.sheet h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.sheet-head h2 {
+  flex: 1;
+  color: #fff3d6;
+  text-shadow:
+    0 -1px 0 rgb(60 30 10 / 0.7),
+    0 1px 0 rgb(255 230 190 / 0.35);
+}
+
+.sheet h3 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.close,
+.back {
+  --c-hi: var(--ceram-hi);
+  --c: var(--ceram);
+  --c-lo: var(--wood-dark);
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 0.28rem;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.close .ic,
+.back .ic {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+/* zakładki: płócienne, wystające znad kartki jak w segregatorze */
+.tabs {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 0.3rem;
+  margin: 0.3rem 0.5rem -0.55rem;
+  padding: 0.3rem 0.2rem 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs [role='tab'] {
+  flex: 1;
+  min-height: 2.9rem;
+  padding: 0 0.7rem 0.45rem;
+  border: 0;
+  border-radius: 0.9rem 0.9rem 0 0;
+  color: #fff;
+  font-weight: 900;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.3);
+  transform: translateY(0.35rem);
+  filter: saturate(0.75) brightness(0.92);
+  transition:
+    transform var(--dur-pop) var(--spring-pop),
+    filter var(--dur);
+}
+
+.tabs [role='tab'] {
+  --cl: var(--leaf-deep);
+  --cl-hi: var(--leaf);
+}
+
+.tabs [role='tab']:nth-child(4n + 2) {
+  --cl: var(--sky-lo);
+  --cl-hi: var(--sky);
+}
+
+.tabs [role='tab']:nth-child(4n + 3) {
+  --cl: var(--terra-deep);
+  --cl-hi: var(--terra);
+}
+
+.tabs [role='tab']:nth-child(4n + 4) {
+  --cl: var(--wood-lo);
+  --cl-hi: var(--wood);
+}
+
+.tabs [role='tab'][aria-selected='true'] {
+  transform: translateY(0);
+  filter: none;
+  box-shadow: 0 -0.2rem 0.5rem rgb(40 20 5 / 0.25);
+}
+
+/* kartka z treścią przypięta do tablicy */
+.sheet-body {
+  position: relative;
+  min-height: 6rem;
+  padding: 1.1rem 0.85rem 0.95rem;
+  view-transition-name: sheet-body;
+}
+
+.sheet-body::before,
+.sheet-body::after {
+  content: '';
+  position: absolute;
+  top: 0.35rem;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--terra-hi), var(--terra) 60%, var(--terra-lo));
+  box-shadow: 0 0.12rem 0.15rem rgb(40 20 5 / 0.35);
+}
+
+.sheet-body::before {
+  left: 0.6rem;
+}
+
+.sheet-body::after {
+  right: 0.6rem;
+}
+
+.sheet-body > :first-child {
+  margin-top: 0;
+}
+
+/* ---------- karty: kartki papieru przypięte pinezką, lekko krzywo */
+.cards {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@container sheet (min-width: 34rem) {
+  .cards.two {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  background:
+    var(--grain),
+    radial-gradient(ellipse 80% 60% at 15% 0%, rgb(255 255 255 / 0.6), rgb(255 255 255 / 0) 70%),
+    var(--paper-hi);
+  rotate: -0.5deg;
+}
+
+.card:nth-child(even) {
+  rotate: 0.45deg;
+}
+
+.card:nth-child(3n) {
+  rotate: -0.2deg;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: -0.3rem;
+  left: 50%;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-left: -0.35rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--sky-hi), var(--sky) 60%, var(--sky-lo));
+  box-shadow: 0 0.1rem 0.12rem rgb(40 20 5 / 0.35);
+}
+
+.card:nth-child(3n + 2)::before {
+  background: radial-gradient(circle at 35% 30%, var(--leaf-hi), var(--leaf) 60%, var(--leaf-lo));
+}
+
+.card:nth-child(3n)::before {
+  background: radial-gradient(circle at 35% 30%, var(--sun-hi), var(--sun) 60%, var(--sun-lo));
+}
+
+/* miniatura na okrągłym drewnianym talerzyku */
+.card .thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 45%, rgb(255 236 200 / 0.4) 0 52%, rgb(0 0 0 / 0) 56%),
+    radial-gradient(circle at 38% 30%, var(--wood-hi), var(--wood) 70%, var(--wood-lo));
+  box-shadow:
+    inset 0 -0.15rem 0 rgb(60 30 10 / 0.3),
+    0 0.15rem 0 var(--wood-lo);
+}
+
+.card .thumb img {
+  width: 2.8rem;
+  height: 2.8rem;
+  object-fit: contain;
+  filter: drop-shadow(0 0.12rem 0 rgb(40 20 5 / 0.3));
+}
+
+.card h4 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+
+.card p {
+  margin: 0.12rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.card .actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* gotowa do akcji (np. zamówienie do oddania, nagroda do odebrania): złota obwódka i iskierki */
+.card:has(.btn.reward:not(:disabled)) {
+  box-shadow:
+    0 0 0 0.18rem var(--sun),
+    0 0 1.1rem rgb(255 197 61 / 0.55),
+    0 0.5rem 1rem var(--contact-soft);
+}
+
+/* wykonane / poza sezonem: wyblakła kartka */
+.card.done {
+  filter: saturate(0.45);
+  opacity: 0.72;
+}
+
+/* zablokowana: szkic ołówkiem z mosiężną kłódką */
+.card:has(.locked-note) {
+  filter: grayscale(0.85) contrast(0.9);
+  opacity: 0.78;
+}
+
+.card:has(.locked-note)::after {
+  content: '';
+  position: absolute;
+  top: -0.4rem;
+  right: -0.3rem;
+  width: 1.7rem;
+  height: 1.7rem;
+  background: var(--icon-lock) center / contain no-repeat;
+  filter: grayscale(0);
+}
+
+.card.focus {
+  box-shadow:
+    0 0 0 0.2rem var(--sun),
+    0 0 1.2rem rgb(255 197 61 / 0.6),
+    0 0.5rem 1rem var(--contact-soft);
+  animation: focus-wiggle 600ms var(--spring-pop);
+}
+
+@keyframes focus-wiggle {
+  30% {
+    transform: rotate(-2deg) scale(1.03);
+  }
+  60% {
+    transform: rotate(1.5deg);
+  }
+}
+
+.locked-note {
+  font-weight: 800;
+}
+
+/* cena na złotej metce */
+.price {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: var(--price);
+}
+
+.card.buy:has(.btn.primary:disabled) .price {
+  color: var(--terra-lo);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-left: 0.3rem;
+  padding: 0 0.45rem;
+  border-radius: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: #fff;
+  background: linear-gradient(var(--leaf), var(--leaf-deep));
+}
+
+.chip.cold {
+  background: linear-gradient(var(--terra), var(--terra-deep));
+}
+
+/* jakość: różne kolory I różna liczba gwiazdek */
+.q1,
+.q2 {
+  display: inline-flex;
+  vertical-align: -0.2em;
+}
+
+.q-miss {
+  color: var(--terra-lo);
+  font-weight: 900;
+}
+
+/* korytko z postępem (wypełnienie liściem, ostrzeżenie terakotą) */
+.bar {
+  height: 0.65rem;
+  margin-top: 0.3rem;
+  border-radius: 999px;
+  background: linear-gradient(var(--wood-lo), var(--wood));
+  box-shadow: inset 0 0.14rem 0.2rem rgb(40 20 5 / 0.5);
+  overflow: hidden;
+}
+
+.bar > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(var(--leaf-hi), var(--leaf));
+  box-shadow: inset 0 0.12rem 0 rgb(255 255 255 / 0.55);
+  transition: width 400ms var(--spring-soft);
+}
+
+.bar.warn > i {
+  background: linear-gradient(var(--terra-hi), var(--terra));
+}
+
+/* serduszka jak koraliki na sznurku */
+.hearts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.05rem;
+  margin: 0.2rem 0;
+  background: linear-gradient(rgb(0 0 0 / 0) 46%, rgb(176 138 90 / 0.6) 46% 54%, rgb(0 0 0 / 0) 54%);
+}
+
+.hearts .ic {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+  padding: 1rem 0.5rem;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.empty .mascot {
+  width: 5.5rem;
+  height: 5.5rem;
+}
+
+.hint {
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.error {
+  min-height: 1.2em;
+  margin: 0.25rem 0;
+  color: var(--terra-lo);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+/* ---------- ustawienia: przełączniki z drewna i ceramiki, kafle, suwak z żołędziem */
+.settings {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.row-btn,
+.setting {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 3.4rem;
+  padding: 0.45rem 0.85rem;
+  border: 0;
+  border-radius: 1rem;
+  background: rgb(201 138 74 / 0.12);
+  box-shadow: inset 0 -0.12rem 0 rgb(201 138 74 / 0.25);
+  font-weight: 800;
+  text-align: left;
+}
+
+.setting > span:first-child,
+.row-btn > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex: 1;
+}
+
+.setting .ic,
+.row-btn .ic {
+  width: 1.9rem;
+  height: 1.9rem;
+}
+
+.row-btn:active {
+  transform: scale(0.98);
+}
+
+.setting input[type='range'] {
+  max-width: 50%;
+}
+
+/* przełącznik: drewniany suwak z ceramiczną gałką (kropla = wył., listek = wł.) */
+.switch {
+  --c-hi: var(--ceram-hi);
+  --c: var(--ceram);
+  --c-lo: var(--wood-lo);
+  position: relative;
+  flex: none;
+  width: 3.6rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: linear-gradient(var(--wood-lo), var(--wood));
+  box-shadow:
+    inset 0 0.2rem 0.3rem rgb(40 20 5 / 0.5),
+    0 0.12rem 0 rgb(255 255 255 / 0.4);
+  transition: background-color var(--dur);
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  background:
+    var(--icon-drop) center / 1rem no-repeat,
+    radial-gradient(ellipse 70% 45% at 50% 18%, rgb(255 255 255 / 0.7), rgb(255 255 255 / 0) 72%),
+    linear-gradient(var(--ceram-hi), var(--ceram));
+  box-shadow:
+    0 0.15rem 0 var(--ceram-lo),
+    0 0.3rem 0.4rem rgb(40 20 5 / 0.35);
+  transition: translate var(--dur-pop) var(--spring-pop);
+}
+
+[aria-checked='true'] .switch {
+  background: linear-gradient(var(--leaf-lo), var(--leaf));
+}
+
+[aria-checked='true'] .switch::after {
+  translate: 1.6rem 0;
+  background:
+    var(--icon-check) center / 1rem no-repeat,
+    radial-gradient(ellipse 70% 45% at 50% 18%, rgb(255 255 255 / 0.7), rgb(255 255 255 / 0) 72%),
+    linear-gradient(var(--ceram-hi), var(--ceram));
+}
+
+/* wybór segmentowy: rząd ceramicznych kafli, wybrany wciśnięty i zielony */
+.seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.seg button {
+  --depth: 0.22rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 2.6rem;
+  min-width: 2.8rem;
+  margin-bottom: 0.28rem;
+  padding: 0 0.65rem;
+  border-radius: 0.8rem;
+  color: var(--ink);
+  font-weight: 900;
+  font-size: 0.86rem;
+}
+
+.seg button[aria-pressed='true'] {
+  --c-hi: var(--leaf);
+  --c: var(--leaf-deep);
+  --c-lo: var(--leaf-lo);
+  --depth: 0.08rem;
+  transform: translateY(0.14rem);
+  color: #fff;
+  text-shadow: 0 1px 0 rgb(30 80 20 / 0.55);
+}
+
+/* próbka kolorów przy trybie daltonizmu */
+.swatch {
+  display: inline-flex;
+  width: 1.4rem;
+  height: 0.8rem;
+  border-radius: 0.3rem;
+  overflow: hidden;
+  box-shadow: 0 0 0 0.1rem rgb(255 255 255 / 0.6);
+  background: linear-gradient(90deg, #e2486a 0 33%, #5fb544 33% 66%, #5cb8f0 66%);
+}
+
+/* suwak: rowek w desce i gałka-żołądź */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 2.6rem;
+  background: transparent;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 0.6rem;
+  border-radius: 999px;
+  background: linear-gradient(var(--wood-lo), var(--wood));
+  box-shadow: inset 0 0.14rem 0.2rem rgb(40 20 5 / 0.5);
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 2rem;
+  height: 2rem;
+  margin-top: -0.7rem;
+  border: 0;
+  background: var(--icon-acorn) center / contain no-repeat;
+  filter: drop-shadow(0 0.15rem 0.1rem rgb(40 20 5 / 0.4));
+}
+
+input[type='range']::-moz-range-track {
+  height: 0.6rem;
+  border-radius: 999px;
+  background: linear-gradient(var(--wood-lo), var(--wood));
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  background: var(--icon-acorn) center / contain no-repeat;
+}
+
+pre.state {
+  max-height: 16rem;
+  overflow: auto;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: rgb(201 138 74 / 0.12);
+  font-size: 0.7rem;
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: pan-x pan-y;
+}
+
+.setting.stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.setting.stack .seg {
+  justify-content: flex-start;
+}
+
+.row-btn .chev {
+  width: 1.3rem;
+  height: 1.3rem;
+  transform: scaleX(-1);
+  opacity: 0.8;
+}

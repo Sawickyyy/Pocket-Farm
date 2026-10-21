@@ -9,6 +9,8 @@ import { PALETTE, STYLE_NONE, stylize, watercolor, type StyleOptions } from './p
 import { drawAnimal, drawBuilding, drawCrop, drawIcon, drawItem, drawTree } from './subjects';
 import { drawVillager } from './villager';
 import { drawMenuIcon } from './menuIcons';
+import { drawUiIcon } from './uiIcons';
+import { drawMascot, type MascotMood } from './mascot';
 
 export const TILE = 128;
 export const TILES_KEY = 'tiles';
@@ -183,7 +185,7 @@ export function drawTileset(): HTMLCanvasElement {
 
   let [x, y] = pos(Tile.Locked);
   grassTile(ctx, x, y, shade(P.grass.summer, -0.12), shade(P.grass.summer, -0.25), 9, 8);
-  ctx.fillStyle = 'rgba(40,30,60,0.12)';
+  ctx.fillStyle = 'rgba(50,40,25,0.12)';
   ctx.fillRect(x, y, TILE, TILE);
 
   [x, y] = pos(Tile.Unlockable);
@@ -421,8 +423,8 @@ function drawParticle(ctx: Ctx2D, name: ParticleFrame, cx: number, cy: number): 
       break;
     case 'p_butterfly':
       for (const sgn of [-1, 1]) {
-        ellipse(ctx, cx + sgn * 6, cy - 3, 6, 7, '#ffb3d9', sgn * 0.4);
-        ellipse(ctx, cx + sgn * 5, cy + 5, 4, 4.5, '#c9b6ff', sgn * 0.3);
+        ellipse(ctx, cx + sgn * 6, cy - 3, 6, 7, '#9fd8ff', sgn * 0.4);
+        ellipse(ctx, cx + sgn * 5, cy + 5, 4, 4.5, '#ffc89a', sgn * 0.3);
         ellipse(ctx, cx + sgn * 6, cy - 4, 2, 2, 'rgba(255,255,255,0.8)');
       }
       rrect(ctx, cx - 1.5, cy - 7, 3, 14, 1.5, '#4a2e1a');
@@ -519,6 +521,22 @@ export function menuIconUrl(name: string, size = 96): string {
   return iconUrl(`m:${name}@${size}`, size, (ctx) => {
     ctx.scale(size / TILE, size / TILE);
     drawMenuIcon(ctx, name);
+  });
+}
+
+/** Ikona interfejsu (narzędzia, pogoda, sterowanie…) z modelem światła jak w filmie animowanym. */
+export function uiIconUrl(name: string, size = 96): string {
+  return iconUrl(`u:${name}@${size}`, size, (ctx) => {
+    ctx.scale(size / TILE, size / TILE);
+    drawUiIcon(ctx, name);
+  });
+}
+
+/** Maskotka Kiełek w danej minie. */
+export function mascotUrl(mood: MascotMood, size = 192): string {
+  return iconUrl(`k:${mood}@${size}`, size, (ctx) => {
+    ctx.scale(size / TILE, size / TILE);
+    drawMascot(ctx, mood);
   });
 }
 

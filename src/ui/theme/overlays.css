@@ -1,0 +1,585 @@
+/* ================================================================ momenty: komunikaty, baner, samouczek z Kiełkiem,
+   ekran startowy, potwierdzenie, łowienie, napisy, tryb budowania, eksport/import */
+
+/* ---------- komunikaty: wstążki z płótna (sukces, uwaga) i papieru (informacja) nad skrzynką narzędzi */
+.toasts {
+  position: fixed;
+  z-index: 30;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 6.6rem);
+  translate: -50% 0;
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  width: min(94vw, 26rem);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: 100%;
+  padding: 0.55rem 1.8rem;
+  border-radius: 0;
+  font-size: 0.92rem;
+  font-weight: 900;
+  /* końce wycięte w „jaskółczy ogon” */
+  clip-path: polygon(0 0, 100% 0, calc(100% - 0.8rem) 50%, 100% 100%, 0 100%, 0.8rem 50%);
+  filter: drop-shadow(0 0.22rem 0 rgb(74 46 26 / 0.3)) drop-shadow(0 0.45rem 0.6rem rgb(74 46 26 / 0.22));
+  animation: ribbon-in 460ms var(--spring-pop);
+}
+
+.toast.info {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.toast.good {
+  --cl: var(--leaf-deep);
+  --cl-hi: var(--leaf);
+  color: #fff;
+  text-shadow: 0 1px 0 rgb(30 80 20 / 0.5);
+}
+
+.toast.warn {
+  --cl: var(--terra-deep);
+  --cl-hi: var(--terra);
+  color: #fff;
+  text-shadow: 0 1px 0 rgb(110 30 10 / 0.5);
+}
+
+.toast-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.toast-text::before {
+  content: '';
+  flex: none;
+  width: 1.35rem;
+  height: 1.35rem;
+  background: var(--icon-s-spring) center / contain no-repeat;
+}
+
+.toast.good .toast-text::before {
+  background-image: var(--icon-sparkle);
+}
+
+.toast.warn .toast-text::before {
+  background-image: var(--icon-info);
+}
+
+.toast button {
+  margin-left: 0.5rem;
+  pointer-events: auto;
+}
+
+.toast.leaving {
+  opacity: 0;
+  translate: 0 0.7rem;
+  scale: 0.85;
+  transition:
+    opacity 240ms,
+    translate 240ms var(--anticipate),
+    scale 240ms;
+}
+
+@keyframes ribbon-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.9rem) scaleX(0.35);
+  }
+  55% {
+    transform: translateY(-0.2rem) scaleX(1.06);
+  }
+  75% {
+    transform: scaleX(0.98);
+  }
+}
+
+/* ---------- baner na ważne chwile: złota wstęga z ikoną i konfetti z listków */
+.banner {
+  position: fixed;
+  z-index: 35;
+  left: 50%;
+  top: calc(var(--safe-top) + 26vh);
+  translate: -50% 0;
+  display: grid;
+  justify-items: center;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.banner.show {
+  opacity: 1;
+  animation: banner-in 640ms var(--spring-pop);
+}
+
+.banner.leaving {
+  opacity: 0;
+  translate: -50% -1.4rem;
+  transition:
+    opacity 320ms,
+    translate 320ms var(--anticipate);
+}
+
+.banner-icon {
+  z-index: 1;
+  margin-bottom: -0.9rem;
+  animation: banner-icon 1.3s ease-in-out infinite;
+}
+
+.banner-icon .ic {
+  width: 4.6rem;
+  height: 4.6rem;
+}
+
+.banner-ribbon {
+  --cl: var(--sun);
+  --cl-hi: #ffe8a0;
+  display: grid;
+  justify-items: center;
+  min-width: 15.5rem;
+  padding: 1rem 3rem 0.85rem;
+  background:
+    repeating-linear-gradient(0deg, rgb(255 255 255 / 0.1) 0 0.18rem, rgb(0 0 0 / 0) 0.18rem 0.5rem),
+    linear-gradient(var(--cl-hi), var(--cl));
+  clip-path: polygon(0 0, 100% 0, calc(100% - 1.3rem) 50%, 100% 100%, 0 100%, 1.3rem 50%);
+  outline: 2px dashed rgb(255 255 255 / 0.7);
+  outline-offset: -0.4rem;
+  filter: drop-shadow(0 0.32rem 0 var(--sun-lo)) drop-shadow(0 0.8rem 1.4rem rgb(74 46 26 / 0.35));
+  color: #5a3208;
+  text-align: center;
+}
+
+.banner-ribbon strong {
+  font-size: 1.75rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 0 rgb(255 255 255 / 0.6);
+}
+
+.banner-ribbon small {
+  font-size: 0.92rem;
+  font-weight: 800;
+  opacity: 0.9;
+}
+
+/* konfetti z listków i płatków */
+.banner-stars {
+  position: absolute;
+  inset: -2.2rem -2.6rem;
+  background:
+    var(--icon-s-spring) 8% 18% / 1.6rem no-repeat,
+    var(--icon-s-autumn) 92% 12% / 1.4rem no-repeat,
+    var(--icon-sparkle) 86% 88% / 1.5rem no-repeat,
+    var(--icon-sparkle) 4% 82% / 1.1rem no-repeat,
+    var(--icon-heart) 50% 0% / 1.1rem no-repeat;
+  animation: confetti 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes banner-in {
+  from {
+    opacity: 0;
+    transform: scale(0.3) rotate(-8deg);
+  }
+  55% {
+    transform: scale(1.1, 0.94) rotate(1.5deg);
+  }
+  75% {
+    transform: scale(0.97, 1.03);
+  }
+}
+
+@keyframes banner-icon {
+  50% {
+    transform: translateY(-0.4rem) rotate(7deg) scale(1.08, 0.95);
+  }
+}
+
+@keyframes confetti {
+  to {
+    transform: translateY(0.4rem) rotate(4deg) scale(1.05);
+    opacity: 0.7;
+  }
+}
+
+/* ---------- samouczek: Kiełek wyskakuje zza krawędzi z dymkiem z papieru */
+.tutorial {
+  position: fixed;
+  left: 0.6rem;
+  right: 0.6rem;
+  bottom: calc(var(--safe-bottom) + 6rem);
+  z-index: 4;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.2rem;
+  max-width: 30rem;
+  margin: 0 auto;
+  pointer-events: none;
+  animation: tutorial-in 560ms var(--spring-pop);
+}
+
+.tutorial .mascot {
+  width: 5.6rem;
+  height: 5.6rem;
+  margin-bottom: -0.4rem;
+}
+
+.tutorial-bubble {
+  position: relative;
+  flex: 1;
+  padding: 0.85rem 1rem 0.75rem;
+  border: 0.18rem solid var(--wood);
+  pointer-events: auto;
+}
+
+.tutorial-bubble::before {
+  content: '';
+  position: absolute;
+  left: -0.7rem;
+  bottom: 1.4rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  background: var(--paper);
+  border-left: 0.18rem solid var(--wood);
+  border-bottom: 0.18rem solid var(--wood);
+  rotate: 45deg;
+}
+
+.tutorial p {
+  margin: 0;
+  line-height: 1.4;
+  font-weight: 800;
+}
+
+.tutorial .row {
+  margin-top: 0.5rem;
+}
+
+@keyframes tutorial-in {
+  from {
+    opacity: 0;
+    transform: translate(-40%, 30%) scale(0.6);
+  }
+}
+
+/* ---------- napisy dźwięków: tabliczki z papieru z nutką */
+.captions {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 5.8rem);
+  z-index: 3;
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  translate: -50% 0;
+  pointer-events: none !important;
+}
+
+.captions span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.65rem;
+  border-radius: 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+  white-space: nowrap;
+  animation: caption-in 320ms var(--spring-pop);
+}
+
+.captions span::before {
+  content: '';
+  width: 1.1rem;
+  height: 1.1rem;
+  background: var(--icon-note) center / contain no-repeat;
+}
+
+body:has(.tutorial:not([hidden])) .captions {
+  bottom: calc(var(--safe-bottom) + 13rem);
+}
+
+@keyframes caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.8);
+  }
+}
+
+/* ---------- tryb budowania: drewniana belka z guzikami */
+.build-bar {
+  position: fixed;
+  top: calc(var(--safe-top) + 3.7rem);
+  left: 0.75rem;
+  right: 0.75rem;
+  z-index: 3;
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: 0.7rem 0.8rem 0.4rem;
+  border-radius: var(--radius);
+  animation: ribbon-in 420ms var(--spring-pop);
+  --wood-hi: var(--wood-mid);
+  --wood: var(--wood-deep);
+}
+
+.build-bar p {
+  margin: 0;
+  font-weight: 900;
+  text-align: center;
+}
+
+.build-bar .row {
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+body:has(.build-bar:not([hidden])) .clock {
+  display: none;
+}
+
+/* ---------- potwierdzenie: list na drewnianej podkładce */
+#confirm {
+  padding-top: 0.9rem;
+}
+
+#confirm .sheet-body {
+  margin: 0.4rem 0 0.2rem;
+}
+
+#confirm h2 {
+  margin-bottom: 0.4rem;
+}
+
+#confirm p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* ---------- łowienie: pomost, tafla wody, liście lilii i spławik */
+.fishing {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgb(30 50 60 / 0.35);
+  touch-action: none;
+}
+
+.fishing-card {
+  width: min(92vw, 26rem);
+  padding: 1.2rem 1.1rem 1.1rem;
+  border: 0.25rem solid var(--wood);
+  text-align: center;
+  animation: banner-in 560ms var(--spring-pop);
+}
+
+.fishing-card h2 {
+  margin: 0;
+}
+
+.fish-track {
+  position: relative;
+  height: 4.2rem;
+  margin: 1rem 0 0.5rem;
+  border-radius: 1.2rem;
+  background:
+    radial-gradient(ellipse 1.6rem 0.4rem at 20% 30%, rgb(255 255 255 / 0.35), rgb(255 255 255 / 0) 70%),
+    radial-gradient(ellipse 2rem 0.45rem at 70% 70%, rgb(255 255 255 / 0.28), rgb(255 255 255 / 0) 70%),
+    linear-gradient(#7cc8f0, #3f8fc8 70%, #2f74a8);
+  box-shadow:
+    inset 0 0.3rem 0.4rem rgb(10 40 70 / 0.45),
+    0 0 0 0.3rem var(--wood),
+    0 0.3rem 0 0.3rem var(--wood-lo);
+  overflow: hidden;
+}
+
+.fish-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background:
+    var(--icon-lily) center / 2.6rem no-repeat,
+    rgb(155 224 110 / 0.35);
+  border-left: 0.2rem dashed rgb(255 255 255 / 0.8);
+  border-right: 0.2rem dashed rgb(255 255 255 / 0.8);
+}
+
+.fish-marker {
+  position: absolute;
+  top: 50%;
+  translate: -50% -50%;
+  will-change: left;
+  animation: bob 0.9s ease-in-out infinite;
+}
+
+.fish-marker .ic {
+  width: 2.6rem;
+  height: 2.6rem;
+}
+
+@keyframes bob {
+  50% {
+    transform: translateY(0.2rem) rotate(6deg);
+  }
+}
+
+/* ---------- eksport/import: słoik z karteczką */
+dialog#io-dialog {
+  width: min(92vw, 32rem);
+  padding: 1.1rem;
+  border: 0.22rem solid var(--wood);
+}
+
+dialog#io-dialog::backdrop {
+  background: rgb(40 25 10 / 0.4);
+}
+
+.io-form h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.4rem;
+}
+
+.io-form h2::before {
+  content: '';
+  width: 2.2rem;
+  height: 2.2rem;
+  background: var(--icon-jar) center / contain no-repeat;
+}
+
+#io-text {
+  width: 100%;
+  padding: 0.7rem;
+  border: 0;
+  border-radius: 0.9rem;
+  background: var(--cream-hi);
+  box-shadow:
+    inset 0 0.15rem 0.3rem rgb(74 46 26 / 0.25),
+    0 0 0 0.15rem var(--paper-edge);
+  color: var(--text);
+  font: 0.875rem/1.4 ui-monospace, Menlo, monospace;
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: pan-y;
+  resize: vertical;
+  word-break: break-all;
+}
+
+/* ---------- ekran startowy: okładka książki z tabliczką na sznurkach i Kiełkiem */
+.start-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--safe-top) + 1.2rem) 1.2rem calc(var(--safe-bottom) + 1.2rem);
+  background:
+    radial-gradient(ellipse 60% 40% at 80% 12%, rgb(255 236 160 / 0.9), rgb(255 236 160 / 0) 70%),
+    radial-gradient(ellipse 120% 45% at 20% 100%, #6cbf4a 0 60%, rgb(0 0 0 / 0) 61%),
+    radial-gradient(ellipse 110% 40% at 85% 104%, #5fb544 0 60%, rgb(0 0 0 / 0) 61%),
+    radial-gradient(ellipse 140% 50% at 50% 118%, #4aa236 0 60%, rgb(0 0 0 / 0) 61%),
+    linear-gradient(#9fdcff, #d8f2ff 55%, #fff2d0);
+  transition: opacity 360ms ease-out;
+  touch-action: none;
+}
+
+.start-screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.start-card {
+  display: grid;
+  justify-items: center;
+  gap: 0.8rem;
+  max-width: 23rem;
+  text-align: center;
+}
+
+.start-sign {
+  position: relative;
+  padding: 0.9rem 1.6rem 0.8rem;
+  border-radius: 1.2rem;
+  transform-origin: 50% -2rem;
+  animation:
+    sign-drop 900ms var(--spring-pop) both,
+    sign-sway 6s 900ms ease-in-out infinite;
+}
+
+.start-sign::before,
+.start-sign::after {
+  content: '';
+  position: absolute;
+  top: -2.2rem;
+  width: 0.18rem;
+  height: 2.3rem;
+  background: linear-gradient(#e8d2a6, #b08a5a);
+}
+
+.start-sign::before {
+  left: 2rem;
+}
+
+.start-sign::after {
+  right: 2rem;
+}
+
+.start-sign h1 {
+  margin: 0;
+  color: #fff3d6;
+  font-size: 2.2rem;
+  text-shadow:
+    0 -1px 0 rgb(60 30 10 / 0.75),
+    0 2px 0 rgb(255 230 190 / 0.35);
+}
+
+.start-card .mascot {
+  width: 7.5rem;
+  height: 7.5rem;
+}
+
+.start-note {
+  position: relative;
+  padding: 0.9rem 1.1rem;
+  rotate: -1deg;
+}
+
+.start-note::before {
+  content: '';
+  position: absolute;
+  top: -0.35rem;
+  left: 50%;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-left: -0.42rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--terra-hi), var(--terra) 60%, var(--terra-lo));
+}
+
+.start-summary {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+#start-btn:not(:disabled) {
+  animation: cta 1.8s ease-in-out infinite;
+}
+
+@keyframes sign-drop {
+  from {
+    transform: translateY(-140%) rotate(-6deg);
+  }
+}
+
+@keyframes cta {
+  50% {
+    transform: scale(1.05, 0.97);
+  }
+}

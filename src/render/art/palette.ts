@@ -12,7 +12,7 @@ export const PALETTE = {
   grassDeep: { spring: '#62ad4c', summer: '#4f9a43', autumn: '#a68a3e', winter: '#cfdde8' } satisfies Record<Season, string>,
   forest: { spring: '#5aa04a', summer: '#468b3e', autumn: '#94753a', winter: '#d3dee8' } satisfies Record<Season, string>,
   meadow: { spring: '#a7e07a', summer: '#95d468', autumn: '#d8c26a', winter: '#f2f7fb' } satisfies Record<Season, string>,
-  flowers: ['#ffd1e8', '#fff3a8', '#ffffff', '#c9b6ff', '#ffb38a'],
+  flowers: ['#ffd1e8', '#fff3a8', '#ffffff', '#9fd8ff', '#ffb38a'],
   soil: '#d4a26a',
   soilDeep: '#b07c4a',
   soilWet: '#6a3a26',
@@ -59,14 +59,14 @@ export function stylize(draw: (ctx: Ctx2D) => void, w: number, h: number, opts: 
     const g = a.createLinearGradient(0, 0, w * 0.35, h);
     g.addColorStop(0, 'rgba(255,248,222,0.26)');
     g.addColorStop(0.45, 'rgba(255,248,222,0)');
-    g.addColorStop(0.75, 'rgba(120,60,90,0.05)');
-    g.addColorStop(1, 'rgba(90,40,70,0.2)');
+    g.addColorStop(0.75, 'rgba(60,90,120,0.05)');
+    g.addColorStop(1, 'rgba(70,45,25,0.2)');
     a.fillStyle = g;
     a.fillRect(0, 0, w, h);
     // Bryła jak w filmie animowanym: cień formy wzdłuż krawędzi od dołu-prawej (miękki – kilka pasm)
     // i wąskie światło konturowe (rim light) od góry-lewej.
     const unit = Math.max(1.5, Math.min(w, h) / 56);
-    for (const k of [1, 2, 3.2]) a.drawImage(edgeBand(sil, w, h, -unit * 2 * k, -unit * 2 * k, 'rgba(70,36,110,0.11)'), 0, 0);
+    for (const k of [1, 2, 3.2]) a.drawImage(edgeBand(sil, w, h, -unit * 2 * k, -unit * 2 * k, 'rgba(40,70,100,0.11)'), 0, 0);
     a.drawImage(edgeBand(sil, w, h, unit * 1.6, unit * 1.6, 'rgba(255,246,220,0.55)'), 0, 0);
     a.drawImage(edgeBand(sil, w, h, unit * 3, unit * 3, 'rgba(255,240,205,0.18)'), 0, 0);
     a.globalCompositeOperation = 'source-over';

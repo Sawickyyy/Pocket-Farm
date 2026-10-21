@@ -23,7 +23,12 @@ export function plural(n: number, one: string, few: string, many: string): strin
 
 /** Gwiazdki jakości: różna liczba i kolor (czytelne także dla daltonistów). */
 export function qualityMark(q: Quality): string {
-  return q === 2 ? ' <span class="q2" aria-label="' + t('quality.2') + '">★★</span>' : q === 1 ? ' <span class="q1" aria-label="' + t('quality.1') + '">★</span>' : '';
+  const star = (k: string) => `<i class="ic ic-star-${k}" aria-hidden="true"></i>`;
+  return q === 2
+    ? ` <span class="q2" role="img" aria-label="${t('quality.2')}">${star('gold')}${star('gold')}</span>`
+    : q === 1
+      ? ` <span class="q1" role="img" aria-label="${t('quality.1')}">${star('silver')}</span>`
+      : '';
 }
 
 export function keyLabelHtml(key: string): string {
@@ -42,4 +47,6 @@ export function clockText(hour: number): string {
   return `${String(h).padStart(2, '0')}:${String(m - (m % 10)).padStart(2, '0')}`;
 }
 
-export const WEATHER_ICON: Record<string, string> = { sun: '☀️', cloud: '⛅', rain: '🌧️', heat: '🔥', snow: '❄️' };
+/** Malowana ikona pogody (klasa CSS z rejestru ikon). */
+export const weatherIcon = (weather: string): string => `<i class="ic ic-w-${weather}" aria-hidden="true"></i>`;
+export const seasonIcon = (season: string): string => `<i class="ic ic-s-${season}" aria-hidden="true"></i>`;

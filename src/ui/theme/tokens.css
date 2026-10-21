@@ -1,0 +1,150 @@
+/* ================================================================ tokeny: paleta „słoneczne popołudnie na farmie”
+   Jedyne miejsce z kolorami interfejsu. Każdy kolor ma ton jasny (światło), bazowy i głęboki (cień, krawędź),
+   bo materiały „3D” potrzebują trzech tonów. Zero fioletu – pilnuje tego tests/theme.test.ts. */
+
+:root {
+  color-scheme: light dark;
+  --ui-scale: 1;
+
+  --cream-hi: #fffaf0;
+  --cream: #fbefd6;
+  --cream-lo: #e6cfa4;
+  --wood-hi: #e8b77a;
+  --wood: #c98a4a;
+  --wood-lo: #8a5a2e;
+  --wood-dark: #6a4222;
+  --leaf-hi: #9be06e;
+  --leaf: #5fb544;
+  --leaf-lo: #3a8a2c;
+  --sun-hi: #ffe58a;
+  --sun: #ffc53d;
+  --sun-lo: #d98e0b;
+  --sky-hi: #bfe8ff;
+  --sky: #5cb8f0;
+  --sky-lo: #2f86c2;
+  --terra-hi: #ffb59a;
+  --terra: #f0704f;
+  --terra-lo: #b8452c;
+  --berry-hi: #ffc2c8;
+  --berry: #f2667a;
+  --berry-lo: #c23a52;
+  /* głębokie tony pod biały napis (kontrast ≥ 3:1 dla pogrubionych etykiet) */
+  --leaf-deep: #3f9a2e;
+  --terra-deep: #d9573a;
+  --wood-deep: #a86e38;
+  --wood-mid: #c98a4a;
+  --ink: #4a2e1a;
+  --ink-deep: #2e1a0c;
+
+  /* ceramika zostaje jasna także wieczorem (jak glazura w świetle lampy) */
+  --ceram-hi: #fffaf0;
+  --ceram: #fbefd6;
+  --ceram-lo: #d9b98a;
+  --price: #8a5208;
+
+  /* role */
+  --bg: #2f5d34;
+  --paper: var(--cream);
+  --paper-hi: var(--cream-hi);
+  --paper-edge: #d9b98a;
+  --text: var(--ink);
+  --muted: #7a5636;
+  --on-color: #ffffff;
+  --contact: rgb(74 46 26 / 0.28);
+  --contact-soft: rgb(74 46 26 / 0.16);
+
+  /* kształty i odstępy */
+  --radius: 1.2rem;
+  --radius-sm: 0.8rem;
+  --tap: 3rem;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* ruch: zapasowe krzywe (nadpisywane sprężynami linear() niżej) */
+  --dur: 240ms;
+  --dur-press: 90ms;
+  --dur-pop: 420ms;
+  --dur-panel: 380ms;
+  --spring-pop: cubic-bezier(0.3, 1.6, 0.5, 1);
+  --spring-soft: cubic-bezier(0.25, 1.25, 0.5, 1);
+  --anticipate: cubic-bezier(0.55, -0.45, 0.7, 0.3);
+
+  /* ui-rounded = SF Pro Rounded na iOS: pełny, miękki krój bez pobierania plików (offline). */
+  font-family: ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: calc(16px * var(--ui-scale));
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+
+  /* ziarno papieru: jednorazowy szum SVG (~1 KB) */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .28 0 0 0 0 .14 0 0 0 .08 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Sprężyny jak w filmie animowanym (Safari 17.2+). */
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --spring-pop: linear(0, 0.38 8%, 0.86 19%, 1.08 30%, 1.11 37%, 1.05 48%, 0.98 60%, 0.995 72%, 1.003 84%, 1);
+    --spring-soft: linear(0, 0.45 12%, 0.88 28%, 1.03 44%, 1.015 58%, 0.998 76%, 1);
+  }
+}
+
+/* Tryb ciemny systemu = „wieczór przy lampie”: morski granat za oknem, orzechowe drewno, bursztynowe światło. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14293a;
+    --paper: #4a3626;
+    --paper-hi: #5a4230;
+    --paper-edge: #2e2014;
+    --text: #fff1d6;
+    --muted: #e6c89c;
+    --cream-hi: #6a4e36;
+    --cream: #5a4230;
+    --cream-lo: #3a2a1e;
+    --wood-hi: #a8703e;
+    --wood: #7e5230;
+    --wood-lo: #4e3018;
+    --wood-dark: #36200e;
+    --wood-mid: #7e5230;
+    --wood-deep: #5e3a1e;
+    --sun: #ffb84a;
+    --price: #ffd27a;
+    --contact: rgb(0 0 0 / 0.42);
+    --contact-soft: rgb(0 0 0 / 0.28);
+    --grain: none;
+  }
+}
+
+/* Ograniczenie ruchu: systemowe lub wymuszone w ustawieniach (data-motion). */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='off']) {
+    --dur: 0ms;
+    --dur-pop: 150ms;
+    --dur-panel: 150ms;
+  }
+  :root:not([data-motion='off']) *,
+  :root:not([data-motion='off']) *::before,
+  :root:not([data-motion='off']) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+:root[data-motion='on'] {
+  --dur: 0ms;
+}
+
+:root[data-motion='on'] *,
+:root[data-motion='on'] *::before,
+:root[data-motion='on'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+:root[data-reduced='true']::view-transition-group(*),
+:root[data-reduced='true']::view-transition-old(*),
+:root[data-reduced='true']::view-transition-new(*) {
+  animation: none !important;
+}

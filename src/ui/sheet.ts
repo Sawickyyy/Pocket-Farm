@@ -42,10 +42,63 @@ export class SheetManager {
       if (this.current?.parent) this.open(this.current.parent);
     });
     this.el.addEventListener('toggle', (e) => {
-      if ((e as ToggleEvent).newState === 'closed') this.current = null;
+      const open = (e as ToggleEvent).newState === 'open';
+      if (!open) {
+        this.current = null;
+        this.el.classList.remove('full');
+      } else app.audio.play('paper');
+      app.scene()?.setStaging(open);
     });
+    this.bindDrag();
     app.store.subscribe((s) => this.onState(s));
     onLanguageChange(() => this.refresh());
+  }
+
+  /**
+   * Panel można przeciągnąć za uchwyt lub deskę nagłówka: w dół zamyka, w górę rozwija na pełny ekran.
+   * Po puszczeniu wraca sprężyną (przejście CSS), a gest ma odporność jak gumka powyżej limitu.
+   */
+  private bindDrag(): void {
+    let startY = 0;
+    let dy = 0;
+    let id: number | null = null;
+    const handles = [$('#sheet-grip'), $('#sheet-head')];
+    const down = (e: PointerEvent) => {
+      if ((e.target as Element).closest('button')) return;
+      id = e.pointerId;
+      startY = e.clientY;
+      dy = 0;
+      this.el.classList.add('dragging');
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {
+        // wskaźnik mógł już zniknąć
+      }
+    };
+    const move = (e: PointerEvent) => {
+      if (e.pointerId !== id) return;
+      dy = e.clientY - startY;
+      // w górę tylko lekki opór (rozwinięcie zapada przy puszczeniu)
+      const shown = dy < 0 ? dy * 0.25 : dy;
+      this.el.style.setProperty('--drag', `${shown}px`);
+    };
+    const up = (e: PointerEvent) => {
+      if (e.pointerId !== id) return;
+      id = null;
+      this.el.classList.remove('dragging');
+      this.el.style.setProperty('--drag', '0px');
+      if (dy > 110) {
+        this.app.click();
+        this.close();
+      } else if (dy < -40) this.el.classList.add('full');
+      else if (dy > 40) this.el.classList.remove('full');
+    };
+    for (const h of handles) {
+      h.addEventListener('pointerdown', down);
+      h.addEventListener('pointermove', move);
+      h.addEventListener('pointerup', up);
+      h.addEventListener('pointercancel', up);
+    }
   }
 
   register(def: SheetDef): void {
@@ -63,6 +116,7 @@ export class SheetManager {
     const tabs = def.tabs?.(state) ?? [];
     this.current = def;
     this.arg = arg;
+    this.el.dataset.panel = id;
     this.tab = tab ?? this.tabMemory.get(id) ?? tabs[0]?.id ?? '';
     this.refresh();
     if (!this.el.matches(':popover-open')) this.el.showPopover();
@@ -80,7 +134,7 @@ export class SheetManager {
     const state = this.app.store.get();
     this.titleEl.textContent = def.title(this.arg, state);
     this.backBtn.hidden = !def.parent;
-    this.backBtn.setAttribute('aria-label', t('common.close'));
+    this.backBtn.setAttribute('aria-label', t('common.back'));
     const tabs = def.tabs?.(state) ?? [];
     this.tabsEl.hidden = tabs.length === 0;
     this.tabsEl.replaceChildren(

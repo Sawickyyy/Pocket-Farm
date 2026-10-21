@@ -1,8 +1,26 @@
+import type { MascotMood } from '../../render/art/mascot';
 import { h, img } from '../dom';
+import { ic, icEl, mascotEl } from '../uiIcons';
 
-export function btn(label: string, onClick: () => void, opts: { primary?: boolean; disabled?: boolean | undefined; danger?: boolean; small?: boolean; aria?: string | undefined } = {}): HTMLButtonElement {
-  const cls = ['btn', opts.primary !== false && !opts.danger ? 'primary' : '', opts.danger ? 'danger' : '', opts.small ? 'sm' : ''].filter(Boolean).join(' ');
-  return h('button', { class: cls, type: 'button', text: label, disabled: opts.disabled, attrs: { 'aria-label': opts.aria }, on: { click: onClick } });
+export interface BtnOpts {
+  primary?: boolean;
+  disabled?: boolean | undefined;
+  danger?: boolean;
+  /** Złoty przycisk nagrody (odbierz, oddaj, sprzedaj wszystko). */
+  reward?: boolean;
+  small?: boolean;
+  aria?: string | undefined;
+  /** Malowana ikona przed napisem (albo zamiast niego, gdy napis pusty). */
+  icon?: string;
+}
+
+export function btn(label: string, onClick: () => void, opts: BtnOpts = {}): HTMLButtonElement {
+  const kind = opts.danger ? 'danger' : opts.reward ? 'reward' : opts.primary !== false ? 'primary' : '';
+  const cls = ['btn', kind, opts.small ? 'sm' : ''].filter(Boolean).join(' ');
+  const b = h('button', { class: cls, type: 'button', disabled: opts.disabled, attrs: { 'aria-label': opts.aria }, on: { click: onClick } });
+  if (opts.icon) b.append(icEl(opts.icon));
+  if (label) b.append(document.createTextNode(label));
+  return b;
 }
 
 export function card(icon: string | null, titleHtml: string, descHtml: string, actions: HTMLElement[] = [], opts: { note?: string | undefined; cls?: string | undefined } = {}): HTMLElement {
@@ -27,16 +45,18 @@ export function setBar(root: HTMLElement, key: string, ratio: number): void {
   if (fill) fill.style.width = `${Math.round(Math.max(0, Math.min(1, ratio)) * 100)}%`;
 }
 
-export const coins = (n: string | number) => `<span class="price">${n} 🪙</span>`;
+export const coins = (n: string | number) => `<span class="price">${n}${ic('coin')}</span>`;
 
 export function grid(children: (HTMLElement | null)[], two = false): HTMLElement {
   return h('div', { class: `cards${two ? ' two' : ''}` }, ...children);
 }
 
-export function empty(text: string): HTMLElement {
-  return h('p', { class: 'empty', text });
+/** Pusty stan z Kiełkiem zamiast suchego komunikatu. */
+export function empty(text: string, mood: MascotMood = 'happy'): HTMLElement {
+  return h('div', { class: 'empty' }, mascotEl(mood), h('p', { text }));
 }
 
-export function hearts(n: number): string {
-  return '♥'.repeat(n) + '♡'.repeat(Math.max(0, 10 - n));
+/** Serduszka przyjaźni jak koraliki na sznurku (HTML). */
+export function hearts(n: number, max = 10): string {
+  return ic('heart').repeat(Math.max(0, Math.min(max, n))) + ic('heart-empty').repeat(Math.max(0, max - n));
 }

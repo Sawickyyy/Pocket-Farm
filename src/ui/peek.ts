@@ -8,14 +8,18 @@ import { START_UNLOCKED } from '../sim/initialState';
 import { canUnlock, cropEtaMs, cropStage, isReady, plotUnlockCost, qualityScore, qualityTier } from '../sim/systems/fields';
 import type { GameState } from '../sim/types';
 import { h } from './dom';
+import { icEl } from './uiIcons';
 import { formatDuration } from './format';
 import { viewCtx } from './view';
+
+const METER_ICON: Record<string, string> = { water: 'drop', soil: 'sack' };
 
 function meter(label: string, value: number, cls: string): HTMLElement {
   const pct = Math.round(Math.max(0, Math.min(1, value)) * 100);
   return h(
     'div',
     { class: `peek-meter ${cls}`, attrs: { role: 'meter', 'aria-label': label, 'aria-valuenow': String(pct), 'aria-valuemin': '0', 'aria-valuemax': '100' } },
+    icEl(METER_ICON[cls.split(' ')[0]!] ?? 's-spring'),
     h('span', { class: 'peek-label', text: label }),
     h('span', { class: 'peek-bar' }, h('i', { attrs: { style: `width:${pct}%` } })),
   );
@@ -46,14 +50,14 @@ function content(s: GameState, i: number): HTMLElement[] {
     if (def?.night) status += ` · ${t('peek.night')}`;
   }
   const tier = crop.withered ? 0 : qualityTier(qualityScore(ctx, plot, crop));
-  const stars = tier === 2 ? '★★' : tier === 1 ? '★' : '☆';
+  const stars = tier === 2 ? [icEl('star-gold'), icEl('star-gold')] : tier === 1 ? [icEl('star-silver')] : [icEl('star-empty')];
   return [
     h(
       'div',
       { class: 'peek-head' },
       h('img', { attrs: { src: itemIconUrl(crop.id, 64), alt: '', width: '40', height: '40' } }),
       h('div', {}, h('h3', { text: name }), h('p', { class: 'peek-status', text: status })),
-      h('span', { class: `peek-stars q${tier}`, text: stars, attrs: { 'aria-label': t(`quality.${tier}`) } }),
+      h('span', { class: `peek-stars q${tier}`, attrs: { role: 'img', 'aria-label': t(`quality.${tier}`) } }, ...stars),
     ),
     meter(t('peek.growth'), crop.withered ? 0 : crop.growth, `growth stage${cropStage(crop)}`),
     ...soil,

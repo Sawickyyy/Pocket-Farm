@@ -7,6 +7,7 @@ import type { GameState, Settings } from '../../sim/types';
 import type { App } from '../app';
 import { $, h } from '../dom';
 import type { SheetManager } from '../sheet';
+import { icEl } from '../uiIcons';
 import { btn } from './common';
 
 declare const __APP_VERSION__: string;
@@ -14,7 +15,9 @@ declare const __APP_VERSION__: string;
 export function registerSettings(app: App, sheets: SheetManager, persisted: () => boolean | null): void {
   const set = (patch: Partial<Settings>) => void app.send({ type: 'settings', patch });
 
-  const toggle = (label: string, on: boolean, patch: (v: boolean) => Partial<Settings>) =>
+  const labelWithIcon = (label: string, icon: string) => h('span', {}, icEl(icon), h('span', { text: label }));
+
+  const toggle = (label: string, icon: string, on: boolean, patch: (v: boolean) => Partial<Settings>) =>
     h(
       'button',
       {
@@ -28,15 +31,15 @@ export function registerSettings(app: App, sheets: SheetManager, persisted: () =
           },
         },
       },
-      h('span', { text: label }),
+      labelWithIcon(label, icon),
       h('span', { class: 'switch', attrs: { 'aria-hidden': 'true' } }),
     );
 
-  const segmented = <T extends string>(label: string, value: T, options: [T, string][], onPick: (v: T) => void) =>
+  const segmented = <T extends string>(label: string, icon: string, value: T, options: [T, string][], onPick: (v: T) => void) =>
     h(
       'div',
-      { class: 'setting', attrs: { role: 'group', 'aria-label': label } },
-      h('span', { text: label }),
+      { class: options.length > 2 ? 'setting stack' : 'setting', attrs: { role: 'group', 'aria-label': label } },
+      labelWithIcon(label, icon),
       h(
         'div',
         { class: 'seg' },
@@ -64,17 +67,6 @@ export function registerSettings(app: App, sheets: SheetManager, persisted: () =
     sig: (s) => JSON.stringify(s.settings) + persisted() + app.debugEnabled(),
     render(body, s: GameState) {
       const st = s.settings;
-      const cb = h('select', {
-        attrs: { 'aria-label': t('settings.colorblind') },
-        on: {
-          change: (e) => set({ colorblind: (e.target as HTMLSelectElement).value as Settings['colorblind'] }),
-        },
-      });
-      for (const m of ['none', 'protan', 'deutan', 'tritan'] as const) {
-        const o = h('option', { text: t(`settings.cb.${m}`), attrs: { value: m } });
-        if (m === st.colorblind) o.selected = true;
-        cb.append(o);
-      }
       const scale = h('input', {
         type: 'range',
         attrs: { min: 0.85, max: 1.4, step: 0.05, value: st.uiScale, 'aria-label': t('settings.uiScale') },
@@ -97,16 +89,23 @@ export function registerSettings(app: App, sheets: SheetManager, persisted: () =
         h(
           'div',
           { class: 'settings' },
-          toggle(t('settings.sound'), st.sound, (v) => ({ sound: v })),
-          toggle(t('settings.music'), st.music, (v) => ({ music: v })),
-          toggle(t('settings.captions'), st.captions, (v) => ({ captions: v })),
-          toggle(t('settings.fx'), st.fx, (v) => ({ fx: v })),
-          toggle(t('settings.dof'), st.dof, (v) => ({ dof: v })),
-          segmented(t('settings.language'), st.language, [['pl', 'PL'], ['en', 'EN']], (v) => set({ language: v })),
-          h('label', { class: 'setting' }, h('span', { text: t('settings.colorblind') }), cb),
-          h('label', { class: 'setting' }, h('span', { text: t('settings.uiScale') }), scale),
+          toggle(t('settings.sound'), 'bell', st.sound, (v) => ({ sound: v })),
+          toggle(t('settings.music'), 'note', st.music, (v) => ({ music: v })),
+          toggle(t('settings.captions'), 'captions', st.captions, (v) => ({ captions: v })),
+          toggle(t('settings.fx'), 'sparkle', st.fx, (v) => ({ fx: v })),
+          toggle(t('settings.dof'), 'camera', st.dof, (v) => ({ dof: v })),
+          segmented(t('settings.language'), 'speech', st.language, [['pl', 'PL'], ['en', 'EN']], (v) => set({ language: v })),
+          segmented(
+            t('settings.colorblind'),
+            'eye',
+            st.colorblind,
+            (['none', 'protan', 'deutan', 'tritan'] as const).map((m) => [m, t(`settings.cb.${m}`)] as [Settings['colorblind'], string]),
+            (v) => set({ colorblind: v }),
+          ),
+          h('label', { class: 'setting' }, labelWithIcon(t('settings.uiScale'), 'magnifier'), scale),
           segmented(
             t('settings.motion'),
+            'snail',
             st.reducedMotion,
             [
               ['auto', t('settings.motion.auto')],
@@ -115,17 +114,17 @@ export function registerSettings(app: App, sheets: SheetManager, persisted: () =
             ],
             (v) => set({ reducedMotion: v }),
           ),
-          rowBtn(t('settings.export'), '⇪', () => openIo(app, 'export')),
-          rowBtn(t('settings.import'), '⇩', () => openIo(app, 'import')),
-          rowBtn(t('settings.recenter'), '⌖', () => {
+          rowBtn(t('settings.export'), 'jar', () => openIo(app, 'export')),
+          rowBtn(t('settings.import'), 'jar-in', () => openIo(app, 'import')),
+          rowBtn(t('settings.recenter'), 'compass', () => {
             app.scene()?.cam.fit(true);
             app.closeSheet();
           }),
-          rowBtn(t('settings.tutorial'), '🎓', () => {
+          rowBtn(t('settings.tutorial'), 'book', () => {
             void app.send({ type: 'tutorial', action: 'restart' });
             app.closeSheet();
           }),
-          app.debugEnabled() ? rowBtn(t('settings.debug'), '🐞', () => app.openSheet('debug')) : null,
+          app.debugEnabled() ? rowBtn(t('settings.debug'), 'ladybug', () => app.openSheet('debug')) : null,
           p === null ? null : h('p', { class: 'hint', text: p ? t('settings.persisted') : t('settings.notPersisted') }),
           version,
         ),
@@ -146,8 +145,8 @@ export function registerSettings(app: App, sheets: SheetManager, persisted: () =
           },
         },
       },
-      h('span', { text: label }),
-      h('span', { text: icon, attrs: { 'aria-hidden': 'true' } }),
+      labelWithIcon(label, icon),
+      icEl('back', 'chev'),
     );
   }
 

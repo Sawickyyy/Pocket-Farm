@@ -101,7 +101,7 @@ function wallDecor(ctx: Ctx2D, wall: number, len: number, wallCol: string, opts:
     for (let k = 0; k < 4; k++) {
       ctx.beginPath();
       ctx.arc(cx - r + 2 + k * ((r * 2 - 4) / 3), cy + r + 1, 3.6, 0, Math.PI * 2);
-      ctx.fillStyle = ['#ff8fb1', '#fff1a8', '#ff8fb1', '#c9b6ff'][k]!;
+      ctx.fillStyle = ['#ff8fb1', '#fff1a8', '#ff8fb1', '#9fd8ff'][k]!;
       ctx.fill();
     }
   }
@@ -159,7 +159,7 @@ export function drawIsoBuilding(ctx: Ctx2D, def: BuildingDef, ox: number, oy: nu
   // miękki cień pod budynkiem
   ctx.save();
   ctx.globalAlpha = 0.22;
-  poly(ctx, [up(T, -6), { x: R.x + 16, y: R.y + 6 }, { x: B.x, y: B.y + 16 }, { x: L.x - 16, y: L.y + 6 }], '#2a1a30', null);
+  poly(ctx, [up(T, -6), { x: R.x + 16, y: R.y + 6 }, { x: B.x, y: B.y + 16 }, { x: L.x - 16, y: L.y + 6 }], '#2a2010', null);
   ctx.restore();
 
   // ściany

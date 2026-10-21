@@ -8,8 +8,8 @@ import { activeFestival } from '../sim/systems/progress';
 import { TOOL_IDS, type GameState, type ToolId } from '../sim/types';
 import type { App } from './app';
 import { $, h } from './dom';
-import { WEATHER_ICON, clockText } from './format';
-import { TOOL_ICONS } from './icons';
+import { clockText, seasonIcon, weatherIcon } from './format';
+import { ic } from './uiIcons';
 import { viewCtx } from './view';
 
 export function mountHud(app: App): { coinTarget(): { x: number; y: number } | null } {
@@ -57,12 +57,12 @@ export function mountHud(app: App): { coinTarget(): { x: number; y: number } | n
         html = `<img src="${itemIconUrl(s.selectedFertilizer, 64)}" alt="">`;
         count = String(countItem(s, s.selectedFertilizer));
       } else if (tool === 'hub') {
-        html = TOOL_ICONS.hub;
+        html = ic('cottage');
         const ready =
           [...s.quests.daily, ...s.quests.weekly].filter((q) => !q.claimed && q.progress >= q.target).length +
           s.orders.filter((o) => countItem(s, o.item) >= o.qty).length;
         count = ready ? String(ready) : '';
-      } else html = TOOL_ICONS[tool];
+      } else html = ic(tool);
       // porównujemy z zapamiętanym napisem: serializacja innerHTML (SVG) różni się od źródła,
       // więc porównanie z innerHTML podmieniałoby ikonę przy każdej klatce stanu
       if (iconHtml.get(tool) !== html) {
@@ -112,6 +112,7 @@ export function mountHud(app: App): { coinTarget(): { x: number; y: number } | n
   });
   weather.append(...drops);
   let lastWeather = '';
+  let lastClock = '';
 
   const render = (s: GameState) => {
     renderTools(s);
@@ -125,9 +126,13 @@ export function mountHud(app: App): { coinTarget(): { x: number; y: number } | n
     const cal = calendarAt(s.clock.simMs, s.seed);
     const hour = ((s.clock.simMs + s.clock.accMs) % DAY_MS) / HOUR_MS;
     const fest = activeFestival(viewCtx(s));
-    clock.innerHTML = `${WEATHER_ICON[cal.weather] ?? ''} ${clockText(hour)} · ${t(`season.${cal.season}`)} ${cal.dayOfSeason + 1}${
-      fest ? `<span class="fest">🎪 ${t('hud.festival')}</span>` : ''
+    const clockHtml = `${weatherIcon(cal.weather)}<span>${clockText(hour)} · ${t(`season.${cal.season}`)} ${cal.dayOfSeason + 1}</span>${seasonIcon(cal.season)}${
+      fest ? `<span class="fest">${ic('tent')}${t('hud.festival')}</span>` : ''
     }`;
+    if (clockHtml !== lastClock) {
+      lastClock = clockHtml;
+      clock.innerHTML = clockHtml;
+    }
     clock.setAttribute('aria-label', `${t(`weather.${cal.weather}`)}, ${clockText(hour)}, ${t(`season.${cal.season}`)}`);
     if (cal.weather !== lastWeather) {
       lastWeather = cal.weather;

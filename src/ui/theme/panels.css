@@ -1,0 +1,314 @@
+/* ================================================================ treści paneli: każdy panel ma własny „plan zdjęciowy”
+   (atrybut data-panel na arkuszu ustawia SheetManager) */
+
+/* ---------- menu „Farma”: rozkładana mapka z dróżkami i stemplami miejsc */
+.sheet[data-panel='hub'] .sheet-body {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320' fill='none' stroke='%23b0743f' stroke-opacity='.35' stroke-width='5' stroke-dasharray='10 12' stroke-linecap='round'%3E%3Cpath d='M-10 80C60 40 120 140 200 90S300 40 340 70'/%3E%3Cpath d='M40 340C70 250 160 260 170 190S240 120 330 150'/%3E%3C/svg%3E") 0 0 / 20rem,
+    radial-gradient(ellipse 40% 30% at 85% 20%, rgb(155 224 110 / 0.25), rgb(0 0 0 / 0) 70%),
+    radial-gradient(ellipse 40% 30% at 10% 85%, rgb(92 184 240 / 0.18), rgb(0 0 0 / 0) 70%),
+    var(--grain),
+    var(--paper);
+}
+
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.4rem, 1fr));
+  gap: 0.9rem 0.5rem;
+}
+
+.hub-tile {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-weight: 900;
+  font-size: 0.84rem;
+}
+
+.hub-tile .stamp {
+  --depth: 0.3rem;
+  display: grid;
+  place-items: center;
+  width: 4.6rem;
+  height: 4.6rem;
+  margin-bottom: 0.3rem;
+  border-radius: 50%;
+}
+
+.hub-tile .menu-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  filter: drop-shadow(0 0.15rem 0 rgb(74 46 26 / 0.2));
+  transition: transform var(--dur-pop) var(--spring-pop);
+}
+
+.hub-tile:active .stamp {
+  --depth: 0.05rem;
+  transform: translateY(0.25rem) scale(1.05, 0.92);
+}
+
+.hub-tile:active .menu-icon {
+  transform: rotate(-6deg) scale(0.92);
+}
+
+.hub-tile > span:not(.badge):not(.stamp) {
+  padding: 0.1rem 0.5rem;
+  border-radius: 0.4rem;
+  background: linear-gradient(var(--wood), var(--wood-deep));
+  box-shadow: 0 0.12rem 0 var(--wood-lo);
+  color: #fff6e4;
+  text-shadow: 0 1px 0 rgb(60 30 10 / 0.5);
+}
+
+.hub-tile .badge {
+  position: absolute;
+  top: 0;
+  right: calc(50% - 2.6rem);
+  display: grid;
+  place-items: center;
+  min-width: 1.6rem;
+  height: 1.6rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: linear-gradient(var(--sun-hi), var(--sun));
+  box-shadow: 0 0.12rem 0 var(--sun-lo);
+  color: #5a3208;
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.hub-tile .badge.seal {
+  border-radius: 0;
+  box-shadow: none;
+  color: #fff6ee;
+  animation: seal-pulse 1.8s ease-in-out infinite;
+}
+
+/* ---------- rynek: markiza w paski nad straganem */
+.sheet[data-panel='market'] .sheet-head::after,
+.sheet[data-panel='shop'] .sheet-head::after {
+  content: '';
+  position: absolute;
+  left: 0.4rem;
+  right: 0.4rem;
+  bottom: -0.85rem;
+  height: 0.95rem;
+  background: repeating-linear-gradient(90deg, var(--terra) 0 1.4rem, var(--cream-hi) 1.4rem 2.8rem);
+  -webkit-mask: radial-gradient(circle at 0.7rem 0, #000 0.68rem, transparent 0.72rem) 0 0 / 1.4rem 100% repeat-x;
+  mask: radial-gradient(circle at 0.7rem 0, #000 0.68rem, transparent 0.72rem) 0 0 / 1.4rem 100% repeat-x;
+  filter: drop-shadow(0 0.15rem 0 rgb(60 30 10 / 0.3));
+}
+
+.sheet[data-panel='shop'] .sheet-head::after {
+  background: repeating-linear-gradient(90deg, var(--leaf) 0 1.4rem, var(--cream-hi) 1.4rem 2.8rem);
+}
+
+.sheet[data-panel='market'] .sheet-body,
+.sheet[data-panel='shop'] .sheet-body {
+  padding-top: 1.6rem;
+}
+
+/* ---------- sklep nasion i wybór nasion: papierowe saszetki z kolorowym paskiem */
+.sheet:is([data-panel='shop'], [data-panel='seedPicker']) .card {
+  padding-top: 1rem;
+  border-radius: 0.5rem 0.5rem 0.9rem 0.9rem;
+  background:
+    linear-gradient(var(--packet, var(--leaf)) 0 0.45rem, rgb(0 0 0 / 0) 0.45rem),
+    repeating-linear-gradient(90deg, rgb(0 0 0 / 0) 0 0.5rem, rgb(74 46 26 / 0.06) 0.5rem 0.55rem) 0 0.45rem / 100% 0.35rem no-repeat,
+    var(--grain),
+    var(--paper-hi);
+}
+
+.sheet:is([data-panel='shop'], [data-panel='seedPicker']) .card:nth-child(4n + 2) {
+  --packet: var(--sun);
+}
+
+.sheet:is([data-panel='shop'], [data-panel='seedPicker']) .card:nth-child(4n + 3) {
+  --packet: var(--terra);
+}
+
+.sheet:is([data-panel='shop'], [data-panel='seedPicker']) .card:nth-child(4n + 4) {
+  --packet: var(--sky);
+}
+
+.sheet:is([data-panel='shop'], [data-panel='seedPicker']) .card::before {
+  display: none;
+}
+
+/* ---------- spiżarnia i nawozy: przedmioty na drewnianych półkach */
+.sheet:is([data-panel='inventory'], [data-panel='fertPicker']) .card {
+  rotate: 0deg;
+  border-radius: 0.8rem 0.8rem 0.25rem 0.25rem;
+  box-shadow:
+    0 0.4rem 0 var(--wood),
+    0 0.6rem 0 var(--wood-lo),
+    0 0.9rem 0.8rem var(--contact-soft);
+}
+
+.sheet:is([data-panel='inventory'], [data-panel='fertPicker']) .card::before {
+  display: none;
+}
+
+.sheet:is([data-panel='inventory'], [data-panel='fertPicker']) .cards {
+  gap: 1.1rem;
+}
+
+/* ---------- budowanie: szkicownik w kratkę, karty przyklejone taśmą */
+.sheet:is([data-panel='build'], [data-panel='building']) .sheet-body {
+  background:
+    repeating-linear-gradient(0deg, rgb(92 184 240 / 0.14) 0 1px, rgb(0 0 0 / 0) 1px 1.1rem),
+    repeating-linear-gradient(90deg, rgb(92 184 240 / 0.14) 0 1px, rgb(0 0 0 / 0) 1px 1.1rem),
+    var(--paper);
+}
+
+.sheet:is([data-panel='build'], [data-panel='building']) .card::before {
+  top: -0.45rem;
+  width: 3rem;
+  height: 0.9rem;
+  margin-left: -1.5rem;
+  border-radius: 0.15rem;
+  background: rgb(255 236 170 / 0.75);
+  box-shadow: 0 0.05rem 0.1rem rgb(74 46 26 / 0.2);
+  rotate: -3deg;
+}
+
+/* ---------- wioska i prezenty: portrety w drewnianych ramkach */
+.sheet:is([data-panel='village'], [data-panel='gift']) .card .thumb {
+  border-radius: 0.7rem;
+  background:
+    radial-gradient(circle at 50% 40%, var(--sky-hi), #e8f6ff 70%);
+  box-shadow:
+    0 0 0 0.25rem var(--wood),
+    0 0 0 0.35rem var(--wood-lo),
+    0 0.35rem 0.4rem var(--contact-soft);
+}
+
+.sheet:is([data-panel='village'], [data-panel='gift']) .card .thumb img {
+  width: 3.3rem;
+  height: 3.3rem;
+}
+
+/* ---------- zadania i osiągnięcia: tablica korkowa */
+.sheet[data-panel='progress'] .sheet-body {
+  background:
+    radial-gradient(circle at 20% 30%, rgb(120 70 30 / 0.25) 0 0.08rem, rgb(0 0 0 / 0) 0.1rem) 0 0 / 0.9rem 0.9rem,
+    radial-gradient(circle at 70% 60%, rgb(255 230 190 / 0.25) 0 0.07rem, rgb(0 0 0 / 0) 0.09rem) 0 0 / 1.1rem 1.1rem,
+    linear-gradient(#d9a066, #c98a52);
+  box-shadow:
+    inset 0 0 0 0.35rem var(--wood),
+    inset 0 0 0 0.45rem var(--wood-lo),
+    0 0.5rem 1rem var(--contact-soft);
+  color: #fff6e4;
+}
+
+.sheet[data-panel='progress'] .sheet-body > h3,
+.sheet[data-panel='progress'] .sheet-body > p {
+  padding: 0.2rem 0.6rem;
+  border-radius: 0.5rem;
+  background: var(--paper-hi);
+  color: var(--text);
+  width: fit-content;
+}
+
+/* statystyki: notes rolnika w linie z marginesem */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 1rem;
+  margin: 0;
+  padding: 0.4rem 0.9rem 0.6rem 2.2rem;
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(90deg, rgb(0 0 0 / 0) 1.5rem, rgb(240 112 79 / 0.55) 1.5rem 1.62rem, rgb(0 0 0 / 0) 1.62rem),
+    repeating-linear-gradient(rgb(0 0 0 / 0) 0 1.95rem, rgb(92 184 240 / 0.35) 1.95rem 2rem),
+    var(--cream-hi);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 2rem;
+  box-shadow: 0 0.4rem 0.8rem var(--contact-soft);
+}
+
+.stats-grid dt {
+  color: var(--muted);
+}
+
+.stats-grid dd {
+  margin: 0;
+  font-weight: 900;
+  text-align: right;
+}
+
+/* ---------- umiejętności: drzewko z gałęziami, umiejętności jak owoce (dojrzałe = złote) */
+.branches {
+  display: grid;
+  gap: 1rem;
+}
+
+@container sheet (min-width: 36rem) {
+  .branches {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .branches .card {
+    grid-template-columns: 1fr;
+  }
+}
+
+.branches section {
+  position: relative;
+  padding-left: 1.4rem;
+}
+
+.branches section::before {
+  content: '';
+  position: absolute;
+  left: 0.35rem;
+  top: 2.4rem;
+  bottom: 0.4rem;
+  width: 0.55rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--wood-lo), var(--wood-hi) 40%, var(--wood));
+  box-shadow: 0 0.2rem 0.3rem var(--contact-soft);
+}
+
+.branches h3 {
+  display: inline-flex;
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  background: linear-gradient(var(--leaf), var(--leaf-deep));
+  color: #fff;
+  text-shadow: 0 1px 0 rgb(30 80 20 / 0.5);
+}
+
+.branches .card::before {
+  top: 50%;
+  left: -1.05rem;
+  width: 1rem;
+  height: 0.35rem;
+  margin: -0.18rem 0 0;
+  border-radius: 999px;
+  background: var(--wood);
+}
+
+.branches .card.done {
+  filter: none;
+  opacity: 1;
+  box-shadow:
+    0 0 0 0.18rem var(--sun),
+    0 0.4rem 0.8rem var(--contact-soft);
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 0%, rgb(255 255 255 / 0.7), rgb(255 255 255 / 0) 70%),
+    linear-gradient(#fff4c8, #ffe58a);
+}
+
+/* ---------- ustawienia: skrzynka ogrodnika */
+.sheet[data-panel='settings'] .sheet-body {
+  background:
+    linear-gradient(rgb(255 255 255 / 0.3), rgb(0 0 0 / 0) 3rem),
+    var(--grain),
+    var(--paper);
+}

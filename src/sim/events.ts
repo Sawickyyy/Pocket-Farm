@@ -1,5 +1,5 @@
 import type { Quality, Season, WeatherId } from '../content/content';
-import type { ToolId } from './types';
+import type { RelationKind, ToolId } from './types';
 
 /** Pozycja na mapie (kafle) – do efektów i dźwięku przestrzennego. */
 export interface At {
@@ -47,6 +47,32 @@ export type SimEvent =
   | { type: 'newDay'; day: number; weather: WeatherId }
   | { type: 'season'; season: Season }
   | { type: 'tutorial'; step: number }
+  // ---------------------------------------------------------------- osada
+  | { type: 'territory'; chunk: number; cost: number }
+  | { type: 'constructed'; uid: number; building: string; at: At }
+  | { type: 'produced'; uid: number; item: string; qty: number; at: At }
+  | { type: 'arrived'; family: number; count: number; home: number; at: At }
+  | { type: 'left'; count: number; reason: 'unhappy' | 'homeless' }
+  | { type: 'born'; id: number; name: string }
+  | { type: 'grewUp'; id: number }
+  | { type: 'relation'; kind: RelationKind; a: number; b: number }
+  | { type: 'fire'; uid: number; at: At }
+  | { type: 'fireOut'; uid: number; damaged: boolean; at: At }
+  | { type: 'breakdown'; uid: number; at: At }
+  | { type: 'repaired'; uid: number; at: At }
+  | { type: 'epidemic'; home: number; at: At }
+  | { type: 'epidemicOver'; home: number }
+  | { type: 'crisis'; days: number }
+  | { type: 'goodEvent'; kind: 'festival' | 'harvest' | 'richCaravan' }
+  | { type: 'caravan'; from: string }
+  | { type: 'caravanLeft'; from: string }
+  | { type: 'traded'; item: string; qty: number; coins: number; dir: 'export' | 'import' }
+  | { type: 'proposal'; id: number; tpl: string }
+  | { type: 'decided'; id: number; tpl: string; approve: boolean }
+  | { type: 'tierUp'; tier: number }
+  | { type: 'budget'; day: number; net: number }
+  | { type: 'unpaid'; missing: number }
+  | { type: 'specialized'; id: string }
   | { type: 'stateReplaced' };
 
 export type SimEventType = SimEvent['type'];

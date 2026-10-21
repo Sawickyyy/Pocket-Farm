@@ -1,8 +1,8 @@
-// Model stanu gry (wersja 3). Stan jest zwykłym JSON-em: klonuje się go przez postMessage i zapisuje w IndexedDB.
+// Model stanu gry (wersja 4). Stan jest zwykłym JSON-em: klonuje się go przez postMessage i zapisuje w IndexedDB.
 
-import type { Season, WeatherId } from '../content/content';
+import type { NeedId, Season, WeatherId } from '../content/content';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export type ToolId = 'hoe' | 'seeds' | 'can' | 'fertilizer' | 'sickle' | 'rod';
 export const TOOL_IDS: readonly ToolId[] = ['hoe', 'seeds', 'can', 'fertilizer', 'sickle', 'rod'];
@@ -39,6 +39,8 @@ export interface PlacedObject {
   type: string;
   x: number;
   y: number;
+  /** Wariant wyglądu (domy osady). */
+  style?: number;
 }
 
 export interface Animal {
@@ -85,6 +87,144 @@ export interface Quest {
   target: number;
   progress: number;
   claimed: boolean;
+}
+
+// ---------------------------------------------------------------- osada (docs/plan-osada.md)
+
+export interface Resident {
+  id: number;
+  name: string;
+  /** Wspólne id rodziny (rodzice + dzieci). */
+  family: number;
+  child: boolean;
+  bornDay: number;
+  /** uid domu albo null (bezdomny). */
+  home: number | null;
+  /** uid miejsca pracy albo null. */
+  job: number | null;
+  needs: Record<NeedId, number>;
+  happiness: number;
+  /** Kolejne doby ze szczęściem < 0,25. */
+  sadDays: number;
+  homelessDays: number;
+  arrivedDay: number;
+  /** Wariant wyglądu postaci (0..7). */
+  look: number;
+  /** Posiłki z ostatniej doby: zjedzone / należne (do potrzeby jedzenia). */
+  meals: { eaten: number; due: number; kinds: string[] };
+  /** Chwilowy modyfikator szczęścia (rada, strajk) i dzień jego wygaśnięcia. */
+  mood: { value: number; untilDay: number };
+}
+
+export type RelationKind = 'friend' | 'love' | 'partner' | 'conflict';
+
+export interface Relation {
+  /** a < b (id mieszkańców). */
+  a: number;
+  b: number;
+  kind: RelationKind;
+  v: number;
+}
+
+/** Stan budynku osady: budowa, uszkodzenia, pożar, awaria, postęp produkcji. */
+export interface SiteState {
+  /** Postęp budowy 0..1 (1 = gotowy). */
+  built: number;
+  /** Uszkodzenia 0..1 (≥ 0,5 = nie działa). */
+  damage: number;
+  /** Godziny trwającego pożaru (0 = brak). */
+  fire: number;
+  broken: boolean;
+  /** Postęp bieżącego cyklu produkcji (0..1). */
+  progress: number;
+  /** Postęp naprawy (0..1). */
+  repair: number;
+}
+
+export interface TradeOffer {
+  item: string;
+  price: number;
+  qty: number;
+}
+
+export interface Caravan {
+  from: string;
+  /** Czas odjazdu (simMs). */
+  leavesAt: number;
+  buys: TradeOffer[];
+  sells: TradeOffer[];
+}
+
+export interface Proposal {
+  id: number;
+  tpl: string;
+  /** Liczba popierających mieszkańców. */
+  support: number;
+  /** Koszt zatwierdzenia (monety); 0 dla bonu na budowę. */
+  cost: number;
+  expiresDay: number;
+}
+
+export type SettlementEventKind = 'fire' | 'breakdown' | 'epidemic' | 'crisis' | 'festival' | 'harvest' | 'richCaravan';
+
+export interface ActiveEvent {
+  id: number;
+  kind: SettlementEventKind;
+  /** uid budynku (pożar, awaria, epidemia). */
+  target?: number;
+  /** Koniec (simMs). */
+  untilMs: number;
+}
+
+export interface ChronicleEntry {
+  day: number;
+  hour: number;
+  kind: string;
+  params?: Record<string, string | number>;
+}
+
+export interface BudgetDay {
+  day: number;
+  taxes: number;
+  sales: number;
+  exports: number;
+  wages: number;
+  upkeep: number;
+  imports: number;
+  investments: number;
+}
+
+export interface Settlement {
+  name: string;
+  territory: number[];
+  /** Ile fragmentów kupiono (do ceny). */
+  bought: number;
+  residents: Resident[];
+  /** Licznik id mieszkańców, rodzin, propozycji, wydarzeń. */
+  nextId: number;
+  relations: Relation[];
+  /** Klucz = uid budynku. */
+  sites: Record<string, SiteState>;
+  taxRate: number;
+  /** Przedmioty, których mieszkańcy nie jedzą, a karawany nie kupują automatycznie. */
+  reserved: string[];
+  autoExport: string[];
+  /** budget[0] = dzień bieżący, max 7 dni. */
+  budget: BudgetDay[];
+  proposals: Proposal[];
+  /** Bony rady: typ budynku → zniżka i dzień wygaśnięcia. */
+  vouchers: Record<string, { discount: number; untilDay: number }>;
+  events: ActiveEvent[];
+  chronicle: ChronicleEntry[];
+  caravan: Caravan | null;
+  nextCaravanDay: number;
+  /** Mnożnik ceny następnej karawany (bogata karawana). */
+  caravanBonus: number;
+  specialization: string | null;
+  peakTier: number;
+  /** Dzień założenia (pierwszy mieszkaniec) albo -1. */
+  foundedDay: number;
+  stats: { arrived: number; left: number; born: number; weddings: number };
 }
 
 export interface Settings {
@@ -143,6 +283,7 @@ export interface GameState {
   unlocks: string[];
   world: { revealed: number[]; forage: Record<string, number>; pendingFish: PendingFish | null };
   tutorial: { step: number; done: boolean };
+  settlement: Settlement;
   tool: ToolId;
   selectedSeed: string;
   selectedFertilizer: string;

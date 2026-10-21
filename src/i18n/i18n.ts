@@ -6,7 +6,14 @@ import pl from './pl.json';
 export type Lang = 'pl' | 'en';
 export type Dict = Record<string, string>;
 
-export const DICTS: Record<Lang, Dict> = { pl, en };
+export const DICTS: Record<Lang, Dict> = { pl: { ...pl }, en: { ...en } };
+
+// Części słownika (np. osada): src/i18n/parts/<nazwa>.<pl|en>.json – dołączane przy starcie, każdy moduł ma własne pliki.
+const PARTS = import.meta.glob<Dict>('./parts/*.json', { eager: true, import: 'default' });
+for (const [path, dict] of Object.entries(PARTS)) {
+  const m = /\.(pl|en)\.json$/.exec(path);
+  if (m) Object.assign(DICTS[m[1] as Lang], dict);
+}
 
 let lang: Lang = 'pl';
 const listeners = new Set<(l: Lang) => void>();

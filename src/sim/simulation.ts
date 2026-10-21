@@ -18,6 +18,7 @@ import * as progress from './systems/progress';
 import * as skills from './systems/skills';
 import * as tutorial from './systems/tutorial';
 import * as village from './systems/village';
+import { SETTLEMENT_COMMANDS, settlementCommand, settlementDay, settlementHour } from './systems/settlement';
 import type { GameState } from './types';
 import { CHUNKS_X, CHUNKS_Y } from './world';
 
@@ -29,6 +30,9 @@ export interface CatchUpReport {
   crafted: number;
   withered: number;
   capped: boolean;
+  /** Osada: przyjazdy i wyjazdy mieszkańców podczas nieobecności. */
+  arrived: number;
+  left: number;
 }
 
 export class Simulation {
@@ -52,7 +56,9 @@ export class Simulation {
   }
 
   private makeCtx(): Ctx {
-    return makeCtx(this.state, this.bus, calendarAt(this.state.clock.simMs, this.state.seed), this.content);
+    const ctx = makeCtx(this.state, this.bus, calendarAt(this.state.clock.simMs, this.state.seed), this.content);
+    if (this.muted) ctx.offline = true;
+    return ctx;
   }
 
   get calendar() {
@@ -86,6 +92,7 @@ export class Simulation {
 
   private step(): void {
     const s = this.state;
+    const hourBefore = Math.floor(s.clock.simMs / HOUR_MS);
     s.clock.simMs += STEP_MS;
     this.ctx = this.makeCtx();
     if (this.ctx.cal.day !== s.lastDay) this.newDay();
@@ -93,6 +100,8 @@ export class Simulation {
     animals.updateAnimals(this.ctx, STEP_MS);
     processing.updateProcessing(this.ctx, STEP_MS);
     market.updateMarket(this.ctx, STEP_MS);
+    // Osada liczy się co pełną godzinę gry (docs/plan-osada.md).
+    if (Math.floor(s.clock.simMs / HOUR_MS) !== hourBefore) settlementHour(this.ctx, Math.floor(this.ctx.cal.hour));
   }
 
   private newDay(): void {
@@ -105,6 +114,7 @@ export class Simulation {
     market.marketNewDay(ctx);
     village.generateOrders(ctx);
     progress.questsNewDay(ctx);
+    if (!firstDay) settlementDay(ctx);
     this.bus.emit({ type: 'newDay', day: ctx.cal.day, weather: ctx.cal.weather });
   }
 
@@ -131,9 +141,10 @@ export class Simulation {
       this.advance(dt);
       return null;
     }
-    const counts = { animalReady: 0, crafted: 0, withered: 0, newDay: 0 };
+    const counts = { animalReady: 0, crafted: 0, withered: 0, newDay: 0, arrived: 0, left: 0 };
     const off = this.bus.onAny((e) => {
-      if (e.type in counts) counts[e.type as keyof typeof counts]++;
+      if (e.type === 'arrived' || e.type === 'left') counts[e.type] += e.count;
+      else if (e.type in counts) counts[e.type as keyof typeof counts]++;
     });
     this.muted = true;
     this.advance(dt);
@@ -147,6 +158,8 @@ export class Simulation {
       crafted: counts.crafted,
       withered: counts.withered,
       capped: away > MAX_CATCHUP_MS,
+      arrived: counts.arrived,
+      left: counts.left,
     };
   }
 
@@ -204,7 +217,7 @@ export class Simulation {
       case 'sellAll':
         return market.sellAll(ctx);
       case 'place':
-        return building.place(ctx, cmd.building, cmd.x, cmd.y);
+        return building.place(ctx, cmd.building, cmd.x, cmd.y, cmd.style);
       case 'move':
         return building.move(ctx, cmd.uid, cmd.x, cmd.y);
       case 'remove':
@@ -250,6 +263,9 @@ export class Simulation {
         return OK;
       case 'debug':
         return this.debug(cmd.op, cmd.value);
+      default:
+        if (SETTLEMENT_COMMANDS.has(cmd.type)) return settlementCommand(ctx, cmd as Parameters<typeof settlementCommand>[1]);
+        return fail('invalid');
     }
   }
 

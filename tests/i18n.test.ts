@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONTENT } from '../src/content/content';
+import { CONTENT, PROFESSIONS } from '../src/content/content';
 import { DICTS, setLanguage, t } from '../src/i18n/i18n';
 import type { FailReason } from '../src/sim/commands';
 
@@ -10,6 +10,8 @@ const FAILS: FailReason[] = [
   'not-hungry', 'already-petted', 'not-ready-animal', 'missing-items', 'queue-full', 'empty', 'expired', 'already-gifted',
   'no-points', 'requires-skill', 'already-have', 'not-complete', 'claimed', 'no-festival', 'not-water', 'hidden',
   'not-forage', 'not-respawned', 'no-bite', 'escaped',
+  'terrain', 'tier-too-low', 'not-territory-edge', 'max-territory', 'foreign-land', 'unique', 'no-caravan', 'no-stock',
+  'not-damaged', 'already-chosen', 'no-medicine', 'not-sick', 'needs-townhall',
 ];
 
 describe('tłumaczenia', () => {
@@ -32,6 +34,10 @@ describe('tłumaczenia', () => {
       ...CONTENT.festivals.map((f) => `festival.${f.id}`),
       ...CONTENT.tutorial.map((s) => `tutorial.${s.id}`),
       ...FAILS.map((f) => `fail.${f}`),
+      ...PROFESSIONS.map((p) => `profession.${p}`),
+      ...CONTENT.settlement.tiers.map((t) => `tier.${t.id}`),
+      ...CONTENT.settlement.partners.map((p) => `partner.${p.id}`),
+      ...CONTENT.settlement.specializations.map((x) => `spec.${x.id}`),
     ];
     expect(required.filter((k) => !(k in DICTS.pl))).toEqual([]);
   });

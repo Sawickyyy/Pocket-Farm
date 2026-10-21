@@ -1,0 +1,92 @@
+{
+  "tiers": [
+    { "id": "camp", "min": 0, "territory": 4 },
+    { "id": "hamlet", "min": 4, "territory": 6 },
+    { "id": "village", "min": 16, "territory": 9 },
+    { "id": "town", "min": 51, "territory": 14 },
+    { "id": "city", "min": 150, "territory": 24 }
+  ],
+  "startTerritory": [27, 28, 35, 36],
+  "foreignChunks": [43, 44],
+  "territoryCost": { "base": 300, "growth": 1.5 },
+  "professions": {
+    "farmer": { "wage": 8 },
+    "baker": { "wage": 10 },
+    "lumberjack": { "wage": 8 },
+    "fisher": { "wage": 8 },
+    "merchant": { "wage": 12 },
+    "builder": { "wage": 10 },
+    "craftsman": { "wage": 12 },
+    "teacher": { "wage": 14 },
+    "medic": { "wage": 16 },
+    "firefighter": { "wage": 12 },
+    "guard": { "wage": 12 }
+  },
+  "needWeights": { "food": 0.3, "housing": 0.2, "work": 0.2, "safety": 0.15, "fun": 0.15 },
+  "foods": {
+    "radish": 1, "carrot": 1, "tomato": 1, "strawberry": 1, "pumpkin": 2, "corn": 1, "kale": 1, "snowberry": 1, "moonmelon": 2,
+    "egg": 1, "milk": 1, "cheese": 3, "bread": 4, "pie": 6, "jam": 2, "winterjam": 2,
+    "mushroom": 1, "berries": 1, "roach": 2, "perch": 2, "carp": 2, "trout": 2, "pike": 3, "catfish": 3, "moonfish": 3
+  },
+  "constants": {
+    "childDays": 10,
+    "workStart": 7,
+    "workEnd": 17,
+    "mealHours": [7, 18],
+    "arrivalHour": 9,
+    "wageHour": 18,
+    "salesPerPoint": 4,
+    "baseStorage": 300,
+    "taxDefault": 0.1,
+    "taxMax": 0.3,
+    "offroadDistance": 6,
+    "offroadDistanceDepot": 12,
+    "maxRelations": 6,
+    "chronicleMax": 40,
+    "proposalDays": 3,
+    "maxProposals": 3,
+    "voucherDiscount": 0.4,
+    "voucherDays": 5
+  },
+  "names": {
+    "given": ["Ala", "Bartek", "Celina", "Dawid", "Ewa", "Filip", "Gosia", "Henio", "Iga", "Janek", "Kasia", "Leon", "Magda", "Natan", "Ola", "Piotr", "Róża", "Staś", "Tola", "Witek", "Zosia", "Antek", "Basia", "Igor", "Julka", "Kuba", "Lena", "Marek", "Nina", "Oskar", "Pola", "Rysiek", "Sara", "Tymek", "Wiki", "Zbyszek", "Ania", "Bogna", "Eryk", "Fela"],
+    "family": ["Nowak", "Wójcik", "Kaczmarek", "Mazur", "Krawczyk", "Zając", "Król", "Wieczorek", "Pawlak", "Michalak", "Sikora", "Baran", "Duda", "Szewczyk", "Kubiak", "Wróbel", "Dudek", "Walczak", "Stępień", "Marciniak", "Bąk", "Lis", "Kołodziej", "Kowal", "Kos", "Sowa", "Wilk", "Sokół", "Jeleń", "Gil"]
+  },
+  "partners": [
+    { "id": "oldvillage", "buys": ["radish", "carrot", "tomato", "pumpkin", "egg", "milk", "bread"], "sells": ["wood", "egg", "herb", "flour"] },
+    { "id": "riverside", "buys": ["bread", "cheese", "jam", "planks", "wheat"], "sells": ["roach", "perch", "planks", "wood"] },
+    { "id": "hills", "buys": ["tools", "cloth", "pie", "flour", "corn"], "sells": ["wool", "planks", "medicine", "wood"] },
+    { "id": "port", "buys": ["jam", "winterjam", "pie", "cloth", "cheese", "tools"], "sells": ["medicine", "tools", "flour", "milk"] }
+  ],
+  "caravanInterval": [0, 0, 3, 2, 1],
+  "events": {
+    "fire": 0.03,
+    "breakdown": 0.04,
+    "epidemic": 0.03,
+    "crisis": 0.02,
+    "good": 0.05,
+    "minDay": 3
+  },
+  "proposals": [
+    { "id": "need_well", "kind": "build", "building": "well", "when": "noWell" },
+    { "id": "need_food", "kind": "build", "building": "allotment", "when": "hungry" },
+    { "id": "need_bakery", "kind": "build", "building": "bakery", "when": "hungryVillage" },
+    { "id": "need_housing", "kind": "build", "building": "house", "when": "crowded" },
+    { "id": "need_warehouse", "kind": "build", "building": "warehouse", "when": "storageFull" },
+    { "id": "need_school", "kind": "build", "building": "school", "when": "children" },
+    { "id": "need_plaza", "kind": "build", "building": "plaza", "when": "bored" },
+    { "id": "need_lights", "kind": "build", "building": "lantern", "when": "unsafe" },
+    { "id": "need_police", "kind": "build", "building": "police", "when": "unsafeTown" },
+    { "id": "need_clinic", "kind": "build", "building": "clinic", "when": "epidemic" },
+    { "id": "need_trade", "kind": "build", "building": "tradepost", "when": "noTrade" },
+    { "id": "lower_taxes", "kind": "policy", "when": "taxUnhappy", "value": -0.05 },
+    { "id": "festival", "kind": "event", "when": "always", "cost": 150, "days": 2, "value": 0.15 },
+    { "id": "tools_grant", "kind": "grant", "when": "craftsmen", "cost": 200, "item": "tools", "qty": 5 },
+    { "id": "roads", "kind": "build", "building": "road", "when": "disconnected" }
+  ],
+  "specializations": [
+    { "id": "agri", "mult": 1.25 },
+    { "id": "trade", "mult": 1.25 },
+    { "id": "craft", "mult": 1.25 }
+  ]
+}

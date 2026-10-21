@@ -1,7 +1,7 @@
 import { CONTENT, type Content } from '../content/content';
 import { hash32 } from '../core/rng';
 import { START_SIM_MS } from './calendar';
-import { SAVE_VERSION, type GameState, type Plot, type Settings } from './types';
+import { SAVE_VERSION, type GameState, type Plot, type Settings, type Settlement } from './types';
 import { FIELD, START_CHUNKS } from './world';
 
 export const PLOT_COUNT = FIELD.w * FIELD.h;
@@ -15,6 +15,33 @@ export function defaultSettings(language: Settings['language'] = 'pl'): Settings
 
 export function createPlot(unlocked: boolean): Plot {
   return { unlocked, tilled: false, moisture: 0, fertility: 0.6, lastCrop: null, streak: 0, crop: null };
+}
+
+export function createSettlement(c: Content = CONTENT): Settlement {
+  return {
+    name: '',
+    territory: [...c.settlement.startTerritory],
+    bought: 0,
+    residents: [],
+    nextId: 1,
+    relations: [],
+    sites: {},
+    taxRate: c.settlement.constants.taxDefault,
+    reserved: [],
+    autoExport: [],
+    budget: [],
+    proposals: [],
+    vouchers: {},
+    events: [],
+    chronicle: [],
+    caravan: null,
+    nextCaravanDay: -1,
+    caravanBonus: 1,
+    specialization: null,
+    peakTier: 0,
+    foundedDay: -1,
+    stats: { arrived: 0, left: 0, born: 0, weddings: 0 },
+  };
 }
 
 export function createInitialState(now: number, seed = hash32(now, 0x5eed), c: Content = CONTENT): GameState {
@@ -45,6 +72,7 @@ export function createInitialState(now: number, seed = hash32(now, 0x5eed), c: C
     unlocks: [],
     world: { revealed: [...START_CHUNKS], forage: {}, pendingFish: null },
     tutorial: { step: 0, done: false },
+    settlement: createSettlement(c),
     tool: 'hoe',
     selectedSeed: 'radish',
     selectedFertilizer: 'compost',

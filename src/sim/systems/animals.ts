@@ -5,6 +5,7 @@ import { HOUR_MS } from '../calendar';
 import type { CommandResult } from '../commands';
 import { OK, addItem, addXp, consumeItem, countItem, fail, levelOf, mod, rand, stat, type Ctx } from '../ctx';
 import type { Animal, PlacedObject } from '../types';
+import { animalHomeSick } from './settlement/events';
 
 /** Pełny brzuch wystarcza na 16 h gry. */
 export const HUNGER_PER_HOUR = 1 / 16;
@@ -39,7 +40,8 @@ export function updateAnimals(ctx: Ctx, dt: number): void {
     if (!def) continue;
     if (a.hunger > 0) {
       a.hunger = Math.max(0, a.hunger - hours * hungerRate);
-      if (!a.ready) {
+      // Epidemia (osada): chore zwierzęta nie produkują.
+      if (!a.ready && !animalHomeSick(s, a.home)) {
         a.progress += (hours / def.produceHours) * speed;
         if (a.progress >= 1) {
           a.progress = 0;

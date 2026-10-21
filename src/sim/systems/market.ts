@@ -8,6 +8,7 @@ import type { CommandResult } from '../commands';
 import { OK, fail, mod, removeKey, stat, type Ctx } from '../ctx';
 import type { GameState } from '../types';
 import { activeFestival } from './progress';
+import { priceMult } from './settlement/events';
 
 export const SAT_SCALE = 20;
 export const SAT_HALF_LIFE_H = 6;
@@ -27,7 +28,7 @@ export function unitPrice(ctx: Ctx, key: string, extraSat = 0): number {
   const festival = activeFestival(ctx);
   const fest = festival && festival.market.includes(id) ? festival.mult : 1;
   const sat = (s.market.sat[id] ?? 0) + extraSat;
-  return def.price * QUALITY_MULT[q] * demand * fest * (1 + mod(s, c, 'sellBonus')) * satFactor(sat);
+  return def.price * QUALITY_MULT[q] * demand * fest * (1 + mod(s, c, 'sellBonus')) * satFactor(sat) * priceMult(s);
 }
 
 /** Łączna kwota za `qty` sztuk (każda kolejna sztuka podnosi nasycenie). */

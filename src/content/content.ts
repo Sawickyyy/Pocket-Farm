@@ -12,6 +12,7 @@ import itemsJson from './data/items.json';
 import npcsJson from './data/npcs.json';
 import questsJson from './data/quests.json';
 import recipesJson from './data/recipes.json';
+import settlementJson from './data/settlement.json';
 import skillsJson from './data/skills.json';
 import tutorialJson from './data/tutorial.json';
 import weatherJson from './data/weather.json';
@@ -30,6 +31,8 @@ export interface Art {
   emblem?: string;
   body?: string;
   accent?: string;
+  /** Model bryły dla grafiki osady (tent, hut, cottage, townhouse, manor, field, well, plaza, box…). */
+  model?: string;
 }
 
 export interface CropDef {
@@ -48,7 +51,7 @@ export interface CropDef {
   art: Art;
 }
 
-export type ItemKind = 'crop' | 'animal' | 'fertilizer' | 'feed' | 'artisan' | 'forage' | 'fish';
+export type ItemKind = 'crop' | 'animal' | 'fertilizer' | 'feed' | 'artisan' | 'forage' | 'fish' | 'material';
 
 export interface ItemDef {
   id: string;
@@ -84,11 +87,38 @@ export interface AnimalDef {
   art: Art;
 }
 
-export type BuildingKind = 'home' | 'machine' | 'sprinkler' | 'lantern' | 'path' | 'deco';
+export type BuildingKind = 'home' | 'machine' | 'sprinkler' | 'lantern' | 'path' | 'deco' | 'house' | 'work' | 'infra' | 'service' | 'bridge';
+export type BuildingCategory = 'housing' | 'road' | 'work' | 'infra' | 'service' | 'farm' | 'deco';
+
+export const PROFESSIONS = ['farmer', 'baker', 'lumberjack', 'fisher', 'merchant', 'builder', 'craftsman', 'teacher', 'medic', 'firefighter', 'guard'] as const;
+export type Profession = (typeof PROFESSIONS)[number];
+
+export type ServiceKind = 'police' | 'fire' | 'clinic' | 'school' | 'fun' | 'water' | 'light' | 'market' | 'storage' | 'trade' | 'hall' | 'transport' | 'build';
+/** Usługi z mapą pokrycia (promień); pozostałe działają globalnie. */
+export const COVERAGE_KINDS = ['police', 'fire', 'clinic', 'school', 'fun', 'water', 'light', 'market'] as const;
+export type CoverageKind = (typeof COVERAGE_KINDS)[number];
+
+export interface ItemQty {
+  item: string;
+  qty: number;
+}
+
+export interface ProductionDef {
+  inputs: ItemQty[];
+  /** `item: "@fish"` = losowa ryba dostępna w danej porze roku. */
+  output: ItemQty;
+  /** Roboczogodziny na jeden cykl. */
+  hours: number;
+  /** Wyjście zależne od pory roku (brak wpisu = przestój). */
+  seasonal?: Partial<Record<Season, string>>;
+  /** Produkuj tylko, gdy w magazynie jest mniej niż `limit` sztuk wyjścia. */
+  limit?: number;
+}
 
 export interface BuildingDef {
   id: string;
   kind: BuildingKind;
+  category?: BuildingCategory;
   size: [number, number];
   cost: number;
   level: number;
@@ -97,6 +127,27 @@ export interface BuildingDef {
   radius?: number;
   light?: { radius: number; color: string; intensity: number };
   festival?: boolean;
+  /** Etap osady wymagany do budowy (0..4). */
+  tier?: number;
+  /** Miejsca w domu. */
+  housing?: number;
+  /** Komfort mieszkania 0..1. */
+  comfort?: number;
+  /** Liczba wariantów wyglądu. */
+  styles?: number;
+  jobs?: { profession: Profession; slots: number };
+  production?: ProductionDef;
+  /** Receptury maszyn wykonywane automatycznie przez obsadę (pierwsza wykonalna). */
+  autoRecipes?: string[];
+  service?: { kind: ServiceKind; radius: number; value?: number };
+  /** Monety za dzień. */
+  upkeep?: number;
+  /** Czas budowy w roboczogodzinach (0/brak = od razu). */
+  buildHours?: number;
+  materials?: ItemQty[];
+  terrain?: 'water' | 'shore' | 'forest';
+  /** Najwyżej jeden w osadzie. */
+  unique?: boolean;
   art: Art;
 }
 
@@ -194,6 +245,59 @@ export interface TutorialStep {
   coins?: number;
 }
 
+export type NeedId = 'food' | 'housing' | 'work' | 'safety' | 'fun';
+export const NEEDS: readonly NeedId[] = ['food', 'housing', 'work', 'safety', 'fun'];
+
+export interface ProposalTpl {
+  id: string;
+  kind: 'build' | 'policy' | 'event' | 'grant';
+  building?: string;
+  when: string;
+  value?: number;
+  cost?: number;
+  days?: number;
+  item?: string;
+  qty?: number;
+}
+
+export interface SettlementContent {
+  tiers: { id: string; min: number; territory: number }[];
+  startTerritory: number[];
+  foreignChunks: number[];
+  territoryCost: { base: number; growth: number };
+  professions: Record<Profession, { wage: number }>;
+  needWeights: Record<NeedId, number>;
+  /** Wartość odżywcza jedzenia (pkt). */
+  foods: Record<string, number>;
+  constants: {
+    childDays: number;
+    workStart: number;
+    workEnd: number;
+    mealHours: number[];
+    arrivalHour: number;
+    wageHour: number;
+    salesPerPoint: number;
+    baseStorage: number;
+    taxDefault: number;
+    taxMax: number;
+    offroadDistance: number;
+    offroadDistanceDepot: number;
+    maxRelations: number;
+    chronicleMax: number;
+    proposalDays: number;
+    maxProposals: number;
+    voucherDiscount: number;
+    voucherDays: number;
+  };
+  names: { given: string[]; family: string[] };
+  partners: { id: string; buys: string[]; sells: string[] }[];
+  /** Odstęp karawan w dniach wg etapu (0 = brak karawan). */
+  caravanInterval: number[];
+  events: { fire: number; breakdown: number; epidemic: number; crisis: number; good: number; minDay: number };
+  proposals: ProposalTpl[];
+  specializations: { id: string; mult: number }[];
+}
+
 export interface Content {
   crops: CropDef[];
   crop: Record<string, CropDef>;
@@ -216,6 +320,7 @@ export interface Content {
   weather: { types: Record<WeatherId, WeatherType>; seasons: Record<Season, Partial<Record<WeatherId, number>>> };
   forage: ForageDef[];
   tutorial: TutorialStep[];
+  settlement: SettlementContent;
 }
 
 const byId = <T extends { id: string }>(list: T[]): Record<string, T> => Object.fromEntries(list.map((x) => [x.id, x]));
@@ -255,6 +360,7 @@ function buildContent(): Content {
     weather: weatherJson as Content['weather'],
     forage: forageJson as ForageDef[],
     tutorial: tutorialJson as TutorialStep[],
+    settlement: settlementJson as unknown as SettlementContent,
   };
 }
 
@@ -297,6 +403,29 @@ export function validateContent(c: Content): string[] {
     f.market.forEach((m) => item(m, `festyn ${f.id}.market`));
   }
   for (const f of c.forage) item(f.item, `zbieractwo ${f.biome}`);
+  // osada
+  const st = c.settlement;
+  for (const b of c.buildingList) {
+    const where = `budynek ${b.id}`;
+    b.materials?.forEach((m) => item(m.item, `${where}.materials`));
+    if (b.production) {
+      b.production.inputs.forEach((m) => item(m.item, `${where}.production`));
+      if (b.production.output.item !== '@fish') item(b.production.output.item, `${where}.production`);
+      for (const v of Object.values(b.production.seasonal ?? {})) if (v) item(v, `${where}.seasonal`);
+    }
+    for (const r of b.autoRecipes ?? []) if (c.recipes[r]?.building !== b.id) errors.push(`${where}: receptura ${r} nie należy do budynku`);
+    if (b.jobs && !PROFESSIONS.includes(b.jobs.profession)) errors.push(`${where}: zły zawód ${b.jobs.profession}`);
+    if (b.kind === 'house' && !(b.housing && b.housing > 0)) errors.push(`${where}: dom bez miejsc`);
+    if (b.tier !== undefined && (b.tier < 0 || b.tier >= st.tiers.length)) errors.push(`${where}: zły etap ${b.tier}`);
+  }
+  for (const f of Object.keys(st.foods)) item(f, 'osada.foods');
+  for (const p of st.partners) [...p.buys, ...p.sells].forEach((i) => item(i, `partner ${p.id}`));
+  for (const p of st.proposals) {
+    if (p.building && !c.buildings[p.building]) errors.push(`propozycja ${p.id}: brak budynku ${p.building}`);
+    if (p.item) item(p.item, `propozycja ${p.id}`);
+  }
+  for (const pr of PROFESSIONS) if (!st.professions[pr]) errors.push(`osada: brak płacy dla ${pr}`);
+  for (let i = 1; i < st.tiers.length; i++) if (st.tiers[i]!.min <= st.tiers[i - 1]!.min) errors.push('osada: etapy nierosnące');
   for (const s of SEASONS) {
     const sum = Object.values(c.weather.seasons[s] ?? {}).reduce((a, b) => a + (b ?? 0), 0);
     if (Math.abs(sum - 1) > 1e-6) errors.push(`pogoda ${s}: prawdopodobieństwa sumują się do ${sum}`);

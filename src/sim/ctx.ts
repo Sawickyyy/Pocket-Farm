@@ -14,6 +14,8 @@ export interface Ctx {
   bus: EventBus<SimEvent>;
   cal: Calendar;
   world: WorldMap;
+  /** Nadrabianie offline: bez losowych katastrof w osadzie. */
+  offline?: boolean;
 }
 
 export const OK: CommandResult = { ok: true };

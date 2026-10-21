@@ -12,7 +12,7 @@ export type Command =
   | { type: 'buyItem'; item: string; qty: number }
   | { type: 'sell'; key: string; qty: number | 'all' }
   | { type: 'sellAll' }
-  | { type: 'place'; building: string; x: number; y: number }
+  | { type: 'place'; building: string; x: number; y: number; style?: number }
   | { type: 'move'; uid: number; x: number; y: number }
   | { type: 'remove'; uid: number }
   | { type: 'buyAnimal'; kind: string; home: number }
@@ -34,6 +34,19 @@ export type Command =
   | { type: 'reelIn'; score: number }
   | { type: 'tutorial'; action: 'next' | 'skip' | 'restart' }
   | { type: 'settings'; patch: Partial<Settings> }
+  // ---------------------------------------------------------------- osada
+  | { type: 'restyle'; uid: number; style: number }
+  | { type: 'buyTerritory'; chunk: number }
+  | { type: 'setTax'; rate: number }
+  | { type: 'toggleReserve'; item: string }
+  | { type: 'toggleExport'; item: string }
+  | { type: 'decideProposal'; id: number; approve: boolean }
+  | { type: 'caravanSell'; key: string; qty: number }
+  | { type: 'caravanBuy'; item: string; qty: number }
+  | { type: 'repair'; uid: number }
+  | { type: 'treatAnimals'; home: number }
+  | { type: 'specialize'; id: string }
+  | { type: 'renameSettlement'; name: string }
   | { type: 'debug'; op: 'coins' | 'xp' | 'skipHours' | 'timeScale' | 'revealAll' | 'growAll'; value: number };
 
 export type FailReason =
@@ -80,6 +93,20 @@ export type FailReason =
   | 'not-forage'
   | 'not-respawned'
   | 'no-bite'
-  | 'escaped';
+  | 'escaped'
+  // osada
+  | 'terrain'
+  | 'tier-too-low'
+  | 'not-territory-edge'
+  | 'max-territory'
+  | 'foreign-land'
+  | 'unique'
+  | 'no-caravan'
+  | 'no-stock'
+  | 'not-damaged'
+  | 'already-chosen'
+  | 'no-medicine'
+  | 'not-sick'
+  | 'needs-townhall';
 
 export type CommandResult = { ok: true } | { ok: false; reason: FailReason };

@@ -13,6 +13,9 @@ interface View {
   kind: string;
   nextMove: number;
   walking: boolean;
+  scale: number;
+  blinkAt: number;
+  phase: number;
 }
 
 export class AnimalLayer {
@@ -52,7 +55,7 @@ export class AnimalLayer {
         const sprite = this.scene.add.sprite(x, y, SPRITES_KEY, animalFrame(a.kind, 0)).setOrigin(0.5, 0.78).setScale(scale).setDepth(25).setLighting(true);
         sprite.setData('animal', a.id);
         const badge = this.scene.add.image(x, y - 70, SPRITES_KEY, 'icon_ready').setScale(0.4).setDepth(26).setVisible(false);
-        v = { sprite, badge, home: a.home, kind: a.kind, nextMove: 0, walking: false };
+        v = { sprite, badge, home: a.home, kind: a.kind, nextMove: 0, walking: false, scale, blinkAt: 1000 + Math.random() * 3000, phase: Math.random() * 10 };
         this.views.set(a.id, v);
       }
       const icon = a.ready ? 'icon_ready' : a.hunger < 0.15 ? 'icon_bowl' : null;
@@ -69,8 +72,17 @@ export class AnimalLayer {
   }
 
   update(time: number, state: GameState): void {
+    const motion = this.motion();
     for (const [id, v] of this.views) {
       v.badge.setPosition(v.sprite.x, v.sprite.y - 70 * v.sprite.scaleY);
+      if (!v.walking) {
+        // oddech (rozciąganie w pionie przy stałej objętości) i mrugnięcia
+        const b = motion ? Math.sin(time / 520 + v.phase) * 0.025 : 0;
+        v.sprite.setScale(v.scale * (1 - b * 0.6), v.scale * (1 + b));
+        const blink = time >= v.blinkAt && time < v.blinkAt + 150;
+        if (time >= v.blinkAt + 150) v.blinkAt = time + 1800 + Math.random() * 4000;
+        v.sprite.setFrame(animalFrame(v.kind, blink ? 2 : 0));
+      }
       if (time < v.nextMove || v.walking) continue;
       const a = state.animals.find((x) => x.id === id);
       const yard = a && this.yard(state, a);
@@ -85,7 +97,12 @@ export class AnimalLayer {
       const stepper = this.scene.time.addEvent({
         delay: 180,
         loop: true,
-        callback: () => v.sprite.setFrame(animalFrame(v.kind, (frame = 1 - frame))),
+        callback: () => {
+          frame = 1 - frame;
+          v.sprite.setFrame(animalFrame(v.kind, frame));
+          // podskok kroku: rozciągnięcie w locie, spłaszczenie przy lądowaniu
+          v.sprite.setScale(v.scale * (frame ? 0.96 : 1.04), v.scale * (frame ? 1.06 : 0.95));
+        },
       });
       this.scene.tweens.add({
         targets: v.sprite,
@@ -96,6 +113,7 @@ export class AnimalLayer {
         onComplete: () => {
           stepper.remove();
           v.sprite.setFrame(animalFrame(v.kind, 0));
+          v.sprite.setScale(v.scale);
           v.walking = false;
         },
       });
@@ -115,7 +133,21 @@ export class AnimalLayer {
 
   hop(id: number): void {
     const v = this.views.get(id);
-    if (!v || !this.motion()) return;
-    this.scene.tweens.add({ targets: v.sprite, y: v.sprite.y - 24, duration: 140, yoyo: true, ease: 'Quad.easeOut' });
+    if (!v || !this.motion() || v.walking) return;
+    v.walking = true;
+    // przygotowanie (przysiad) → wyskok z rozciągnięciem → lądowanie ze spłaszczeniem
+    const y0 = v.sprite.y;
+    this.scene.tweens.chain({
+      targets: v.sprite,
+      tweens: [
+        { scaleX: v.scale * 1.15, scaleY: v.scale * 0.82, duration: 90, ease: 'Quad.easeOut' },
+        { y: y0 - 30, scaleX: v.scale * 0.9, scaleY: v.scale * 1.15, duration: 170, ease: 'Quad.easeOut' },
+        { y: y0, scaleX: v.scale * 1.12, scaleY: v.scale * 0.86, duration: 150, ease: 'Quad.easeIn' },
+        { scaleX: v.scale, scaleY: v.scale, duration: 160, ease: 'Back.easeOut' },
+      ],
+      onComplete: () => {
+        v.walking = false;
+      },
+    });
   }
 }

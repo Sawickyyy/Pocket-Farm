@@ -34,12 +34,15 @@ const TREE_H = 192;
 export class ObjectLayer {
   readonly layer: Phaser.GameObjects.SpriteGPULayer;
   private key = '';
+  private last: { state: GameState; cal: Calendar } | null = null;
+  /** Budynki w trakcie animacji postawienia (rysowane osobnym obrazkiem). */
+  private readonly popping = new Set<number>();
   hits: HitRect[] = [];
   /** Domy mieszkańców (stałe) – dotknięcie otwiera wioskę. */
   private readonly houseHits: (Omit<HitRect, 'uid'> & { npc: string })[] = [];
 
   constructor(
-    scene: Phaser.Scene,
+    private readonly scene: Phaser.Scene,
     private readonly world: WorldMap,
     private readonly content: Content,
   ) {
@@ -51,7 +54,8 @@ export class ObjectLayer {
       .filter(([, d]) => d > cal.day)
       .map(([t]) => t)
       .join(',');
-    const key = `${cal.season}|${state.world.revealed.length}|${forageKey}|${state.objects.map((o) => `${o.uid}:${o.type}:${o.x}:${o.y}`).join(';')}`;
+    this.last = { state, cal };
+    const key = `${[...this.popping].join(',')}|${cal.season}|${state.world.revealed.length}|${forageKey}|${state.objects.map((o) => `${o.uid}:${o.type}:${o.x}:${o.y}`).join(';')}`;
     if (key === this.key) return;
     this.key = key;
 
@@ -74,7 +78,7 @@ export class ObjectLayer {
       const def = this.content.buildings[o.type];
       if (!def || def.kind === 'path') continue;
       const p = buildingPlacement(def, o.x, o.y);
-      items.push({ x: p.x, y: p.y, frame: buildingFrame(o.type), sortY: p.sortY, scale: p.scale, originX: p.originX, originY: p.originY });
+      if (!this.popping.has(o.uid)) items.push({ x: p.x, y: p.y, frame: buildingFrame(o.type), sortY: p.sortY, scale: p.scale, originX: p.originX, originY: p.originY });
       const size = buildingFrameSize(def);
       const x0 = p.x - size.w * p.originX * p.scale;
       const y0 = p.y - size.h * p.originY * p.scale;
@@ -104,6 +108,41 @@ export class ObjectLayer {
     for (const it of items.slice(0, CAPACITY)) {
       this.layer.addMember({ x: it.x, y: it.y, frame: it.frame, originX: it.originX, originY: it.originY, scaleX: it.scale, scaleY: it.scale });
     }
+  }
+
+  /**
+   * Postawienie budynku z „aktorstwem”: spada z lekkim rozciągnięciem, spłaszcza się przy uderzeniu
+   * o ziemię i sprężyście wraca do kształtu (origin w podstawie, więc dół zostaje na miejscu).
+   */
+  bounce(uid: number, state: GameState): void {
+    const o = state.objects.find((x) => x.uid === uid);
+    const def = o && this.content.buildings[o.type];
+    if (!o || !def || def.kind === 'path') return;
+    const p = buildingPlacement(def, o.x, o.y);
+    const sc = p.scale;
+    this.popping.add(uid);
+    if (this.last) this.sync(this.last.state, this.last.cal);
+    const img = this.scene.add
+      .image(p.x, p.y - 140, SPRITES_KEY, buildingFrame(o.type))
+      .setOrigin(p.originX, p.originY)
+      .setScale(sc * 0.9, sc * 1.12)
+      .setAlpha(0.6)
+      .setDepth(21)
+      .setLighting(true);
+    this.scene.tweens.chain({
+      targets: img,
+      tweens: [
+        { y: p.y, alpha: 1, duration: 230, ease: 'Quad.easeIn' },
+        { scaleX: sc * 1.14, scaleY: sc * 0.84, duration: 90, ease: 'Quad.easeOut' },
+        { scaleX: sc * 0.96, scaleY: sc * 1.05, duration: 130, ease: 'Quad.easeInOut' },
+        { scaleX: sc, scaleY: sc, duration: 200, ease: 'Back.easeOut' },
+      ],
+      onComplete: () => {
+        img.destroy();
+        this.popping.delete(uid);
+        if (this.last) this.sync(this.last.state, this.last.cal);
+      },
+    });
   }
 
   /** Dom mieszkańca pod punktem. */

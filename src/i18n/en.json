@@ -420,5 +420,6 @@
   "festival.pumpkin_fair": "Pumpkin Fair",
   "festival.winter_lights": "Winter Lights",
   "hint.rod": "Pick the rod to go fishing.",
-  "settings.fx": "Fairy-tale effects (colours, vignette, fireflies)"
+  "settings.fx": "Cinematic effects (seasonal colours, glow, vignette, fireflies)",
+  "settings.dof": "Depth of field – miniature look (heavier on the phone)"
 }

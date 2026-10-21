@@ -97,6 +97,8 @@ export interface Settings {
   reducedMotion: 'auto' | 'on' | 'off';
   /** Efekty bajkowe (korekcja kolorów, winieta, magia w świecie). */
   fx: boolean;
+  /** Głębia ostrości (tilt-shift) – opcjonalna, kosztowniejsza dla GPU. */
+  dof: boolean;
 }
 
 export interface PendingFish {

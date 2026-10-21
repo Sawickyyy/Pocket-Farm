@@ -331,7 +331,7 @@ export function drawSpriteAtlas(c: Content = CONTENT): { canvas: HTMLCanvasEleme
     }
   }
   for (const a of c.animalList) {
-    for (const f of [0, 1]) entries.push({ name: animalFrame(a.id, f), w: TILE, h: TILE, draw: (ctx, x, y) => drawAnimal(ctx, a, f, x + TILE / 2, y + TILE / 2), style: { outline: 3, shade: true } });
+    for (const f of [0, 1, 2]) entries.push({ name: animalFrame(a.id, f), w: TILE, h: TILE, draw: (ctx, x, y) => drawAnimal(ctx, a, f, x + TILE / 2, y + TILE / 2), style: { outline: 3, shade: true } });
   }
   for (const n of c.npcs) {
     for (const f of [0, 1, 2]) entries.push({ name: villagerFrame(n.id, f), w: TILE, h: TILE, draw: (ctx, x, y) => drawVillager(ctx, n, f, x + TILE / 2, y + TILE / 2), style: { outline: 3, shade: true } });

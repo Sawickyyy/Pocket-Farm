@@ -167,7 +167,7 @@ async function boot(): Promise<void> {
     root.dataset.motion = st.reducedMotion;
     root.dataset.reduced = String(reducedMotion());
     applyHtmlColorblind(st.colorblind);
-    scene?.setPostFx(st.colorblind, st.fx);
+    scene?.setPostFx(st.colorblind, st.fx, st.dof);
     audio.sfxEnabled = st.sound;
     music.setEnabled(st.music);
   };
@@ -223,7 +223,7 @@ async function boot(): Promise<void> {
       syncViewport();
       s.cam.fit(false);
       s.applyCamera();
-      s.setPostFx(store.get().settings.colorblind, store.get().settings.fx);
+      s.setPostFx(store.get().settings.colorblind, store.get().settings.fx, store.get().settings.dof);
       bindPointerInput(gameEl, s, app, build, dpr, () => audio.resumeIfNeeded());
       // Hak dla narzędzi deweloperskich i testów automatycznych (tylko w trybie debugowania).
       if (app.debugEnabled()) Object.assign(window, { __pocketFarm: { app, scene: s, store } });

@@ -101,6 +101,7 @@ export function registerSettings(app: App, sheets: SheetManager, persisted: () =
           toggle(t('settings.music'), st.music, (v) => ({ music: v })),
           toggle(t('settings.captions'), st.captions, (v) => ({ captions: v })),
           toggle(t('settings.fx'), st.fx, (v) => ({ fx: v })),
+          toggle(t('settings.dof'), st.dof, (v) => ({ dof: v })),
           segmented(t('settings.language'), st.language, [['pl', 'PL'], ['en', 'EN']], (v) => set({ language: v })),
           h('label', { class: 'setting' }, h('span', { text: t('settings.colorblind') }), cb),
           h('label', { class: 'setting' }, h('span', { text: t('settings.uiScale') }), scale),

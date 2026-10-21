@@ -36,9 +36,26 @@ Plan: `docs/plan-grafika-bajkowa.md`.
 - **Potok atlasu** (`render/art/palette.ts`): każda klatka dostaje miękką objętość (światło z lewej-góry, ciepły cień u dołu) i gruby kontur „atramentem” (#4a2e1a) liczony z sylwetki – cienie i poświaty konturu nie dostają. Ikony w HTML przechodzą przez ten sam potok.
 - **Grafika**: akwarelowe kafle z kępkami trawy i kwiatkami-gwiazdkami, chatki z murem pruskim, łukowymi drzwiami, okrągłymi okienkami, falbanką dachu i kominem, puchate drzewa z owocami/kwiatami (choinki z gwiazdką zimą), zwierzęta chibi.
 - **Magia na GPU** (`layers/AmbientLayer.ts`): świetliki nocą, motyle w dzień, płatki wiosną, liście jesienią, iskierki nad dojrzałymi plonami – zapętlone animacje SpriteGPULayer, CPU zmienia tylko krycie warstw.
-- **Postprocess**: jeden ColorMatrix (ciepła korekcja + daltonizacja) i winieta; przełącznik „Efekty bajkowe” w ustawieniach.
+- **Postprocess**: ColorMatrix (korekcja pory roku + daltonizacja), bloom, opcjonalny tilt-shift i winieta; przełączniki w ustawieniach.
 - **Światło**: złoty poranek, różowo-fioletowy zmierzch, granatowa noc, ciepłe okna chatek.
 - **Interfejs**: pergamin z ramką, cukierkowe przyciski z cieniem 3D, czcionka `ui-rounded` (SF Pro Rounded na iOS), tryb ciemny jako „nocna bajka”.
+
+## Styl filmowy (w duchu animacji 3D)
+
+Bez Blendera i prawdziwych modeli 3D – efekt „filmowy” robimy w kodzie, w tym samym potoku atlasu i na GPU:
+
+- **Bryła sprite'ów** (`render/art/palette.ts`): poza ogólnym gradientem światła każda sylwetka dostaje miękki cień formy wzdłuż krawędzi od dołu-prawej i wąskie światło konturowe (rim light) od góry-lewej.
+- **Aktorstwo (squash & stretch)**: roślina przy wzroście etapu przysiada, wyskakuje z rozciągnięciem i sprężyście ląduje; budynek spada na miejsce i spłaszcza się przy uderzeniu; zwierzęta oddychają, mrugają, podskakują z przygotowaniem i lądowaniem; mieszkańcy chodzą z podskokiem kroku i przechyłem.
+- **Colour script**: korekcja kolorów zależna od pory roku (świeża wiosna, ciepłe lato, złota jesień, chłodna zima).
+- **Bloom**: poświata liczona z jasności i zabarwiona na ciepło, mocniejsza o zmierzchu i nocą (latarnie, okna).
+- **Głębia ostrości** (opcjonalna, w ustawieniach): tilt-shift – rozmyta góra i dół ekranu dają wrażenie makiety.
+
+Ograniczenie: to wciąż grafika 2D rysowana proceduralnie. Prawdziwy wygląd z filmu (modele 3D, mapy normalnych pod oświetlenie Phasera) wymaga renderów z Blendera podmienionych przez `load.atlas` z tymi samymi nazwami klatek.
+
+## Wioska i mapa
+
+- Mapa 64×64 (fragmenty mgły 8×8), farma 16×16 w środku. Zapis v3: migracja przesuwa budynki i odkryte fragmenty starej mapy 48×48.
+- Na południe od farmy leży wioska: domy Ani, Bogdana, Celiny i Darka, ulica, latarnie. Mieszkańcy (`layers/VillagerLayer.ts`, czysto wizualni) chodzą po drzewie dróżek między domami, placem i polem, nocą wracają do domów. Dotknięcie postaci lub domu otwiera jej kartę w panelu wioski.
 
 ## Architektura
 

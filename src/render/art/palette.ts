@@ -42,33 +42,41 @@ export function stylize(draw: (ctx: Ctx2D) => void, w: number, h: number, opts: 
   draw(a);
   if (!opts.shade && !opts.outline) return art;
 
-  if (opts.shade) {
-    a.globalCompositeOperation = 'source-atop';
-    const g = a.createLinearGradient(0, 0, w * 0.35, h);
-    g.addColorStop(0, 'rgba(255,248,222,0.32)');
-    g.addColorStop(0.45, 'rgba(255,248,222,0)');
-    g.addColorStop(0.75, 'rgba(120,60,90,0.06)');
-    g.addColorStop(1, 'rgba(90,40,70,0.22)');
-    a.fillStyle = g;
-    a.fillRect(0, 0, w, h);
-    a.globalCompositeOperation = 'source-over';
-  }
-  if (!opts.outline) return art;
-
-  // Sylwetka tylko z pikseli prawie nieprzezroczystych – cienie i poświaty nie dostają konturu.
+  // Sylwetka tylko z pikseli prawie nieprzezroczystych – cienie i poświaty nie dostają konturu ani światła.
   const [sil, s] = makeCanvas(w, h);
   const src = a.getImageData(0, 0, w, h);
-  const ink = [0x4a, 0x2e, 0x1a];
   const d = src.data;
   for (let i = 0; i < d.length; i += 4) {
     const solid = d[i + 3]! > 150;
-    d[i] = ink[0]!;
-    d[i + 1] = ink[1]!;
-    d[i + 2] = ink[2]!;
+    d[i] = d[i + 1] = d[i + 2] = 255;
     d[i + 3] = solid ? 255 : 0;
   }
   s.putImageData(src, 0, 0);
 
+  if (opts.shade) {
+    a.globalCompositeOperation = 'source-atop';
+    // światło ogólne: ciepłe z góry-lewej, chłodne odbite od dołu (okluzja otoczenia)
+    const g = a.createLinearGradient(0, 0, w * 0.35, h);
+    g.addColorStop(0, 'rgba(255,248,222,0.26)');
+    g.addColorStop(0.45, 'rgba(255,248,222,0)');
+    g.addColorStop(0.75, 'rgba(120,60,90,0.05)');
+    g.addColorStop(1, 'rgba(90,40,70,0.2)');
+    a.fillStyle = g;
+    a.fillRect(0, 0, w, h);
+    // Bryła jak w filmie animowanym: cień formy wzdłuż krawędzi od dołu-prawej (miękki – kilka pasm)
+    // i wąskie światło konturowe (rim light) od góry-lewej.
+    const unit = Math.max(1.5, Math.min(w, h) / 56);
+    for (const k of [1, 2, 3.2]) a.drawImage(edgeBand(sil, w, h, -unit * 2 * k, -unit * 2 * k, 'rgba(70,36,110,0.11)'), 0, 0);
+    a.drawImage(edgeBand(sil, w, h, unit * 1.6, unit * 1.6, 'rgba(255,246,220,0.55)'), 0, 0);
+    a.drawImage(edgeBand(sil, w, h, unit * 3, unit * 3, 'rgba(255,240,205,0.18)'), 0, 0);
+    a.globalCompositeOperation = 'source-over';
+  }
+  if (!opts.outline) return art;
+
+  // Kontur = sylwetka zabarwiona na INK, odbita stemplem w 12 kierunkach pod oryginałem.
+  s.globalCompositeOperation = 'source-in';
+  s.fillStyle = INK;
+  s.fillRect(0, 0, w, h);
   const [out, o] = makeCanvas(w, h);
   const r = opts.outline;
   for (let k = 0; k < 12; k++) {
@@ -77,6 +85,21 @@ export function stylize(draw: (ctx: Ctx2D) => void, w: number, h: number, opts: 
   }
   o.drawImage(art, 0, 0);
   return out;
+}
+
+/**
+ * Pasmo przy krawędzi sylwetki: piksele, których sąsiad przesunięty o (−dx, −dy) leży już poza kształtem.
+ * Dodatnie (dx, dy) = krawędź od góry-lewej (rim light), ujemne = od dołu-prawej (cień formy).
+ */
+function edgeBand(sil: HTMLCanvasElement, w: number, h: number, dx: number, dy: number, color: string): HTMLCanvasElement {
+  const [c, x] = makeCanvas(w, h);
+  x.drawImage(sil, 0, 0);
+  x.globalCompositeOperation = 'destination-out';
+  x.drawImage(sil, dx, dy);
+  x.globalCompositeOperation = 'source-in';
+  x.fillStyle = color;
+  x.fillRect(0, 0, w, h);
+  return c;
 }
 
 /** Akwarelowa faktura: miękkie plamy jaśniejsze/ciemniejsze (deterministyczne). */

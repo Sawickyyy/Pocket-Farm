@@ -40,6 +40,27 @@ export interface Ghost {
 
 const SYNC_MS = 120;
 
+const DOF_KEY = 'dof-mask';
+/** Macierze 4×5: jasność do wszystkich kanałów (alfa = 1) oraz ciepłe zabarwienie poświaty. */
+const LUMA = [0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0, 0, 0, 0, 1];
+const WARM_GLOW = [1, 0, 0, 0, 0, 0, 0.84, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0, 1, 0];
+
+/** Maska tilt-shiftu: przezroczysty pas w środku ekranu (ostro), pełna krycie u góry i u dołu (rozmyte). */
+function dofMask(): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = 4;
+  c.height = 256;
+  const ctx = c.getContext('2d')!;
+  const g = ctx.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.3, 'rgba(255,255,255,0)');
+  g.addColorStop(0.7, 'rgba(255,255,255,0)');
+  g.addColorStop(1, 'rgba(255,255,255,1)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 4, 256);
+  return c;
+}
+
 export class FarmScene extends Phaser.Scene {
   private deps!: SceneDeps;
   private world!: WorldMap;
@@ -59,6 +80,10 @@ export class FarmScene extends Phaser.Scene {
   private ghostImage!: Phaser.GameObjects.Image;
   private ghostRect!: Phaser.GameObjects.Graphics;
   private colorFilter: Phaser.Filters.ColorMatrix | null = null;
+  private bloom: { blend: Phaser.Filters.Blend; threshold: Phaser.Filters.Threshold } | null = null;
+  private gradeSeason: string | null = null;
+  private bloomNight = -1;
+  private post: { mode: ColorblindMode; fx: boolean; dof: boolean } = { mode: 'none', fx: true, dof: false };
   private lastState: GameState | null = null;
   private lastSync = 0;
   cam!: CameraModel;
@@ -130,6 +155,7 @@ export class FarmScene extends Phaser.Scene {
     const cal = calendarAt(clock.simMs, state.seed);
     this.lighting.update(hour, cal);
     this.ambient.update(cal, 1 - daylight(hour), this.fx && !this.deps.reducedMotion());
+    this.updatePostFx(cal.season, 1 - daylight(hour));
     this.animals.update(time, state);
     this.villagers.update(time, delta, cal);
     this.particles.update();
@@ -272,27 +298,60 @@ export class FarmScene extends Phaser.Scene {
   }
 
   /**
-   * Postprocess kamery: jeden ColorMatrix (bajkowa korekcja + daltonizacja) i delikatna winieta.
-   * Wyłączenie „efektów bajkowych” zostawia tylko daltonizację (jeśli włączona) – mniej pracy dla GPU.
+   * Postprocess kamery w kolejności: ColorMatrix (colour script pory roku + daltonizacja) → bloom (poświata
+   * jasnych miejsc, nocą mocniejsza – latarnie i okna „świecą”) → tilt-shift (rozmycie góry i dołu ekranu,
+   * efekt makiety) → winieta. Wyłączenie efektów zostawia tylko daltonizację (jeśli włączona).
    */
-  setPostFx(mode: ColorblindMode, fx: boolean): void {
+  setPostFx(mode: ColorblindMode, fx: boolean, dof = false): void {
     this.fx = fx;
+    this.post = { mode, fx, dof };
     const filters = this.cameras.main.filters;
     if (!filters) return;
-    if (mode === 'none' && !fx) {
-      if (this.colorFilter) filters.external.remove(this.colorFilter, true);
-      this.colorFilter = null;
-    } else {
-      this.colorFilter ??= filters.external.addColorMatrix();
-      this.colorFilter.colorMatrix.set(colorMatrix20(mode, fx));
+    const list = filters.external;
+    list.clear();
+    this.colorFilter = null;
+    this.vignette = null;
+    this.bloom = null;
+    this.bloomNight = -1;
+    if (mode !== 'none' || fx) {
+      this.colorFilter = list.addColorMatrix();
+      this.colorFilter.colorMatrix.set(colorMatrix20(mode, fx, this.gradeSeason ?? undefined));
     }
-    if (fx && !this.vignette) this.vignette = filters.external.addVignette(0.5, 0.52, 0.88, 0.32, 0x2a1a40);
-    if (!fx && this.vignette) {
-      filters.external.remove(this.vignette, true);
-      this.vignette = null;
+    if (fx) {
+      // Bloom z jasności (nie z każdego kanału osobno – inaczej czerwone dachy dawałyby czerwone plamy),
+      // rozmyty i zabarwiony na ciepło jak światło w filmie animowanym.
+      const pf = list.addParallelFilters();
+      pf.top.addColorMatrix().colorMatrix.set(LUMA);
+      const threshold = pf.top.addThreshold(0.86, 1);
+      pf.top.addBlur(0, 2, 2, 1, 0xffffff, 4);
+      pf.top.addColorMatrix().colorMatrix.set(WARM_GLOW);
+      pf.blend.blendMode = Phaser.BlendModes.SCREEN;
+      pf.blend.amount = 0.3;
+      this.bloom = { blend: pf.blend, threshold };
     }
+    if (fx && dof) {
+      if (!this.textures.exists(DOF_KEY)) this.textures.addCanvas(DOF_KEY, dofMask());
+      const pf = list.addParallelFilters();
+      pf.top.addBlur(1, 4, 4, 1.5, 0xffffff, 6);
+      pf.top.addMask(DOF_KEY);
+      pf.blend.blendMode = Phaser.BlendModes.NORMAL;
+      pf.blend.amount = 1;
+    }
+    if (fx) this.vignette = list.addVignette(0.5, 0.52, 0.88, 0.32, 0x2a1a40);
   }
 
+  /** Colour script: zmiana pory roku przestawia korekcję; bloom rośnie o zmierzchu i nocą. */
+  private updatePostFx(season: string, night: number): void {
+    if (season !== this.gradeSeason) {
+      this.gradeSeason = season;
+      if (this.colorFilter) this.colorFilter.colorMatrix.set(colorMatrix20(this.post.mode, this.post.fx, season));
+    }
+    if (this.bloom && Math.abs(night - this.bloomNight) > 0.01) {
+      this.bloomNight = night;
+      this.bloom.blend.amount = 0.3 + night * 0.4;
+      this.bloom.threshold.setEdge(0.86 - night * 0.3, 1);
+    }
+  }
 
   // ------------------------------------------------------------- efekty („juice”)
 
@@ -337,6 +396,11 @@ export class FarmScene extends Phaser.Scene {
           break;
         case 'placed':
         case 'moved':
+          if (!this.deps.reducedMotion()) {
+            this.objects.bounce(e.uid, this.deps.store.get());
+            this.time.delayedCall(230, () => this.burst(e.at, 'p_smoke', 12, { speed: 300 }));
+          } else this.burst(e.at, 'p_smoke', 12, { speed: 300 });
+          break;
         case 'removed':
           this.burst(e.at, 'p_smoke', 12, { speed: 300 });
           break;

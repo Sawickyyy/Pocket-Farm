@@ -534,8 +534,10 @@ function cuteFace(ctx: Ctx2D, x: number, y: number, s: number, blink = false): v
 export function drawAnimal(ctx: Ctx2D, def: AnimalDef, frame: number, cx: number, cy: number): void {
   const body = def.art.body ?? '#fff';
   const accent = def.art.accent ?? '#333';
-  const step = frame ? 3 : -3;
-  const bob = frame ? -2 : 0;
+  // klatki: 0/1 = krok, 2 = mrugnięcie w bezruchu
+  const step = frame === 1 ? 3 : -3;
+  const bob = frame === 1 ? -2 : 0;
+  const blink = frame === 2;
   ellipse(ctx, cx, cy + 36, 30, 8, 'rgba(40,20,50,0.22)');
   if (def.id === 'chicken') {
     rrect(ctx, cx - 7 + step, cy + 18, 5, 16, 2.5, '#f2a93a');
@@ -553,7 +555,7 @@ export function drawAnimal(ctx: Ctx2D, def: AnimalDef, frame: number, cx: number
     ctx.closePath();
     ctx.fillStyle = '#f2a93a';
     ctx.fill();
-    cuteFace(ctx, cx + 19, cy - 17 + bob, 0.85);
+    cuteFace(ctx, cx + 19, cy - 17 + bob, 0.85, blink);
     void accent;
     return;
   }
@@ -570,7 +572,7 @@ export function drawAnimal(ctx: Ctx2D, def: AnimalDef, frame: number, cx: number
     ellipse(ctx, cx + 34, cy - 8 + bob, 15, 16, accent);
     ellipse(ctx, cx + 30, cy - 22 + bob, 8, 6, body);
     ellipse(ctx, cx + 22, cy - 10 + bob, 6, 3.5, accent, -0.5);
-    cuteFace(ctx, cx + 37, cy - 10 + bob, 0.8);
+    cuteFace(ctx, cx + 37, cy - 10 + bob, 0.8, blink);
   } else {
     rrect(ctx, cx - W, cy - 18 + bob, W * 2, 36, 18, body);
     ellipse(ctx, cx - 14, cy - 6 + bob, 13, 10, accent);
@@ -584,7 +586,7 @@ export function drawAnimal(ctx: Ctx2D, def: AnimalDef, frame: number, cx: number
     rrect(ctx, cx + W - 10, cy - 46 + bob, 5, 12, 2.5, '#f6ead0');
     rrect(ctx, cx + W + 17, cy - 46 + bob, 5, 12, 2.5, '#f6ead0');
     ellipse(ctx, cx + W - 14, cy - 30 + bob, 7, 4, accent, -0.4);
-    cuteFace(ctx, cx + W + 6, cy - 26 + bob, 0.85);
+    cuteFace(ctx, cx + W + 6, cy - 26 + bob, 0.85, blink);
     // dzwoneczek
     ellipse(ctx, cx + W - 4, cy - 2 + bob, 5, 5, '#ffd24a');
   }

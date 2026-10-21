@@ -47,10 +47,22 @@ export function gradeMatrix(saturation = 1.14, warmth = 0.04): M3 {
   return mul(warm, sat);
 }
 
+/**
+ * „Colour script” jak w filmie animowanym: każda pora roku ma własny nastrój.
+ * Wiosna świeża, lato ciepłe i nasycone, jesień złota, zima chłodna i stonowana.
+ */
+export const SEASON_GRADE: Record<string, { saturation: number; warmth: number }> = {
+  spring: { saturation: 1.14, warmth: 0.03 },
+  summer: { saturation: 1.2, warmth: 0.06 },
+  autumn: { saturation: 1.12, warmth: 0.1 },
+  winter: { saturation: 1.02, warmth: -0.04 },
+};
+
 /** Macierz 4×5 (wiersze RGBA, ostatnia kolumna = przesunięcie): najpierw korekcja bajkowa, potem daltonizacja. */
-export function colorMatrix20(mode: ColorblindMode, grade = false): number[] {
+export function colorMatrix20(mode: ColorblindMode, grade = false, season?: string): number[] {
   const d = daltonizeMatrix(mode);
-  const m = grade ? mul(d, gradeMatrix()) : d;
+  const g = season ? SEASON_GRADE[season] : undefined;
+  const m = grade ? mul(d, g ? gradeMatrix(g.saturation, g.warmth) : gradeMatrix()) : d;
   return [m[0], m[1], m[2], 0, 0, m[3], m[4], m[5], 0, 0, m[6], m[7], m[8], 0, 0, 0, 0, 0, 1, 0];
 }
 

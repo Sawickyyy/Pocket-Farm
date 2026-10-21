@@ -110,3 +110,16 @@ describe('bajkowa korekcja kolorów', () => {
     expect(colorMatrix20('none', true)).not.toEqual(colorMatrix20('none', false));
   });
 });
+
+describe('colour script pór roku', () => {
+  it('jesień cieplejsza niż wiosna, zima chłodna', async () => {
+    const { colorMatrix20 } = await import('../src/render/colorblind');
+    // szarość (1,1,1) po korekcji: suma wiersza = wzmocnienie kanału
+    const row = (season: string, r: number) => colorMatrix20('none', true, season).slice(r * 5, r * 5 + 3).reduce((a, b) => a + b, 0);
+    const red = (season: string) => row(season, 0);
+    const blue = (season: string) => row(season, 2);
+    expect(red('autumn')).toBeGreaterThan(red('spring'));
+    expect(blue('winter')).toBeGreaterThan(blue('summer'));
+    expect(colorMatrix20('none', false, 'autumn')).toEqual(colorMatrix20('none'));
+  });
+});

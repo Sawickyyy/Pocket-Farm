@@ -29,6 +29,17 @@ Stos: TypeScript 7 (strict) · Phaser 4.1 (TilemapGPULayer, SpriteGPULayer, ośw
 - Rośliny, drzewa, budynki i zwierzęta stoją pionowo w rzutowanych punktach; obiekty są sortowane po głębi (przedni narożnik podstawy).
 - Domy i maszyny to bryły izometryczne (`render/art/isoBuilding.ts`: dwie ściany, dach czterospadowy, drzwi, okna, szyld). Dotyk trafia w cały sprite budynku, nie tylko w podstawę.
 
+## Styl bajkowy
+
+Plan: `docs/plan-grafika-bajkowa.md`.
+
+- **Potok atlasu** (`render/art/palette.ts`): każda klatka dostaje miękką objętość (światło z lewej-góry, ciepły cień u dołu) i gruby kontur „atramentem” (#4a2e1a) liczony z sylwetki – cienie i poświaty konturu nie dostają. Ikony w HTML przechodzą przez ten sam potok.
+- **Grafika**: akwarelowe kafle z kępkami trawy i kwiatkami-gwiazdkami, chatki z murem pruskim, łukowymi drzwiami, okrągłymi okienkami, falbanką dachu i kominem, puchate drzewa z owocami/kwiatami (choinki z gwiazdką zimą), zwierzęta chibi.
+- **Magia na GPU** (`layers/AmbientLayer.ts`): świetliki nocą, motyle w dzień, płatki wiosną, liście jesienią, iskierki nad dojrzałymi plonami – zapętlone animacje SpriteGPULayer, CPU zmienia tylko krycie warstw.
+- **Postprocess**: jeden ColorMatrix (ciepła korekcja + daltonizacja) i winieta; przełącznik „Efekty bajkowe” w ustawieniach.
+- **Światło**: złoty poranek, różowo-fioletowy zmierzch, granatowa noc, ciepłe okna chatek.
+- **Interfejs**: pergamin z ramką, cukierkowe przyciski z cieniem 3D, czcionka `ui-rounded` (SF Pro Rounded na iOS), tryb ciemny jako „nocna bajka”.
+
 ## Architektura
 
 - **Data-driven:** uprawy, przedmioty, ryby, zwierzęta, budynki, receptury, mieszkańcy, umiejętności, zadania, osiągnięcia, festyny i pogoda są w `src/content/data/*.json`. `validateContent()` (test) pilnuje spójności odwołań, a test i18n – nazw w obu językach.

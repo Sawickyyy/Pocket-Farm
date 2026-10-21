@@ -436,72 +436,157 @@ function drawDeco(ctx: Ctx2D, def: BuildingDef, W: number, H: number, top: numbe
 
 // ------------------------------------------------------------------ drzewa, zwierzęta, ikony
 
+/** Puchata korona-chmurka: kilka kół z jaśniejszymi „czapkami” od góry. */
+function fluffyCrown(ctx: Ctx2D, cx: number, cy: number, parts: readonly (readonly [number, number, number])[], col: string): void {
+  for (const [dx, dy, r] of parts) ellipse(ctx, cx + dx, cy + dy, r, r * 0.92, shade(col, -0.12));
+  for (const [dx, dy, r] of parts) ellipse(ctx, cx + dx - r * 0.12, cy + dy - r * 0.14, r * 0.86, r * 0.78, col);
+  for (const [dx, dy, r] of parts) ellipse(ctx, cx + dx - r * 0.3, cy + dy - r * 0.38, r * 0.38, r * 0.26, shade(col, 0.28));
+}
+
 export function drawTree(ctx: Ctx2D, kind: 'oak' | 'pine', season: Season, ox: number, oy: number, w: number, h: number): void {
   const cx = ox + w / 2;
-  const base = oy + h - 14;
-  ellipse(ctx, cx, base + 4, w * 0.36, 12, 'rgba(0,0,0,0.25)');
-  rrect(ctx, cx - 9, base - 52, 18, 54, 5, '#6b4423');
+  const base = oy + h - 16;
+  ellipse(ctx, cx, base + 4, w * 0.34, 11, 'rgba(40,20,50,0.22)');
+  // pień z korzonkami
+  ctx.beginPath();
+  ctx.moveTo(cx - 13, base + 2);
+  ctx.quadraticCurveTo(cx - 6, base - 20, cx - 8, base - 56);
+  ctx.lineTo(cx + 8, base - 56);
+  ctx.quadraticCurveTo(cx + 6, base - 20, cx + 13, base + 2);
+  ctx.closePath();
+  ctx.fillStyle = '#8a5a34';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(74,46,26,0.5)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx - 2, base - 8);
+  ctx.quadraticCurveTo(cx, base - 30, cx - 3, base - 50);
+  ctx.stroke();
   const snow = season === 'winter';
   if (kind === 'oak') {
-    const col = season === 'autumn' ? '#d9822b' : season === 'winter' ? '#7a6a58' : season === 'spring' ? '#6fbf4a' : '#3f8f3a';
-    for (const [dx, dy, r] of [[-26, -70, 34], [24, -74, 34], [0, -104, 40], [-6, -64, 36]] as const) ellipse(ctx, cx + dx, base + dy, r, r * 0.9, col);
-    ellipse(ctx, cx - 14, base - 112, 14, 10, 'rgba(255,255,255,0.18)');
-    if (season === 'spring') for (let i = 0; i < 8; i++) ellipse(ctx, cx - 40 + ((i * 37) % 80), base - 120 + ((i * 23) % 70), 4, 4, '#f7c6dc');
-    if (snow) for (const [dx, dy] of [[-20, -96], [18, -100], [0, -132]] as const) ellipse(ctx, cx + dx, base + dy, 22, 9, '#f4f8ff');
+    const col = season === 'autumn' ? '#f29a46' : season === 'winter' ? '#a8b8c8' : season === 'spring' ? '#8fd468' : '#5cb85a';
+    const parts = [[-26, -78, 30], [24, -80, 30], [0, -108, 36], [-2, -70, 32], [-30, -100, 22], [28, -104, 22]] as const;
+    fluffyCrown(ctx, cx, base, parts, col);
+    if (season === 'spring') for (let i = 0; i < 10; i++) {
+      const fx = cx - 40 + ((i * 37) % 80);
+      const fy = base - 128 + ((i * 23) % 72);
+      for (let p = 0; p < 5; p++) ellipse(ctx, fx + Math.cos(p * 1.256) * 3.5, fy + Math.sin(p * 1.256) * 3.5, 3, 3, '#ffd1e8');
+      ellipse(ctx, fx, fy, 1.8, 1.8, '#ffc94a');
+    }
+    if (season === 'summer') for (const [dx, dy] of [[-22, -88], [16, -96], [-4, -120], [26, -78]] as const) {
+      ellipse(ctx, cx + dx, base + dy, 6, 6, '#e8423c');
+      ellipse(ctx, cx + dx - 2, base + dy - 2, 2, 2, 'rgba(255,255,255,0.8)');
+    }
+    if (season === 'autumn') for (const [dx, dy] of [[-18, -86], [20, -94], [4, -116]] as const) ellipse(ctx, cx + dx, base + dy, 5, 4, '#d0502a');
+    if (snow) for (const [dx, dy] of [[-22, -100], [20, -104], [0, -136]] as const) {
+      ellipse(ctx, cx + dx, base + dy, 22, 9, '#ffffff');
+    }
   } else {
-    const col = snow ? '#2f5f4a' : '#2f6f45';
+    const col = snow ? '#3f7a62' : season === 'autumn' ? '#4f8a52' : '#3f8f5a';
     for (let i = 0; i < 4; i++) {
-      const y = base - 40 - i * 30;
-      const half = 46 - i * 10;
+      const y = base - 40 - i * 28;
+      const half = 48 - i * 10;
       ctx.beginPath();
       ctx.moveTo(cx - half, y);
-      ctx.lineTo(cx, y - 46);
-      ctx.lineTo(cx + half, y);
+      ctx.quadraticCurveTo(cx - half * 0.3, y - 22, cx, y - 46);
+      ctx.quadraticCurveTo(cx + half * 0.3, y - 22, cx + half, y);
+      ctx.quadraticCurveTo(cx, y + 10, cx - half, y);
       ctx.closePath();
-      ctx.fillStyle = shade(col, i * 0.06);
+      ctx.fillStyle = shade(col, i * 0.07);
       ctx.fill();
-      if (snow) ellipse(ctx, cx, y - 30, half * 0.45, 6, '#f4f8ff');
+      ctx.strokeStyle = 'rgba(74,46,26,0.35)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ellipse(ctx, cx - half * 0.35, y - 12, half * 0.22, 4, shade(col, 0.3));
+      if (snow) ellipse(ctx, cx, y - 26, half * 0.5, 6, '#ffffff');
+    }
+    if (snow) {
+      // gwiazdka na czubku – zimowa choinka
+      ctx.beginPath();
+      for (let k = 0; k < 10; k++) {
+        const rr = k % 2 ? 4 : 9;
+        const a = (k * Math.PI) / 5 - Math.PI / 2;
+        ctx.lineTo(cx + Math.cos(a) * rr, base - 162 + Math.sin(a) * rr);
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#ffd24a';
+      ctx.fill();
     }
   }
+}
+
+/** Duże błyszczące oczy i rumieńce – styl chibi. */
+function cuteFace(ctx: Ctx2D, x: number, y: number, s: number, blink = false): void {
+  if (blink) {
+    ctx.strokeStyle = '#2a1a10';
+    ctx.lineWidth = 2.5 * s;
+    ctx.beginPath();
+    ctx.arc(x, y, 4 * s, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+  } else {
+    ellipse(ctx, x, y, 5 * s, 6 * s, '#2a1a10');
+    ellipse(ctx, x - 1.6 * s, y - 2.2 * s, 2 * s, 2.2 * s, '#ffffff');
+    ellipse(ctx, x + 1.6 * s, y + 1.6 * s, 0.9 * s, 0.9 * s, '#ffffff');
+  }
+  ellipse(ctx, x + 6 * s, y + 7 * s, 4.5 * s, 2.6 * s, 'rgba(255,120,140,0.55)');
 }
 
 export function drawAnimal(ctx: Ctx2D, def: AnimalDef, frame: number, cx: number, cy: number): void {
   const body = def.art.body ?? '#fff';
   const accent = def.art.accent ?? '#333';
-  const step = frame ? 4 : -4;
-  ellipse(ctx, cx, cy + 34, 30, 8, 'rgba(0,0,0,0.25)');
+  const step = frame ? 3 : -3;
+  const bob = frame ? -2 : 0;
+  ellipse(ctx, cx, cy + 36, 30, 8, 'rgba(40,20,50,0.22)');
   if (def.id === 'chicken') {
-    rrect(ctx, cx - 6 + step, cy + 18, 4, 16, 2, '#e8a33a');
-    rrect(ctx, cx + 4 - step, cy + 18, 4, 16, 2, '#e8a33a');
-    ellipse(ctx, cx, cy + 6, 24, 20, body);
-    ellipse(ctx, cx + 18, cy - 14, 12, 12, body);
-    ellipse(ctx, cx + 18, cy - 28, 5, 6, accent);
+    rrect(ctx, cx - 7 + step, cy + 18, 5, 16, 2.5, '#f2a93a');
+    rrect(ctx, cx + 4 - step, cy + 18, 5, 16, 2.5, '#f2a93a');
+    ellipse(ctx, cx - 2, cy + 8 + bob, 25, 21, body);
+    ellipse(ctx, cx - 20, cy - 2 + bob, 11, 15, shade(body, -0.06), -0.6);
+    ellipse(ctx, cx - 10, cy + 10 + bob, 12, 9, shade(body, -0.08), 0.3);
+    // duża głowa
+    ellipse(ctx, cx + 16, cy - 14 + bob, 16, 15, body);
+    for (const dx of [-5, 0, 5]) ellipse(ctx, cx + 16 + dx, cy - 30 + bob, 4.5, 6, '#ff5a5a');
     ctx.beginPath();
-    ctx.moveTo(cx + 29, cy - 14);
-    ctx.lineTo(cx + 38, cy - 11);
-    ctx.lineTo(cx + 29, cy - 8);
-    ctx.fillStyle = '#e8a33a';
+    ctx.moveTo(cx + 30, cy - 14 + bob);
+    ctx.lineTo(cx + 40, cy - 10 + bob);
+    ctx.lineTo(cx + 30, cy - 7 + bob);
+    ctx.closePath();
+    ctx.fillStyle = '#f2a93a';
     ctx.fill();
-    ellipse(ctx, cx + 21, cy - 16, 2, 2, '#222');
-    ellipse(ctx, cx - 18, cy - 2, 10, 14, shade(body, -0.1), -0.6);
+    cuteFace(ctx, cx + 19, cy - 17 + bob, 0.85);
+    void accent;
     return;
   }
   const big = def.id === 'cow';
-  const W = big ? 44 : 38;
-  for (const [dx, s] of [[-W + 12, 1], [-W + 26, -1], [W - 26, 1], [W - 12, -1]] as const) rrect(ctx, cx + dx + step * s, cy + 12, 8, 22, 3, def.id === 'sheep' ? '#3b3330' : body);
+  const W = big ? 40 : 36;
+  for (const [dx, sgn] of [[-W + 10, 1], [-W + 24, -1], [W - 26, 1], [W - 12, -1]] as const) {
+    rrect(ctx, cx + dx + step * sgn, cy + 12, 10, 22, 4, def.id === 'sheep' ? '#5a4a40' : body);
+    rrect(ctx, cx + dx + step * sgn, cy + 28, 10, 6, 3, '#4a3a30');
+  }
   if (def.id === 'sheep') {
-    for (const [dx, dy] of [[-22, 0], [0, -6], [22, 0], [-10, 10], [12, 10]] as const) ellipse(ctx, cx + dx, cy + dy, 18, 16, body);
-    ellipse(ctx, cx + 34, cy - 6, 12, 14, accent);
-    ellipse(ctx, cx + 38, cy - 9, 2, 2, '#fff');
+    // owca jak chmurka
+    for (const [dx, dy, r] of [[-22, 2, 17], [-6, -8, 19], [12, -6, 18], [24, 4, 15], [-12, 12, 16], [10, 12, 17]] as const) ellipse(ctx, cx + dx, cy + dy + bob, r, r, body);
+    for (const [dx, dy] of [[-14, -6], [8, -4], [-2, 10]] as const) ellipse(ctx, cx + dx, cy + dy + bob, 6, 4, '#ffffff');
+    ellipse(ctx, cx + 34, cy - 8 + bob, 15, 16, accent);
+    ellipse(ctx, cx + 30, cy - 22 + bob, 8, 6, body);
+    ellipse(ctx, cx + 22, cy - 10 + bob, 6, 3.5, accent, -0.5);
+    cuteFace(ctx, cx + 37, cy - 10 + bob, 0.8);
   } else {
-    rrect(ctx, cx - W, cy - 18, W * 2, 34, 16, body);
-    ellipse(ctx, cx - 12, cy - 6, 12, 9, accent);
-    ellipse(ctx, cx + 14, cy + 4, 9, 7, accent);
-    rrect(ctx, cx + W - 8, cy - 30, 26, 28, 10, body);
-    rrect(ctx, cx + W + 4, cy - 14, 16, 12, 6, '#f2b8b0');
-    ellipse(ctx, cx + W + 6, cy - 22, 2, 2, '#222');
-    rrect(ctx, cx + W - 6, cy - 38, 4, 10, 2, '#e8dcc0');
-    rrect(ctx, cx + W + 12, cy - 38, 4, 10, 2, '#e8dcc0');
+    rrect(ctx, cx - W, cy - 18 + bob, W * 2, 36, 18, body);
+    ellipse(ctx, cx - 14, cy - 6 + bob, 13, 10, accent);
+    ellipse(ctx, cx + 12, cy + 6 + bob, 9, 7, accent);
+    ellipse(ctx, cx - 26, cy + 8 + bob, 6, 5, accent);
+    // duża głowa z pyszczkiem
+    rrect(ctx, cx + W - 12, cy - 36 + bob, 32, 32, 14, body);
+    rrect(ctx, cx + W - 6, cy - 16 + bob, 26, 15, 7, '#ffc2c8');
+    ellipse(ctx, cx + W + 2, cy - 9 + bob, 2, 2, '#c47a80');
+    ellipse(ctx, cx + W + 12, cy - 9 + bob, 2, 2, '#c47a80');
+    rrect(ctx, cx + W - 10, cy - 46 + bob, 5, 12, 2.5, '#f6ead0');
+    rrect(ctx, cx + W + 17, cy - 46 + bob, 5, 12, 2.5, '#f6ead0');
+    ellipse(ctx, cx + W - 14, cy - 30 + bob, 7, 4, accent, -0.4);
+    cuteFace(ctx, cx + W + 6, cy - 26 + bob, 0.85);
+    // dzwoneczek
+    ellipse(ctx, cx + W - 4, cy - 2 + bob, 5, 5, '#ffd24a');
   }
 }
 

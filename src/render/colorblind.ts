@@ -29,9 +29,28 @@ export function daltonizeMatrix(mode: ColorblindMode): M3 {
   return I.map((v, i) => v + shifted[i]!) as M3;
 }
 
-/** Macierz 4×5 (wiersze RGBA, ostatnia kolumna = przesunięcie). */
-export function colorMatrix20(mode: ColorblindMode): number[] {
-  const m = daltonizeMatrix(mode);
+/**
+ * Bajkowa korekcja kolorów: lekko większe nasycenie i cieplejszy odcień.
+ * Nasycenie wokół luminancji Rec.709, potem ciepłe przesunięcie kanałów R/B.
+ */
+export function gradeMatrix(saturation = 1.14, warmth = 0.04): M3 {
+  const lr = 0.2126;
+  const lg = 0.7152;
+  const lb = 0.0722;
+  const s = saturation;
+  const sat: M3 = [
+    lr * (1 - s) + s, lg * (1 - s), lb * (1 - s),
+    lr * (1 - s), lg * (1 - s) + s, lb * (1 - s),
+    lr * (1 - s), lg * (1 - s), lb * (1 - s) + s,
+  ];
+  const warm: M3 = [1 + warmth, 0, 0, 0, 1 + warmth * 0.3, 0, 0, 0, 1 - warmth];
+  return mul(warm, sat);
+}
+
+/** Macierz 4×5 (wiersze RGBA, ostatnia kolumna = przesunięcie): najpierw korekcja bajkowa, potem daltonizacja. */
+export function colorMatrix20(mode: ColorblindMode, grade = false): number[] {
+  const d = daltonizeMatrix(mode);
+  const m = grade ? mul(d, gradeMatrix()) : d;
   return [m[0], m[1], m[2], 0, 0, m[3], m[4], m[5], 0, 0, m[6], m[7], m[8], 0, 0, 0, 0, 0, 1, 0];
 }
 

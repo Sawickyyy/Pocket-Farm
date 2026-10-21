@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { CONTENT, parseKey } from '../content/content';
 import type { Store } from '../core/store';
-import { DAY_MS, HOUR_MS, calendarAt } from '../sim/calendar';
+import { DAY_MS, HOUR_MS, calendarAt, daylight } from '../sim/calendar';
 import type { SimEvent } from '../sim/events';
 import { PLOT_COUNT } from '../sim/initialState';
 import type { GameState } from '../sim/types';
@@ -12,6 +12,7 @@ import { SPRITES_KEY, TILE, TILES_KEY, buildingFrame, cropFrame, drawSpriteAtlas
 import { CameraModel, type Viewport } from './cameraModel';
 import { buildingPlacement, project, projectedBounds, unproject } from './iso';
 import { colorMatrix20, type ColorblindMode } from './colorblind';
+import { AmbientLayer } from './layers/AmbientLayer';
 import { AnimalLayer } from './layers/AnimalLayer';
 import { FogLayer } from './layers/FogLayer';
 import { GroundLayer } from './layers/GroundLayer';
@@ -48,6 +49,9 @@ export class FarmScene extends Phaser.Scene {
   private animals!: AnimalLayer;
   private lighting!: Lighting;
   private particles!: ParticleLayer;
+  private ambient!: AmbientLayer;
+  private vignette: Phaser.Filters.Vignette | null = null;
+  private fx = true;
   private highlight!: Phaser.GameObjects.Graphics;
   private tutorialPulse!: Phaser.GameObjects.Graphics;
   private ghostImage!: Phaser.GameObjects.Image;
@@ -76,6 +80,7 @@ export class FarmScene extends Phaser.Scene {
     this.animals = new AnimalLayer(this, CONTENT, () => !this.deps.reducedMotion());
     this.fog = new FogLayer(this);
     this.particles = new ParticleLayer(this);
+    this.ambient = new AmbientLayer(this, state.seed);
     this.lighting = new Lighting(this, CONTENT);
 
     // Podświetlenie dotkniętego pola – jedyny obiekt z filtrem glow (filtry są kosztowne).
@@ -93,7 +98,8 @@ export class FarmScene extends Phaser.Scene {
     this.ghostImage = this.add.image(0, 0, SPRITES_KEY, 'icon_ready').setOrigin(0.5, 1).setAlpha(0.8).setDepth(71).setVisible(false);
 
     this.cam = new CameraModel(projectedBounds(FIELD.x, FIELD.y, FIELD.w, FIELD.h), this.boundsFor(state), 0.3, 2.2, 1.35);
-    this.cameras.main.setBackgroundColor('#3f7a32');
+    // Pastelowe tło za krawędzią mapy (romb świata nie wypełnia prostokąta ekranu).
+    this.cameras.main.setBackgroundColor('#a8dcc4');
     this.cameras.main.setRoundPixels(false);
 
     this.syncAll(state, true);
@@ -118,7 +124,9 @@ export class FarmScene extends Phaser.Scene {
     if (state !== this.lastState && time - this.lastSync > SYNC_MS) this.syncAll(state, false);
     const clock = state.clock;
     const hour = ((clock.simMs + clock.accMs) % DAY_MS) / HOUR_MS;
-    this.lighting.update(hour, calendarAt(clock.simMs, state.seed));
+    const cal = calendarAt(clock.simMs, state.seed);
+    this.lighting.update(hour, cal);
+    this.ambient.update(cal, 1 - daylight(hour), this.fx && !this.deps.reducedMotion());
     this.animals.update(time, state);
     this.particles.update();
     if (this.cam.update(delta)) this.applyCamera();
@@ -135,6 +143,7 @@ export class FarmScene extends Phaser.Scene {
     this.objects.sync(state, cal);
     this.fog.sync(state, motion);
     this.animals.sync(state);
+    this.ambient.sync(state, motion);
     if (force || !prev || prev.objects !== state.objects || prev.plots !== state.plots) this.lighting.sync(state);
     if (force || !prev || prev.world.revealed.length !== state.world.revealed.length) this.cam.bounds = this.boundsFor(state);
   }
@@ -246,16 +255,28 @@ export class FarmScene extends Phaser.Scene {
       .setVisible(def.kind !== 'path');
   }
 
-  setColorblind(mode: ColorblindMode): void {
+  /**
+   * Postprocess kamery: jeden ColorMatrix (bajkowa korekcja + daltonizacja) i delikatna winieta.
+   * Wyłączenie „efektów bajkowych” zostawia tylko daltonizację (jeśli włączona) – mniej pracy dla GPU.
+   */
+  setPostFx(mode: ColorblindMode, fx: boolean): void {
+    this.fx = fx;
     const filters = this.cameras.main.filters;
-    if (mode === 'none') {
-      if (this.colorFilter) filters?.external.remove(this.colorFilter, true);
+    if (!filters) return;
+    if (mode === 'none' && !fx) {
+      if (this.colorFilter) filters.external.remove(this.colorFilter, true);
       this.colorFilter = null;
-      return;
+    } else {
+      this.colorFilter ??= filters.external.addColorMatrix();
+      this.colorFilter.colorMatrix.set(colorMatrix20(mode, fx));
     }
-    this.colorFilter ??= filters?.external.addColorMatrix() ?? null;
-    this.colorFilter?.colorMatrix.set(colorMatrix20(mode));
+    if (fx && !this.vignette) this.vignette = filters.external.addVignette(0.5, 0.52, 0.88, 0.32, 0x2a1a40);
+    if (!fx && this.vignette) {
+      filters.external.remove(this.vignette, true);
+      this.vignette = null;
+    }
   }
+
 
   // ------------------------------------------------------------- efekty („juice”)
 

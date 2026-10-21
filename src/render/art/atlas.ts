@@ -5,6 +5,7 @@ import { CONTENT, SEASONS, type Content, type Season } from '../../content/conte
 import { ellipse, makeCanvas, rng, rrect, shade, type Ctx2D } from './draw';
 import { buildingFrameSize, isBox } from '../iso';
 import { drawIsoBuilding } from './isoBuilding';
+import { PALETTE, STYLE_NONE, stylize, watercolor, type StyleOptions } from './palette';
 import { drawAnimal, drawBuilding, drawCrop, drawIcon, drawItem, drawTree } from './subjects';
 
 export const TILE = 128;
@@ -30,7 +31,7 @@ export const Tile = {
 } as const;
 
 export const ICONS = ['icon_lock', 'icon_drop', 'icon_ready', 'icon_bowl', 'icon_explore', 'icon_forage'] as const;
-export const PARTICLES = ['p_dirt', 'p_water', 'p_leaf', 'p_coin', 'p_star', 'p_seed', 'p_heart', 'p_snow', 'p_rain', 'p_firefly', 'p_smoke'] as const;
+export const PARTICLES = ['p_dirt', 'p_water', 'p_leaf', 'p_coin', 'p_star', 'p_seed', 'p_heart', 'p_snow', 'p_rain', 'p_firefly', 'p_smoke', 'p_butterfly', 'p_petal', 'p_autumn', 'p_sparkle'] as const;
 export type ParticleFrame = (typeof PARTICLES)[number];
 
 export const cropFrame = (id: string, stage: number) => `crop_${id}_${stage}`;
@@ -41,144 +42,187 @@ export const itemFrame = (id: string) => `item_${id}`;
 
 // ------------------------------------------------------------------ tileset
 
-const GRASS: Record<Season, string> = { spring: '#72b852', summer: '#5fa344', autumn: '#a39a48', winter: '#e4ecf2' };
-const FOREST: Record<Season, string> = { spring: '#4f8a3c', summer: '#3f7a32', autumn: '#7a6a34', winter: '#c8d4dc' };
-const MEADOW: Record<Season, string> = { spring: '#8cc85e', summer: '#7dba52', autumn: '#b8a654', winter: '#eef3f6' };
+const INK_SOFT = 'rgba(74,46,26,0.55)';
 
-function grassTile(ctx: Ctx2D, ox: number, oy: number, color: string, seed: number, blades = 26, winter = false): void {
-  ctx.fillStyle = color;
+/** Pulchna kępka trawy: trzy zaokrąglone listki z ciepłym konturem. */
+function tuft(ctx: Ctx2D, x: number, y: number, s: number, fill: string): void {
+  ctx.beginPath();
+  ctx.moveTo(x - 7 * s, y);
+  ctx.quadraticCurveTo(x - 7 * s, y - 9 * s, x - 3 * s, y - 13 * s);
+  ctx.quadraticCurveTo(x - 2 * s, y - 6 * s, x, y - 15 * s);
+  ctx.quadraticCurveTo(x + 2 * s, y - 6 * s, x + 4 * s, y - 12 * s);
+  ctx.quadraticCurveTo(x + 7 * s, y - 8 * s, x + 7 * s, y);
+  ctx.closePath();
+  ctx.fillStyle = fill;
+  ctx.fill();
+}
+
+/** Kwiatek-gwiazdka z konturem i złotym środkiem. */
+function flower(ctx: Ctx2D, x: number, y: number, r: number, col: string): void {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const rr = i % 2 ? r * 0.55 : r;
+    const a = (i * Math.PI) / 5 - Math.PI / 2;
+    ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  ctx.closePath();
+  ctx.fillStyle = col;
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = INK_SOFT;
+  ctx.stroke();
+  ellipse(ctx, x, y, r * 0.3, r * 0.3, '#ffc94a');
+}
+
+function grassTile(ctx: Ctx2D, ox: number, oy: number, base: string, deep: string, seed: number, tufts = 7, winter = false): void {
+  ctx.fillStyle = base;
   ctx.fillRect(ox, oy, TILE, TILE);
   const r = rng(seed);
-  for (let i = 0; i < blades; i++) {
-    const x = ox + 6 + r() * (TILE - 12);
-    const y = oy + 8 + r() * (TILE - 14);
-    if (winter) {
-      ellipse(ctx, x, y, 3 + r() * 4, 2 + r() * 2, r() > 0.5 ? 'rgba(255,255,255,0.7)' : 'rgba(160,180,200,0.25)');
-      continue;
-    }
-    ctx.strokeStyle = r() > 0.5 ? 'rgba(255,255,255,0.12)' : 'rgba(0,40,0,0.14)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + (r() - 0.5) * 6, y - 8 - r() * 6);
-    ctx.stroke();
+  watercolor(ctx, ox, oy, TILE, TILE, r, winter ? 0.05 : 0.09, 12);
+  for (let i = 0; i < tufts; i++) {
+    const x = ox + 14 + r() * (TILE - 28);
+    const y = oy + 22 + r() * (TILE - 30);
+    if (winter) ellipse(ctx, x, y, 8 + r() * 6, 3 + r() * 2, 'rgba(255,255,255,0.85)');
+    else tuft(ctx, x, y, 1 + r() * 0.5, r() > 0.5 ? shade(base, -0.08) : shade(base, 0.1));
   }
 }
 
-function soilTile(ctx: Ctx2D, ox: number, oy: number, base: string, furrow: string, hi: string, cracked = false): void {
-  ctx.fillStyle = '#5f8f3e';
+function soilTile(ctx: Ctx2D, ox: number, oy: number, base: string, deep: string, wet: boolean, poor = false): void {
+  ctx.fillStyle = shade(PALETTE.grass.spring, -0.1);
   ctx.fillRect(ox, oy, TILE, TILE);
-  rrect(ctx, ox + 6, oy + 6, TILE - 12, TILE - 12, 16, base);
+  rrect(ctx, ox + 5, oy + 5, TILE - 10, TILE - 10, 22, base);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = INK_SOFT;
+  ctx.stroke();
+  const r = rng(poor ? 91 : wet ? 92 : 93);
+  watercolor(ctx, ox + 5, oy + 5, TILE - 10, TILE - 10, r, 0.1, 8);
+  // zaokrąglone grządki (wypukłe wałki z połyskiem)
   for (let i = 0; i < 4; i++) {
-    const y = oy + 26 + i * 25;
-    rrect(ctx, ox + 16, y, TILE - 32, 9, 5, furrow);
-    rrect(ctx, ox + 16, y - 5, TILE - 32, 4, 2, hi);
+    const y = oy + 20 + i * 24;
+    rrect(ctx, ox + 14, y, TILE - 28, 15, 8, deep);
+    rrect(ctx, ox + 14, y - 1, TILE - 28, 11, 6, shade(base, 0.06));
+    rrect(ctx, ox + 20, y + 1, TILE - 44, 3, 2, wet ? 'rgba(200,230,255,0.45)' : 'rgba(255,235,200,0.45)');
   }
-  if (cracked) {
-    ctx.strokeStyle = 'rgba(60,40,20,0.45)';
+  for (let i = 0; i < 5; i++) ellipse(ctx, ox + 16 + r() * 96, oy + 16 + r() * 96, 3, 2.5, 'rgba(255,240,220,0.5)');
+  if (poor) {
+    ctx.strokeStyle = 'rgba(74,46,26,0.5)';
     ctx.lineWidth = 2;
-    const r = rng(77);
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 5; i++) {
       ctx.beginPath();
-      let x = ox + 20 + r() * 88;
-      let y = oy + 20 + r() * 88;
+      let x = ox + 24 + r() * 80;
+      let y = oy + 24 + r() * 80;
       ctx.moveTo(x, y);
       for (let k = 0; k < 3; k++) {
-        x += (r() - 0.5) * 24;
-        y += (r() - 0.5) * 24;
+        x += (r() - 0.5) * 22;
+        y += (r() - 0.5) * 22;
         ctx.lineTo(x, y);
       }
       ctx.stroke();
     }
   }
+  if (wet) for (let i = 0; i < 3; i++) ellipse(ctx, ox + 30 + r() * 68, oy + 30 + r() * 68, 6, 3, 'rgba(160,210,255,0.35)');
 }
 
 export function drawTileset(): HTMLCanvasElement {
   const [c, ctx] = makeCanvas(TILE * 16, TILE * 2);
   const pos = (i: number): [number, number] => [(i % 16) * TILE, Math.floor(i / 16) * TILE];
+  const P = PALETTE;
 
   SEASONS.forEach((season, s) => {
     const winter = season === 'winter';
     let [x, y] = pos(Tile.grass(s));
-    grassTile(ctx, x, y, GRASS[season], 1 + s, 26, winter);
+    grassTile(ctx, x, y, P.grass[season], P.grassDeep[season], 1 + s, 6, winter);
     [x, y] = pos(Tile.flowers(s));
-    grassTile(ctx, x, y, GRASS[season], 2 + s, 26, winter);
-    if (!winter) {
-      const r = rng(7 + s);
-      const cols = season === 'autumn' ? ['#e07a2c', '#c9a12a', '#9a4a2a'] : ['#fff6a8', '#ffffff', '#f7a1c4'];
-      for (let i = 0; i < 5; i++) {
-        const fx = x + 18 + r() * 92;
-        const fy = y + 18 + r() * 92;
-        for (let p = 0; p < 5; p++) ellipse(ctx, fx + Math.cos(p * 1.256) * 5, fy + Math.sin(p * 1.256) * 5, 4, 4, cols[i % 3]!);
-        ellipse(ctx, fx, fy, 3, 3, '#f2b632');
-      }
-    }
+    grassTile(ctx, x, y, P.grass[season], P.grassDeep[season], 2 + s, 4, winter);
+    const rf = rng(7 + s);
+    const cols = season === 'autumn' ? ['#ff9f5a', '#ffd166', '#e86a5a'] : winter ? ['#ffffff', '#dff1ff', '#ffffff'] : P.flowers;
+    for (let i = 0; i < 5; i++) flower(ctx, x + 18 + rf() * 92, y + 18 + rf() * 92, 6 + rf() * 3, cols[i % cols.length]!);
     [x, y] = pos(Tile.forest(s));
-    grassTile(ctx, x, y, FOREST[season], 3 + s, 36, winter);
+    grassTile(ctx, x, y, P.forest[season], shade(P.forest[season], -0.15), 3 + s, 9, winter);
     [x, y] = pos(Tile.meadow(s));
-    grassTile(ctx, x, y, MEADOW[season], 4 + s, 18, winter);
+    grassTile(ctx, x, y, P.meadow[season], P.grass[season], 4 + s, 4, winter);
     if (!winter) {
-      const r = rng(31 + s);
-      for (let i = 0; i < 8; i++) ellipse(ctx, x + 10 + r() * 108, y + 10 + r() * 108, 3, 3, season === 'autumn' ? '#d9822b' : '#f7e36a');
+      const rm = rng(31 + s);
+      for (let i = 0; i < 7; i++) flower(ctx, x + 12 + rm() * 104, y + 12 + rm() * 104, 4, season === 'autumn' ? '#ffb347' : P.flowers[i % P.flowers.length]!);
     }
   });
 
   let [x, y] = pos(Tile.Locked);
-  grassTile(ctx, x, y, '#4f8a3c', 9, 34);
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  grassTile(ctx, x, y, shade(P.grass.summer, -0.12), shade(P.grass.summer, -0.25), 9, 8);
+  ctx.fillStyle = 'rgba(40,30,60,0.12)';
   ctx.fillRect(x, y, TILE, TILE);
 
   [x, y] = pos(Tile.Unlockable);
-  grassTile(ctx, x, y, '#5c9a45', 10, 30);
-  ctx.setLineDash([10, 8]);
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = 'rgba(255,240,200,0.8)';
-  rrect(ctx, x + 10, y + 10, TILE - 20, TILE - 20, 14);
+  grassTile(ctx, x, y, shade(P.grass.spring, -0.05), P.grassDeep.spring, 10, 6);
+  ctx.setLineDash([12, 10]);
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(255,246,214,0.95)';
+  rrect(ctx, x + 12, y + 12, TILE - 24, TILE - 24, 20);
   ctx.stroke();
   ctx.setLineDash([]);
 
   [x, y] = pos(Tile.Untilled);
-  grassTile(ctx, x, y, '#7cbc58', 11, 22);
+  grassTile(ctx, x, y, shade(P.grass.spring, 0.08), P.grass.spring, 11, 5);
   ctx.lineWidth = 4;
-  ctx.strokeStyle = 'rgba(90,60,30,0.35)';
-  rrect(ctx, x + 6, y + 6, TILE - 12, TILE - 12, 16);
+  ctx.strokeStyle = 'rgba(122,74,40,0.45)';
+  rrect(ctx, x + 6, y + 6, TILE - 12, TILE - 12, 22);
   ctx.stroke();
 
   [x, y] = pos(Tile.Tilled);
-  soilTile(ctx, x, y, '#a8743f', '#7c5128', 'rgba(255,220,170,0.25)');
+  soilTile(ctx, x, y, P.soil, P.soilDeep, false);
   [x, y] = pos(Tile.Wet);
-  soilTile(ctx, x, y, '#6e4626', '#4a2c15', 'rgba(160,200,255,0.25)');
+  soilTile(ctx, x, y, P.soilWet, P.soilWetDeep, true);
   [x, y] = pos(Tile.TilledPoor);
-  soilTile(ctx, x, y, '#c4a37a', '#a08260', 'rgba(255,240,220,0.3)', true);
+  soilTile(ctx, x, y, '#d6b08a', '#b68f6a', false, true);
   [x, y] = pos(Tile.WetPoor);
-  soilTile(ctx, x, y, '#8a7058', '#6a5440', 'rgba(160,200,255,0.25)', true);
+  soilTile(ctx, x, y, '#9a7a62', '#7a5e48', true, true);
 
   [x, y] = pos(Tile.Path);
-  ctx.fillStyle = '#d9c08a';
+  ctx.fillStyle = P.path;
   ctx.fillRect(x, y, TILE, TILE);
   const rp = rng(9);
-  for (let i = 0; i < 14; i++) ellipse(ctx, x + rp() * TILE, y + rp() * TILE, 4 + rp() * 6, 3 + rp() * 4, 'rgba(120,90,50,0.25)');
-
-  [x, y] = pos(Tile.Water);
-  ctx.fillStyle = '#3f8fcf';
-  ctx.fillRect(x, y, TILE, TILE);
-  const rw = rng(12);
-  for (let i = 0; i < 7; i++) {
-    const wx = x + rw() * 100 + 10;
-    const wy = y + rw() * 110 + 8;
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(wx, wy);
-    ctx.quadraticCurveTo(wx + 8, wy - 5, wx + 16, wy);
+  watercolor(ctx, x, y, TILE, TILE, rp, 0.07, 8);
+  for (let i = 0; i < 9; i++) {
+    const px = x + 10 + rp() * 108;
+    const py = y + 10 + rp() * 108;
+    const rx = 6 + rp() * 8;
+    ellipse(ctx, px, py, rx, rx * 0.7, shade(P.path, -0.12 - rp() * 0.1));
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(74,46,26,0.35)';
     ctx.stroke();
+    ellipse(ctx, px - rx * 0.3, py - rx * 0.25, rx * 0.35, rx * 0.2, 'rgba(255,255,240,0.5)');
   }
 
+  [x, y] = pos(Tile.Water);
+  const gw = ctx.createLinearGradient(x, y, x + TILE, y + TILE);
+  gw.addColorStop(0, P.water);
+  gw.addColorStop(1, P.waterDeep);
+  ctx.fillStyle = gw;
+  ctx.fillRect(x, y, TILE, TILE);
+  const rw = rng(12);
+  watercolor(ctx, x, y, TILE, TILE, rw, 0.08, 10);
+  for (let i = 0; i < 6; i++) {
+    const wx = x + rw() * 96 + 12;
+    const wy = y + rw() * 104 + 10;
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(wx, wy);
+    ctx.quadraticCurveTo(wx + 7, wy - 6, wx + 14, wy);
+    ctx.quadraticCurveTo(wx + 21, wy + 6, wx + 28, wy);
+    ctx.stroke();
+  }
+  for (let i = 0; i < 4; i++) ellipse(ctx, x + rw() * TILE, y + rw() * TILE, 2.5, 2.5, 'rgba(255,255,255,0.9)');
+
   [x, y] = pos(Tile.Sand);
-  ctx.fillStyle = '#e8d49a';
+  ctx.fillStyle = P.sand;
   ctx.fillRect(x, y, TILE, TILE);
   const rs = rng(13);
-  for (let i = 0; i < 20; i++) ellipse(ctx, x + rs() * TILE, y + rs() * TILE, 2, 2, 'rgba(150,120,70,0.35)');
+  watercolor(ctx, x, y, TILE, TILE, rs, 0.07, 8);
+  for (let i = 0; i < 16; i++) ellipse(ctx, x + rs() * TILE, y + rs() * TILE, 2, 2, 'rgba(170,130,80,0.4)');
+  for (let i = 0; i < 2; i++) flower(ctx, x + 20 + rs() * 88, y + 20 + rs() * 88, 5, '#ffd1e8');
   return c;
 }
 
@@ -189,6 +233,8 @@ interface Entry {
   w: number;
   h: number;
   draw: (ctx: Ctx2D, x: number, y: number) => void;
+  /** Bajkowy styl klatki (kontur + objętość); domyślnie pełny. */
+  style?: StyleOptions;
 }
 
 export interface FrameRect {
@@ -231,7 +277,7 @@ export function drawSpriteAtlas(c: Content = CONTENT): { canvas: HTMLCanvasEleme
   const entries: Entry[] = [];
   for (const crop of c.crops) {
     for (let stage = 0; stage <= 4; stage++) {
-      entries.push({ name: cropFrame(crop.id, stage), w: TILE, h: TILE, draw: (ctx, x, y) => drawCrop(ctx, crop, stage, x + TILE / 2, y + TILE / 2 - 8) });
+      entries.push({ name: cropFrame(crop.id, stage), w: TILE, h: TILE, draw: (ctx, x, y) => drawCrop(ctx, crop, stage, x + TILE / 2, y + TILE / 2 - 8), style: { outline: 3, shade: true } });
     }
   }
   for (const b of c.buildingList) {
@@ -243,17 +289,18 @@ export function drawSpriteAtlas(c: Content = CONTENT): { canvas: HTMLCanvasEleme
       w: size.w,
       h: size.h,
       draw: (ctx, x, y) => (isBox(b) ? drawIsoBuilding(ctx, b, x, y, emblem) : drawBuilding(ctx, b, x, y, TILE, emblem)),
+      style: { outline: b.kind === 'path' ? 0 : 4, shade: true },
     });
   }
   for (const season of SEASONS) {
     for (const kind of ['oak', 'pine'] as const) {
-      entries.push({ name: treeFrame(kind, season), w: TILE, h: 192, draw: (ctx, x, y) => drawTree(ctx, kind, season, x, y, TILE, 192) });
+      entries.push({ name: treeFrame(kind, season), w: TILE, h: 192, draw: (ctx, x, y) => drawTree(ctx, kind, season, x, y, TILE, 192), style: { outline: 3, shade: true } });
     }
   }
   for (const a of c.animalList) {
-    for (const f of [0, 1]) entries.push({ name: animalFrame(a.id, f), w: TILE, h: TILE, draw: (ctx, x, y) => drawAnimal(ctx, a, f, x + TILE / 2, y + TILE / 2) });
+    for (const f of [0, 1]) entries.push({ name: animalFrame(a.id, f), w: TILE, h: TILE, draw: (ctx, x, y) => drawAnimal(ctx, a, f, x + TILE / 2, y + TILE / 2), style: { outline: 3, shade: true } });
   }
-  for (const icon of ICONS) entries.push({ name: icon, w: TILE, h: TILE, draw: (ctx, x, y) => drawIcon(ctx, icon, x + TILE / 2, y + TILE / 2) });
+  for (const icon of ICONS) entries.push({ name: icon, w: TILE, h: TILE, draw: (ctx, x, y) => drawIcon(ctx, icon, x + TILE / 2, y + TILE / 2), style: { outline: 3, shade: false } });
   for (const item of c.itemList) {
     const draw = itemIconDrawer(c, item.id);
     entries.push({
@@ -266,10 +313,11 @@ export function drawSpriteAtlas(c: Content = CONTENT): { canvas: HTMLCanvasEleme
         draw(ctx, 64);
         ctx.restore();
       },
+      style: { outline: 2, shade: true },
     });
   }
-  for (const p of PARTICLES) entries.push({ name: p, w: 32, h: 32, draw: (ctx, x, y) => drawParticle(ctx, p, x + 16, y + 16) });
-  entries.push({ name: 'fog', w: 256, h: 256, draw: (ctx, x, y) => drawFogPuff(ctx, x, y) });
+  for (const p of PARTICLES) entries.push({ name: p, w: 32, h: 32, draw: (ctx, x, y) => drawParticle(ctx, p, x + 16, y + 16), style: STYLE_NONE });
+  entries.push({ name: 'fog', w: 256, h: 256, draw: (ctx, x, y) => drawFogPuff(ctx, x, y), style: STYLE_NONE });
 
   // Szerokość 2048, wysokość dopasowana do zawartości (maks. 4096 – limit tekstur na iOS jest wyższy).
   const size = 2048;
@@ -279,12 +327,8 @@ export function drawSpriteAtlas(c: Content = CONTENT): { canvas: HTMLCanvasEleme
   const [canvas, ctx] = makeCanvas(size, Math.ceil(usedH / 256) * 256);
   const frames: FrameRect[] = entries.map((e, i) => {
     const p = placed[i]!;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(p.x, p.y, e.w, e.h);
-    ctx.clip();
-    e.draw(ctx, p.x, p.y);
-    ctx.restore();
+    // Każda klatka rysowana osobno, stylizowana (objętość + kontur) i wklejana do atlasu.
+    ctx.drawImage(stylize((c2) => e.draw(c2, 0, 0), e.w, e.h, e.style ?? { outline: 3, shade: true }), p.x, p.y);
     return { name: e.name, x: p.x, y: p.y, w: e.w, h: e.h };
   });
   return { canvas, frames };
@@ -335,6 +379,34 @@ function drawParticle(ctx: Ctx2D, name: ParticleFrame, cx: number, cy: number): 
     case 'p_smoke':
       ellipse(ctx, cx, cy, 12, 12, 'rgba(230,230,230,0.6)');
       break;
+    case 'p_butterfly':
+      for (const sgn of [-1, 1]) {
+        ellipse(ctx, cx + sgn * 6, cy - 3, 6, 7, '#ffb3d9', sgn * 0.4);
+        ellipse(ctx, cx + sgn * 5, cy + 5, 4, 4.5, '#c9b6ff', sgn * 0.3);
+        ellipse(ctx, cx + sgn * 6, cy - 4, 2, 2, 'rgba(255,255,255,0.8)');
+      }
+      rrect(ctx, cx - 1.5, cy - 7, 3, 14, 1.5, '#4a2e1a');
+      break;
+    case 'p_petal':
+      ellipse(ctx, cx, cy, 6, 3.5, '#ffd1e8', 0.6);
+      ellipse(ctx, cx - 1, cy - 1, 2.5, 1.2, 'rgba(255,255,255,0.8)', 0.6);
+      break;
+    case 'p_autumn':
+      ellipse(ctx, cx, cy, 8, 4, '#f29a46', 0.8);
+      ellipse(ctx, cx + 2, cy + 1, 4, 2, '#d0502a', 0.8);
+      break;
+    case 'p_sparkle': {
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 14);
+      g.addColorStop(0, 'rgba(255,255,230,1)');
+      g.addColorStop(0.3, 'rgba(255,240,170,0.7)');
+      g.addColorStop(1, 'rgba(255,220,120,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(cx - 16, cy - 16, 32, 32);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(cx - 0.75, cy - 9, 1.5, 18);
+      ctx.fillRect(cx - 9, cy - 0.75, 18, 1.5);
+      break;
+    }
   }
 }
 
@@ -351,51 +423,45 @@ function drawFogPuff(ctx: Ctx2D, x: number, y: number): void {
 
 const iconCache = new Map<string, string>();
 
-/** Data URL ikony przedmiotu do interfejsu HTML (rysowane tym samym kodem co w grze). */
-export function itemIconUrl(id: string, size = 96, c: Content = CONTENT): string {
-  const key = `${id}@${size}`;
+/** Ikona do HTML: ten sam kod rysujący i ten sam bajkowy styl (kontur + objętość) co w atlasie. */
+function iconUrl(key: string, size: number, draw: (ctx: Ctx2D) => void): string {
   const cached = iconCache.get(key);
   if (cached) return cached;
-  const [canvas, ctx] = makeCanvas(size, size);
-  itemIconDrawer(c, id)(ctx, size);
-  const url = canvas.toDataURL('image/png');
+  const url = stylize(draw, size, size, { outline: Math.max(2, Math.round(size / 40)), shade: true }).toDataURL('image/png');
   iconCache.set(key, url);
   return url;
 }
 
+/** Data URL ikony przedmiotu do interfejsu HTML. */
+export function itemIconUrl(id: string, size = 96, c: Content = CONTENT): string {
+  return iconUrl(`${id}@${size}`, size, (ctx) => {
+    // margines na kontur
+    ctx.translate(size * 0.04, size * 0.04);
+    itemIconDrawer(c, id)(ctx, size * 0.92);
+  });
+}
+
 export function buildingIconUrl(id: string, size = 96, c: Content = CONTENT): string {
-  const key = `b:${id}@${size}`;
-  const cached = iconCache.get(key);
-  if (cached) return cached;
-  const def = c.buildings[id];
-  const [canvas, ctx] = makeCanvas(size, size);
-  if (def) {
+  return iconUrl(`b:${id}@${size}`, size, (ctx) => {
+    const def = c.buildings[id];
+    if (!def) return;
     const { w: fw, h: fh } = buildingFrameSize(def);
-    const s = Math.min(size / fw, size / fh);
+    const s = Math.min(size / fw, size / fh) * 0.94;
     ctx.translate((size - fw * s) / 2, (size - fh * s) / 2);
     ctx.scale(s, s);
     const emblem = def.art.emblem ? itemIconDrawer(c, def.art.emblem) : undefined;
     if (isBox(def)) drawIsoBuilding(ctx, def, 0, 0, emblem);
     else drawBuilding(ctx, def, 0, 0, TILE, emblem);
-  }
-  const url = canvas.toDataURL('image/png');
-  iconCache.set(key, url);
-  return url;
+  });
 }
 
 export function animalIconUrl(id: string, size = 96, c: Content = CONTENT): string {
-  const key = `a:${id}@${size}`;
-  const cached = iconCache.get(key);
-  if (cached) return cached;
-  const [canvas, ctx] = makeCanvas(size, size);
-  const def = c.animals[id];
-  if (def) {
+  return iconUrl(`a:${id}@${size}`, size, (ctx) => {
+    const def = c.animals[id];
+    if (!def) return;
     ctx.scale(size / TILE, size / TILE);
     drawAnimal(ctx, def, 0, TILE / 2, TILE / 2);
-  }
-  const url = canvas.toDataURL('image/png');
-  iconCache.set(key, url);
-  return url;
+  });
 }
 
 export { shade };

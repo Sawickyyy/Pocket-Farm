@@ -3,18 +3,21 @@
   color-scheme: light dark;
   --ui-scale: 1;
   --bg: #2f5d34;
-  --surface: rgb(255 251 240 / 0.93);
-  --surface-solid: #fffbf0;
-  --surface-2: #f3ead2;
-  --text: #2b2113;
-  --muted: #6f6450;
-  --accent: #3f8f3a;
+  --surface: rgb(255 247 228 / 0.95);
+  --surface-solid: #fff7e4;
+  --surface-2: #f8e8c6;
+  --text: #4a2e1a;
+  --muted: #8a6a4e;
+  --accent: #5fae4a;
+  --accent-deep: #3f8a34;
+  --ink: #4a2e1a;
+  --frame: #c99a6b;
   --accent-text: #fff;
   --gold: #f2b632;
   --silver: #9aa8b5;
   --danger: #c4452f;
-  --line: rgb(70 50 20 / 0.15);
-  --shadow: 0 0.5rem 1.75rem rgb(20 30 10 / 0.28);
+  --line: rgb(201 154 107 / 0.9);
+  --shadow: 0 0.35rem 0 rgb(122 80 46 / 0.25), 0 0.6rem 1.6rem rgb(60 30 50 / 0.22);
   --radius: 1.1rem;
   --tap: 3rem;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -22,23 +25,29 @@
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --dur: 220ms;
-  font-family: system-ui, -apple-system, 'SF Pro Rounded', 'Segoe UI', sans-serif;
+  /* ui-rounded = SF Pro Rounded na iOS: miękka, bajkowa czcionka bez pobierania plików (działa offline). */
+  font-family: ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
   /* Skalowanie interfejsu: wszystkie wymiary są w rem. */
   font-size: calc(16px * var(--ui-scale));
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
+/* Tryb ciemny jako „nocna bajka”: granat i złoto. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --surface: rgb(32 36 28 / 0.92);
-    --surface-solid: #20241c;
-    --surface-2: #2d3326;
-    --text: #f2eddc;
-    --muted: #b3ab95;
-    --accent: #5fb055;
-    --line: rgb(255 255 255 / 0.12);
-    --shadow: 0 0.5rem 1.75rem rgb(0 0 0 / 0.5);
+    --surface: rgb(36 32 72 / 0.94);
+    --surface-solid: #262250;
+    --surface-2: #332d68;
+    --text: #fff3d6;
+    --muted: #c9bde8;
+    --accent: #f2b632;
+    --accent-deep: #c98a12;
+    --accent-text: #3b2a05;
+    --ink: #120e2a;
+    --frame: #8f7ad6;
+    --line: rgb(143 122 214 / 0.8);
+    --shadow: 0 0.35rem 0 rgb(10 8 30 / 0.5), 0 0.6rem 1.6rem rgb(0 0 0 / 0.45);
   }
 }
 
@@ -79,6 +88,11 @@
 }
 
 /* ---------------------------------------------------------------- baza */
+/* Atrybut hidden zawsze wygrywa z display ustawionym w klasach (np. pusty pasek zakładek). */
+[hidden] {
+  display: none !important;
+}
+
 *,
 *::before,
 *::after {
@@ -1284,4 +1298,183 @@ body:has(.build-bar:not([hidden])) .toasts {
   color: var(--muted);
   line-height: 1.45;
   white-space: pre-line;
+}
+
+/* ================================================================ motyw bajkowy (książeczka) */
+
+/* Pergamin: kremowe tło z delikatną fakturą i ciepłą ramką. */
+.stat,
+.icon-btn,
+.toolbar-inner,
+.sheet,
+.toast,
+.start-card,
+.fishing-card,
+.build-bar,
+dialog#io-dialog {
+  border: 2px solid var(--frame);
+  background-image:
+    radial-gradient(circle at 20% 15%, rgb(255 255 255 / 0.35), transparent 40%),
+    radial-gradient(circle at 85% 90%, rgb(201 154 107 / 0.12), transparent 45%);
+  background-color: var(--surface);
+}
+
+.sheet {
+  border-bottom: 0;
+  background-color: var(--surface-solid);
+}
+
+.sheet-head {
+  background: var(--surface-solid);
+}
+
+.sheet h2,
+.start-card h1,
+.fishing-card h2 {
+  letter-spacing: 0.01em;
+  text-shadow: 0 2px 0 rgb(255 255 255 / 0.6);
+}
+
+/* Cukierkowe przyciski z cieniem 3D: wciśnięcie „zapada” przycisk. */
+.btn {
+  border: 2px solid var(--frame);
+  box-shadow: 0 0.25rem 0 var(--frame);
+  transition:
+    transform var(--dur),
+    box-shadow var(--dur);
+}
+
+.btn.primary {
+  background: linear-gradient(#7fcf62, var(--accent));
+  border-color: var(--accent-deep);
+  box-shadow: 0 0.25rem 0 var(--accent-deep);
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.2);
+}
+
+.btn.danger {
+  background: linear-gradient(#ee7a62, var(--danger));
+  border-color: #8f2e1e;
+  box-shadow: 0 0.25rem 0 #8f2e1e;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0.2rem);
+  box-shadow: 0 0.05rem 0 var(--frame);
+}
+
+.btn.primary:active:not(:disabled) {
+  box-shadow: 0 0.05rem 0 var(--accent-deep);
+}
+
+.btn:disabled {
+  box-shadow: none;
+}
+
+.tool[aria-pressed='true'] {
+  background: linear-gradient(#7fcf62, var(--accent));
+  box-shadow:
+    inset 0 -0.2rem 0 var(--accent-deep),
+    0 0.15rem 0 rgb(0 0 0 / 0.1);
+}
+
+.tool svg,
+.tool img {
+  filter: drop-shadow(0 2px 0 rgb(74 46 26 / 0.25));
+}
+
+.card {
+  border: 2px solid var(--frame);
+  background-image: linear-gradient(rgb(255 255 255 / 0.35), transparent);
+  box-shadow: 0 0.2rem 0 rgb(201 154 107 / 0.45);
+}
+
+.card .thumb {
+  border: 2px solid var(--frame);
+  border-radius: 1rem;
+}
+
+.level-badge {
+  background: linear-gradient(#7fcf62, var(--accent-deep));
+  border: 2px solid #fff3d6;
+  box-shadow: 0 0 0 2px var(--accent-deep);
+}
+
+.xp {
+  border: 2px solid var(--frame);
+  height: 0.8rem;
+}
+
+.xp-fill {
+  background: linear-gradient(90deg, #ffd166, #ff9fbf, #b69cff);
+}
+
+.coin {
+  box-shadow:
+    inset 0 0 0 2px rgb(150 100 10 / 0.5),
+    0 0 0.6rem rgb(255 210 80 / 0.6);
+}
+
+.tabs {
+  border: 2px solid var(--frame);
+}
+
+.tabs [role='tab'][aria-selected='true'] {
+  background: linear-gradient(#fffdf6, var(--surface-solid));
+  box-shadow: 0 0.15rem 0 var(--frame);
+}
+
+.hub-tile {
+  border: 2px solid var(--frame);
+  box-shadow: 0 0.25rem 0 var(--frame);
+  background-image: linear-gradient(rgb(255 255 255 / 0.45), transparent);
+}
+
+.hub-tile:active {
+  transform: translateY(0.2rem);
+  box-shadow: 0 0.05rem 0 var(--frame);
+}
+
+.hub-tile .emoji {
+  filter: drop-shadow(0 3px 0 rgb(74 46 26 / 0.2));
+}
+
+.clock {
+  border: 2px solid var(--frame);
+}
+
+.tutorial {
+  background: linear-gradient(#3d3a8a, #2a2766);
+  border: 2px solid #f2d27a;
+  box-shadow: 0 0.35rem 0 #17154a, 0 0 1.4rem rgb(242 210 122 / 0.35);
+}
+
+.tutorial::before {
+  content: '✨';
+  position: absolute;
+  top: -0.9rem;
+  left: 1rem;
+  font-size: 1.4rem;
+}
+
+.start-screen {
+  background:
+    radial-gradient(circle at 50% 28%, rgb(255 248 220 / 0.55), transparent 55%),
+    radial-gradient(circle at 15% 85%, rgb(255 190 220 / 0.35), transparent 40%),
+    linear-gradient(#bfe7d6, #8fd16a 70%, #5fae4a);
+}
+
+.start-card h1 {
+  color: var(--accent-deep);
+}
+
+.logo {
+  filter: drop-shadow(0 4px 0 rgb(74 46 26 / 0.25));
+}
+
+.switch {
+  border: 2px solid var(--frame);
+}
+
+.fish-track {
+  border: 2px solid var(--frame);
 }

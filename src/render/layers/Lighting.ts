@@ -8,9 +8,11 @@ import type { Calendar, GameState } from '../../sim/types';
 import { plotTile } from '../../sim/world';
 import { project } from '../iso';
 
-const NIGHT = [0x3a, 0x48, 0x7a];
-const DUSK = [0xff, 0xb0, 0x80];
-const DAY = [0xff, 0xff, 0xff];
+// Bajkowa krzywa światła: granatowa noc, różowo-fioletowy zmierzch, złoty poranek, ciepły dzień.
+const NIGHT = [0x52, 0x5c, 0xa8];
+const DUSK = [0xf2, 0x9c, 0xc0];
+const MORNING = [0xff, 0xd9, 0xa0];
+const DAY = [0xff, 0xfa, 0xee];
 
 const hex = (s: string) => parseInt(s.slice(1), 16);
 const lerp = (a: number[], b: number[], t: number) => a.map((v, i) => Math.round(v + (b[i]! - v) * t));
@@ -30,7 +32,10 @@ export class Lighting {
   /** Kolor otoczenia dla godziny (z płynnym przejściem przez zmierzch/świt). */
   ambientFor(hour: number, weather: string): number {
     const d = daylight(hour);
-    let c = d >= 1 ? DAY : d <= 0 ? NIGHT : d < 0.5 ? lerp(NIGHT, DUSK, d * 2) : lerp(DUSK, DAY, (d - 0.5) * 2);
+    const twilight = hour < 12 ? MORNING : DUSK;
+    let c = d >= 1 ? DAY : d <= 0 ? NIGHT : d < 0.5 ? lerp(NIGHT, twilight, d * 2) : lerp(twilight, DAY, (d - 0.5) * 2);
+    // złota godzina tuż po świcie i przed zmierzchem
+    if (d >= 1 && (hour < 8.5 || hour > 16.5)) c = lerp(DAY, MORNING, hour < 12 ? (8.5 - hour) / 1.5 : (hour - 16.5) / 1.5);
     if (weather === 'rain' || weather === 'cloud') c = c.map((v) => Math.round(v * 0.86));
     if (weather === 'snow') c = lerp(c, [0xd8, 0xe4, 0xff], 0.25);
     return toInt(c);
@@ -56,6 +61,13 @@ export class Lighting {
         color: hex(def.light.color),
         intensity: def.light.intensity,
       });
+    }
+    // Ciepłe okna chatek nocą (bajkowy klimat); limit świateł sceny bierze najbliższe kamerze.
+    for (const o of state.objects) {
+      const def = this.content.buildings[o.type];
+      if (!def || (def.kind !== 'home' && def.kind !== 'machine') || (def.size[0] === 1 && def.size[1] === 1)) continue;
+      const p = project(o.x + def.size[0], o.y + def.size[1] / 2);
+      wanted.set(`w${o.uid}`, { x: p.x, y: p.y - 50, radius: 230, color: 0xffc46b, intensity: 0.9 });
     }
     state.plots.forEach((p, i) => {
       const def = p.crop && this.content.crop[p.crop.id];

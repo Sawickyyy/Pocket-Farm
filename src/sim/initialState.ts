@@ -10,7 +10,7 @@ export const PLOT_COUNT = FIELD.w * FIELD.h;
 export const START_UNLOCKED: readonly number[] = [3, 4, 5].flatMap((row) => [2, 3].map((col) => row * FIELD.w + col));
 
 export function defaultSettings(language: Settings['language'] = 'pl'): Settings {
-  return { sound: true, music: true, captions: false, language, colorblind: 'none', uiScale: 1, reducedMotion: 'auto' };
+  return { sound: true, music: true, captions: false, language, colorblind: 'none', uiScale: 1, reducedMotion: 'auto', fx: true };
 }
 
 export function createPlot(unlocked: boolean): Plot {

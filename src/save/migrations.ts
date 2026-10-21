@@ -143,6 +143,7 @@ export function normalizeState(d: AnyRecord, now: number, c: Content = CONTENT):
     colorblind: (['none', 'protan', 'deutan', 'tritan'] as const).find((x) => x === settingsSrc.colorblind) ?? 'none',
     uiScale: num(settingsSrc.uiScale, 1, 0.8, 1.6),
     reducedMotion: (['auto', 'on', 'off'] as const).find((x) => x === settingsSrc.reducedMotion) ?? 'auto',
+    fx: typeof settingsSrc.fx === 'boolean' ? settingsSrc.fx : true,
   };
   const quests = isObj(d.quests) ? d.quests : {};
   const quest = (q: AnyRecord) =>

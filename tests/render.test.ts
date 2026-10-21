@@ -92,3 +92,21 @@ describe('rzut izometryczny 2.5D', () => {
     expect(r.h).toBeCloseTo(4 * ISO_HH);
   });
 });
+
+import { gradeMatrix } from '../src/render/colorblind';
+
+describe('bajkowa korekcja kolorów', () => {
+  it('nasycenie bez ociepl. zachowuje szarości', () => {
+    const m = gradeMatrix(1.2, 0);
+    for (let r = 0; r < 3; r++) expect(m[r * 3]! + m[r * 3 + 1]! + m[r * 3 + 2]!).toBeCloseTo(1);
+  });
+  it('ocieplenie podbija czerwień i tłumi niebieski', () => {
+    const m = gradeMatrix(1, 0.05);
+    expect(m[0]).toBeCloseTo(1.05);
+    expect(m[8]).toBeCloseTo(0.95);
+  });
+  it('macierz z korekcją różni się od samej daltonizacji', async () => {
+    const { colorMatrix20 } = await import('../src/render/colorblind');
+    expect(colorMatrix20('none', true)).not.toEqual(colorMatrix20('none', false));
+  });
+});

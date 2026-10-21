@@ -95,6 +95,8 @@ export interface Settings {
   colorblind: 'none' | 'protan' | 'deutan' | 'tritan';
   uiScale: number;
   reducedMotion: 'auto' | 'on' | 'off';
+  /** Efekty bajkowe (korekcja kolorów, winieta, magia w świecie). */
+  fx: boolean;
 }
 
 export interface PendingFish {

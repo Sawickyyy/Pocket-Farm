@@ -91,10 +91,11 @@ describe('osada: produkcja budynków', () => {
     expect(sim.state.stats.produced).toBe(3);
   });
 
-  it('wyjście pola zależy od pory roku: lato pomidory, jesień pszenica', () => {
+  it('wyjście pola zależy od pory roku: lato pomidory, jesień dynie, zima jarmuż', () => {
     for (const [day, item] of [
       [SUMMER, 'tomato'],
-      [AUTUMN, 'wheat'],
+      [AUTUMN, 'pumpkin'],
+      [WINTER, 'kale'],
     ] as const) {
       const sim = makeTown();
       const uid = placeBuilt(sim, 'allotment');
@@ -105,9 +106,16 @@ describe('osada: produkcja budynków', () => {
     }
   });
 
-  it('zimą pole osady stoi – bez postępu i bez plonów', () => {
+  it('pole zboża daje pszenicę latem i jesienią, wiosną i zimą stoi – bez postępu i bez plonów', () => {
+    const summer = makeTown();
+    const field = placeBuilt(summer, 'grainfield');
+    stock(summer);
+    crew(summer, field, 3);
+    work(summer, 2, SUMMER);
+    expect(summer.state.inventory).toEqual({ wheat: 3 });
+
     const sim = makeTown();
-    const uid = placeBuilt(sim, 'allotment');
+    const uid = placeBuilt(sim, 'grainfield');
     stock(sim);
     crew(sim, uid, 3);
     expect(work(sim, 10, WINTER)).toEqual([]);
@@ -248,13 +256,18 @@ describe('osada: produkcja budynków', () => {
     expect(site(sim, uid)!.progress).toBeCloseTo(0.5, 9);
   });
 
-  it('pełny magazyn wstrzymuje produkcję osady (bez postępu)', () => {
+  it('pełny magazyn wstrzymuje wyroby (cykl czeka gotowy), ale nie jedzenie', () => {
     const sim = makeTown();
     const uid = placeBuilt(sim, 'lumber');
+    const field = placeBuilt(sim, 'allotment');
     crew(sim, uid, 3);
+    crew(sim, field, 3);
     stock(sim, { stone: storageCap(sim.state, CONTENT) });
-    expect(work(sim, 5)).toEqual([]);
-    expect(site(sim, uid)!.progress).toBe(0);
+    const events = ofType(work(sim, 5), 'produced');
+    expect(events.every((e) => e.uid === field)).toBe(true);
+    expect(events.length).toBeGreaterThan(0);
+    expect(sim.state.inventory.wood ?? 0).toBe(0);
+    expect(site(sim, uid)!.progress).toBe(1);
   });
 
   it('magazyn zapełniony w trakcie godziny zatrzymuje kolejne cykle', () => {
@@ -403,7 +416,8 @@ describe('osada: maszyny z obsadą', () => {
     crew(sim, mill, 1);
     stock(sim, { wheat: storageCap(sim.state, CONTENT) });
     expect(work(sim, 3)).toEqual([]);
-    expect(site(sim, mill)?.progress ?? 0).toBe(0);
+    expect(sim.state.inventory.flour ?? 0).toBe(0);
+    expect(site(sim, mill)?.progress ?? 0).toBeLessThanOrEqual(1);
   });
 });
 
@@ -651,7 +665,7 @@ describe('osada: komendy budżetu', () => {
 });
 
 describe('osada: informacje o produkcji (UI)', () => {
-  it('pole osady: wyjście, szacunek na dobę i przestój zimą', () => {
+  it('pole osady: wyjście, szacunek na dobę; pole zboża: przestój zimą', () => {
     const sim = makeTown();
     const uid = placeBuilt(sim, 'allotment');
     stock(sim);
@@ -661,7 +675,10 @@ describe('osada: informacje o produkcji (UI)', () => {
     expect(info.item).toBe('carrot');
     expect(info.perDay).toBeCloseTo(((3 * 10) / 6) * 3, 9);
     expect(info.blocked).toBeNull();
-    expect(productionInfo(at(sim, 8, WINTER).ctx, uid)).toEqual({ item: null, perDay: 0, blocked: 'season' });
+    expect(productionInfo(at(sim, 8, WINTER).ctx, uid).item).toBe('kale');
+    const grain = placeBuilt(sim, 'grainfield');
+    crew(sim, grain, 3);
+    expect(productionInfo(at(sim, 8, WINTER).ctx, grain)).toEqual({ item: null, perDay: 0, blocked: 'season' });
   });
 
   it('brak wejść, pełny magazyn i limit', () => {

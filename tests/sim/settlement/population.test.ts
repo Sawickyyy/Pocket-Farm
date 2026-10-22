@@ -14,6 +14,7 @@ import {
   populationDay,
   populationHour,
   surnameOf,
+  BIRTH_CHANCE,
 } from '../../../src/sim/systems/settlement/population';
 import { socialDay } from '../../../src/sim/systems/settlement/social';
 import type { GameState, Resident } from '../../../src/sim/types';
@@ -451,9 +452,9 @@ describe('osada: narodziny', () => {
     expect(s.settlement.chronicle[0]).toMatchObject({ kind: 'born', params: { name: baby.name } });
   });
 
-  it('rzut ≥ 0,06 – bez dziecka', () => {
+  it('rzut ≥ BIRTH_CHANCE – bez dziecka', () => {
     const { sim, s } = couple();
-    forced.push(0.06);
+    forced.push(BIRTH_CHANCE);
     day(sim);
     expect(s.settlement.residents).toHaveLength(2);
     expect(s.settlement.stats.born).toBe(0);

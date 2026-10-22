@@ -139,7 +139,9 @@ describe('rada: warunki szablonów', () => {
     const sim = town();
     sim.state.inventory = { wood: 269 };
     expect(cond(sim, 'storageFull')).toBe(false);
-    sim.state.inventory = { wood: 200, radish: 70 };
+    sim.state.inventory = { wood: 200, radish: 300 }; // jedzenie nie zajmuje magazynu
+    expect(cond(sim, 'storageFull')).toBe(false);
+    sim.state.inventory = { wood: 200, planks: 70 };
     expect(cond(sim, 'storageFull')).toBe(true);
   });
 

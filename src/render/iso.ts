@@ -39,8 +39,8 @@ export const roofHeight = (w: number, h: number) => 60 + 18 * Math.max(w, h);
 export const ISO_PAD = 12;
 
 /** Modele osady leżące płasko na ziemi (pole, plac) i małe obiekty 1×1 (namiot, studnia). */
-const FLAT_MODELS = new Set(['field', 'plaza']);
-const PROP_HEIGHT: Record<string, number> = { field: 70, plaza: 90, tent: 130, well: 120 };
+const FLAT_MODELS = new Set(['field', 'grain', 'plaza']);
+const PROP_HEIGHT: Record<string, number> = { field: 70, grain: 96, plaza: 90, tent: 130, well: 120 };
 /** Dodatkowa wysokość ponad dach (wieże, piętra, flagi). */
 const EXTRA_HEIGHT: Record<string, number> = { townhouse: 80, townhall: 110, school: 90, firestation: 60, manor: 40, tradepost: 50, police: 30 };
 

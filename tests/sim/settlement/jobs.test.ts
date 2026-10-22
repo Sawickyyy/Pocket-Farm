@@ -12,7 +12,7 @@ import { setTime } from '../helpers';
 import { addResident, makeTown, placeBuilt, runHours } from './helpers';
 
 // Budynki stawiamy bezpośrednio w stanie (dokładne położenie, bez warunków terenu) na północ od farmy –
-// z dala od dróg wioski, więc dojazd zależy tylko od odległości (≤ 6) albo od położonych w teście ścieżek.
+// z dala od dróg wioski, więc dojazd zależy tylko od odległości (≤ 8) albo od położonych w teście ścieżek.
 
 /** Stawia gotowy budynek w (x, y); `site: false` = bez stanu budowy (jak budynki farmy). */
 function put(s: GameState, type: string, x: number, y: number, site = true): number {
@@ -191,7 +191,7 @@ describe('osada: przydział pracy', () => {
   it('wspólna droga daje dojazd; bliższy budynek bez dojazdu jest pomijany', () => {
     const s = makeTown().state;
     const tent = put(s, 'tent', 10, 10);
-    const unreachable = put(s, 'allotment', 10, 16); // środek (11,5; 17,5) – 8 kafli, bez drogi
+    const unreachable = put(s, 'allotment', 10, 18); // środek (11,5; 19,5) – 10 kafli, bez drogi
     const linked = put(s, 'allotment', 20, 10); // 12 kafli, ścieżką y = 9
     pathRow(s, 10, 20, 9);
     const r = adult(s, tent);
@@ -224,7 +224,7 @@ describe('osada: przydział pracy', () => {
 
     const s3 = makeTown().state;
     const tent3 = put(s3, 'tent', 10, 10);
-    const field3 = put(s3, 'allotment', 16, 10); // 8 kafli: tylko z zajezdnią (≤ 12)
+    const field3 = put(s3, 'allotment', 18, 10); // 10 kafli: tylko z zajezdnią (≤ 16)
     const r3 = adult(s3, tent3);
     run(s3);
     expect(r3.job).toBeNull();

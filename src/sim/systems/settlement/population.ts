@@ -3,7 +3,7 @@
 import { NEEDS, type Content, type NeedId } from '../../../content/content';
 import { rand, type Ctx } from '../../ctx';
 import type { GameState, PlacedObject, Resident } from '../../types';
-import { centerOf, chronicle, freeHousing, isHabitable, nextId, objectByUid, population } from './common';
+import { adults as adultsOf, centerOf, chronicle, freeHousing, isHabitable, nextId, objectByUid, population } from './common';
 import { averageHappiness, foodStock } from './needs';
 import { dropRelations } from './social';
 
@@ -13,6 +13,9 @@ export const ARRIVAL_MIN_HAPPINESS = 0.45;
 export const ARRIVAL_BONUS_HAPPINESS = 0.7;
 /** Wymagany zapas jedzenia: punkty odżywcze na mieszkańca (≈ 1 dzień, 2 posiłki). */
 export const ARRIVAL_FOOD_PER_RESIDENT = 2;
+/** Przybysze szukają pracy: przy bezrobociu ponad max(3, 25% dorosłych) nikt nie przyjeżdża. */
+export const ARRIVAL_MAX_IDLE = 3;
+export const ARRIVAL_IDLE_SHARE = 0.25;
 /** Startowe potrzeby i szczęście przybyszów i noworodków. */
 export const START_MOOD = 0.7;
 /** Kolejne smutne doby, po których dorosły wyjeżdża. */
@@ -20,11 +23,11 @@ export const LEAVE_SAD_DAYS = 3;
 /** Doby bez domu, po których dorosły wyjeżdża. */
 export const LEAVE_HOMELESS_DAYS = 2;
 /** Dzienna szansa na dziecko pary w jednym domu z wolnym miejscem. */
-export const BIRTH_CHANCE = 0.06;
+export const BIRTH_CHANCE = 0.12;
 /** Liczba wariantów wyglądu postaci. */
 export const LOOKS = 8;
 
-export type ArrivalBlock = 'housing' | 'unhappy' | 'hungry';
+export type ArrivalBlock = 'housing' | 'unhappy' | 'hungry' | 'jobs';
 
 // ---------------------------------------------------------------- zapytania (UI)
 
@@ -46,13 +49,38 @@ export function freeHousingTotal(s: GameState, c: Content): number {
 }
 
 /** Dlaczego nikt nie przyjedzie o `arrivalHour` (null = przyjazd możliwy). */
-export function arrivalBlock(s: GameState, c: Content, free: Map<number, number> = freeHousing(s, c)): ArrivalBlock | null {
+/**
+ * Miejsca dla przybyszów: wolne miejsca w domach, ale w domu pary (oboje dorośli) jedno zostaje dla dziecka –
+ * inaczej napływ zapełniałby domy i nigdy nie byłoby narodzin.
+ */
+export function arrivalRoom(s: GameState, c: Content): Map<number, number> {
+  const free = freeHousing(s, c);
+  const byId = new Map(s.settlement.residents.map((r) => [r.id, r]));
+  const nursery = new Set<number>();
+  for (const rel of s.settlement.relations) {
+    if (rel.kind !== 'partner') continue;
+    const a = byId.get(rel.a);
+    const b = byId.get(rel.b);
+    if (a && b && !a.child && !b.child && a.home !== null && a.home === b.home) nursery.add(a.home);
+  }
+  for (const home of nursery) {
+    const n = free.get(home);
+    if (n !== undefined && n > 0) free.set(home, n - 1);
+  }
+  return free;
+}
+
+export function arrivalBlock(s: GameState, c: Content, free: Map<number, number> = arrivalRoom(s, c)): ArrivalBlock | null {
   const pop = population(s);
   if (!roomiest(free)) return 'housing';
   if (pop > 0 && averageHappiness(s) < ARRIVAL_MIN_HAPPINESS) return 'unhappy';
   if (pop > 0 && foodStock(s, c) < ARRIVAL_FOOD_PER_RESIDENT * pop) return 'hungry';
+  if (unemployedAdults(s) > Math.max(ARRIVAL_MAX_IDLE, ARRIVAL_IDLE_SHARE * adultsOf(s).length)) return 'jobs';
   return null;
 }
+
+/** Dorośli z domem bez pracy (ci, którzy szukają zatrudnienia). */
+const unemployedAdults = (s: GameState): number => s.settlement.residents.filter((r) => !r.child && r.job === null && r.home !== null).length;
 
 /** Ile rodzin przyjedzie (jeśli przyjazd jest możliwy): 1 + (szczęście > 0,7) + floor(peakTier / 2). */
 export function familiesToArrive(s: GameState): number {
@@ -71,7 +99,7 @@ export function surnameOf(name: string): string {
 export function populationHour(ctx: Ctx, hour: number): void {
   const { s, c } = ctx;
   if (hour !== c.settlement.constants.arrivalHour) return;
-  const free = freeHousing(s, c);
+  const free = arrivalRoom(s, c);
   if (arrivalBlock(s, c, free)) return;
   // Liczba rodzin liczona przed przyjazdem (przybysze nie zmieniają średniej w tej samej turze).
   for (let n = familiesToArrive(s); n > 0; n--) {
@@ -270,7 +298,7 @@ function departures(ctx: Ctx): void {
   }
 }
 
-/** Narodziny: para (`partner`), oboje dorośli, w jednym mieszkalnym domu z wolnym miejscem – szansa 0,06/dobę. */
+/** Narodziny: para (`partner`), oboje dorośli, w jednym mieszkalnym domu z wolnym miejscem – szansa 0,12/dobę. */
 function births(ctx: Ctx, houses: Map<number, PlacedObject>): void {
   const { s, c } = ctx;
   const st = s.settlement;

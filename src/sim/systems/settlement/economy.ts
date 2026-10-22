@@ -15,6 +15,7 @@ import {
   chronicle,
   ensureSite,
   isBuilt,
+  isFoodKey,
   isOperational,
   isWorkHour,
   objectByUid,
@@ -31,7 +32,7 @@ import {
 /** Wyjście produkcji oznaczające losową rybę dostępną w porze roku/pogodzie (rybaczówka). */
 export const FISH_OUTPUT = '@fish';
 /** Budynki żywności (specjalizacja `agri`) i rzemiosła (`craft`) – §14. */
-export const AGRI_BUILDINGS: readonly string[] = ['allotment', 'fishery', 'mill', 'bakery', 'dairy', 'preserves'];
+export const AGRI_BUILDINGS: readonly string[] = ['allotment', 'grainfield', 'fishery', 'mill', 'bakery', 'dairy', 'preserves'];
 export const CRAFT_BUILDINGS: readonly string[] = ['sawmill', 'workshop', 'loom'];
 /** Tempo maszyny z obsadą: 0,4 + 0,3 × moc pracowników (2 osoby ≈ tempo gracza). */
 export const MACHINE_BASE_RATE = 0.4;
@@ -170,7 +171,7 @@ export function productionInfo(ctx: Ctx, uid: number): ProductionInfo {
     const limited = prod.limit !== undefined && countItem(s, item) >= prod.limit;
     const blocked: ProductionBlock | null = !workers.length
       ? 'staff'
-      : full || limited
+      : (full && item !== FISH_OUTPUT && !isFoodKey(c, item)) || limited
         ? 'storage'
         : !hasInputs(s, prod.inputs)
           ? 'inputs'
@@ -182,7 +183,8 @@ export function productionInfo(ctx: Ctx, uid: number): ProductionInfo {
   const shown = recipe ?? recipes[0] ?? null;
   // Najwyżej jeden cykl na godzinę.
   const perDay = shown ? Math.min(1, machineRate(power) / recipeHours(shown)) * workHours(c) * shown.output.qty : 0;
-  const blocked: ProductionBlock | null = !workers.length ? 'staff' : full ? 'storage' : !recipe ? 'inputs' : null;
+  const foodOut = !!shown && isFoodKey(c, shown.output.item);
+  const blocked: ProductionBlock | null = !workers.length ? 'staff' : full && !foodOut ? 'storage' : !recipe ? 'inputs' : null;
   return { item: shown?.output.item ?? null, perDay, blocked };
 }
 
@@ -198,7 +200,12 @@ function produced(ctx: Ctx, o: PlacedObject, item: string, qty: number): void {
   stat(ctx, 'produced', qty);
 }
 
-const sumQty = (list: readonly ItemQty[]): number => list.reduce((a, i) => a + i.qty, 0);
+/** Zmiana zajętości magazynu po cyklu: wyroby minus zużyte surowce (jedzenie się nie liczy). */
+function roomUsed(c: Content, out: string, qty: number, inputs: readonly ItemQty[]): number {
+  let n = isFoodKey(c, out) ? 0 : qty;
+  for (const i of inputs) if (!isFoodKey(c, i.item)) n -= i.qty;
+  return n;
+}
 
 function runProduction(ctx: Ctx, o: PlacedObject, prod: ProductionDef, power: number, store: Store, fish: () => FishPool): void {
   const { s } = ctx;
@@ -206,12 +213,13 @@ function runProduction(ctx: Ctx, o: PlacedObject, prod: ProductionDef, power: nu
   if (item === null) return; // np. pole osady zimą
   const isFish = item === FISH_OUTPUT;
   if (isFish && !fish()) return; // żadna ryba nie bierze
+  // Jedzenie (także ryby) idzie do spiżarni – pełny magazyn go nie wstrzymuje.
+  const food = isFish || isFoodKey(ctx.c, item);
   const site = ensureSite(s, o.uid);
   site.progress += power / Math.max(prod.hours, 1e-9);
-  const used = sumQty(prod.inputs);
   while (site.progress >= 1) {
     const limited = prod.limit !== undefined && countItem(s, item) >= prod.limit;
-    if (store.room <= 0 || limited || !hasInputs(s, prod.inputs)) {
+    if ((!food && store.room <= 0) || limited || !hasInputs(s, prod.inputs)) {
       site.progress = Math.min(site.progress, 1); // czeka z gotowym cyklem
       return;
     }
@@ -227,7 +235,7 @@ function runProduction(ctx: Ctx, o: PlacedObject, prod: ProductionDef, power: nu
     }
     for (const i of prod.inputs) consumeItem(s, i.item, i.qty);
     addItem(s, out, prod.output.qty);
-    store.room -= prod.output.qty - used;
+    store.room -= roomUsed(ctx.c, out, prod.output.qty, prod.inputs);
     site.progress -= 1;
     produced(ctx, o, out, prod.output.qty);
   }
@@ -240,13 +248,13 @@ function runMachine(ctx: Ctx, o: PlacedObject, def: BuildingDef, power: number, 
   const site = ensureSite(s, o.uid);
   site.progress += machineRate(power) / recipeHours(recipe);
   if (site.progress < 1) return;
-  if (store.room <= 0) {
+  if (store.room <= 0 && !isFoodKey(c, recipe.output.item)) {
     site.progress = Math.min(site.progress, 1);
     return;
   }
   for (const i of recipe.inputs) consumeItem(s, i.item, i.qty);
   addItem(s, recipe.output.item, recipe.output.qty);
-  store.room -= recipe.output.qty - sumQty(recipe.inputs);
+  store.room -= roomUsed(c, recipe.output.item, recipe.output.qty, recipe.inputs);
   // Najwyżej jeden cykl na godzinę – nadmiar postępu się nie kumuluje.
   site.progress = Math.min(site.progress - 1, 1);
   produced(ctx, o, recipe.output.item, recipe.output.qty);
@@ -256,8 +264,8 @@ function runMachine(ctx: Ctx, o: PlacedObject, def: BuildingDef, power: number, 
 export function productionHour(ctx: Ctx, hour: number): void {
   const { s, c } = ctx;
   if (!isWorkHour(c, hour)) return;
-  const store: Store = { room: storageCap(s, c) - storageUsed(s) };
-  if (store.room <= 0) return; // pełny magazyn – produkcja osady stoi
+  // Pełny magazyn wstrzymuje wyroby i materiały; jedzenie trafia do spiżarni bez limitu.
+  const store: Store = { room: storageCap(s, c) - storageUsed(s, c) };
   // Pracownicy per budynek (jedno przejście zamiast `workersAt` dla każdego budynku).
   const crews = new Map<number, Resident[]>();
   for (const r of s.settlement.residents) {

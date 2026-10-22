@@ -1,7 +1,7 @@
 // Wspólne zapytania i narzędzia osady (docs/plan-osada.md). Czyste funkcje na stanie gry – używane przez
 // wszystkie moduły osady, grafikę i interfejs. Zmiany tu = zmiany kontraktu dla wszystkich modułów.
 
-import { COVERAGE_KINDS, type BuildingDef, type Content, type CoverageKind, type Profession, type ServiceKind } from '../../../content/content';
+import { CONTENT, COVERAGE_KINDS, parseKey, type BuildingDef, type Content, type CoverageKind, type Profession, type ServiceKind } from '../../../content/content';
 import type { Ctx } from '../../ctx';
 import type { At } from '../../events';
 import type { BudgetDay, GameState, PlacedObject, Resident, SiteState } from '../../types';
@@ -158,9 +158,13 @@ export function serviceSum(s: GameState, c: Content, kind: ServiceKind): number 
 
 // ---------------------------------------------------------------- magazyn
 
-export function storageUsed(s: GameState): number {
+/** Jedzenie (klucz z jakością, np. "radish*2") trafia do spiżarni bez limitu – nie zajmuje magazynu. */
+export const isFoodKey = (c: Content, key: string): boolean => parseKey(key).id in c.settlement.foods;
+
+/** Zajęte miejsce w magazynie: materiały i towary (bez jedzenia). */
+export function storageUsed(s: GameState, c: Content = CONTENT): number {
   let n = 0;
-  for (const v of Object.values(s.inventory)) n += v;
+  for (const [k, v] of Object.entries(s.inventory)) if (!isFoodKey(c, k)) n += v;
   return n;
 }
 
@@ -168,7 +172,7 @@ export function storageCap(s: GameState, c: Content): number {
   return c.settlement.constants.baseStorage + serviceSum(s, c, 'storage') + serviceSum(s, c, 'hall');
 }
 
-export const storageFull = (s: GameState, c: Content): boolean => storageUsed(s) >= storageCap(s, c);
+export const storageFull = (s: GameState, c: Content): boolean => storageUsed(s, c) >= storageCap(s, c);
 
 // ---------------------------------------------------------------- pokrycie usług (mapy 64×64)
 

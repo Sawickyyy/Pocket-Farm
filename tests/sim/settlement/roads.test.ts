@@ -310,13 +310,13 @@ describe('osada: dostęp budynku do drogi', () => {
 });
 
 describe('osada: dojazd dom → praca', () => {
-  it('blisko bez drogi: dojazd jest (granica 6 kafli włącznie)', () => {
+  it('blisko bez drogi: dojazd jest (granica 8 kafli włącznie)', () => {
     const { s, ctx } = town();
     const home = put(s, 'house', 10, 10); // środek (11, 11)
     const near = put(s, 'workshop', 14, 10); // środek (15, 11): 4
     const edge = put(s, 'workshop', 16, 14); // środek (17, 15): 6 + 4 = 10 – za daleko
-    const six = put(s, 'workshop', 13, 14); // środek (14, 15): 3 + 4 = 7 – za daleko
-    const exact = put(s, 'workshop', 10, 16); // środek (11, 17): 6
+    const six = put(s, 'workshop', 13, 16); // środek (14, 17): 3 + 6 = 9 – za daleko
+    const exact = put(s, 'workshop', 10, 18); // środek (11, 19): 8
     expect(canCommute(ctx(), home, near)).toBe(true);
     expect(canCommute(ctx(), home, exact)).toBe(true);
     expect(canCommute(ctx(), home, six)).toBe(false);
@@ -354,12 +354,12 @@ describe('osada: dojazd dom → praca', () => {
     expect(canCommute(ctx(), home, job)).toBe(true);
   });
 
-  it('zajezdnia zwiększa zasięg dojazdu bez dróg do 12 kafli', () => {
+  it('zajezdnia zwiększa zasięg dojazdu bez dróg do 16 kafli', () => {
     const { s, ctx } = town();
     const home = put(s, 'house', 10, 10);
     const ten = put(s, 'workshop', 20, 10); // 10
-    const twelve = put(s, 'workshop', 22, 10); // 12
-    const far = put(s, 'workshop', 23, 10); // 13
+    const twelve = put(s, 'workshop', 26, 10); // 16
+    const far = put(s, 'workshop', 27, 12); // 17 + 2 = 19
     expect(canCommute(ctx(), home, ten)).toBe(false);
     const depot = put(s, 'depot', 40, 4);
     s.settlement.sites[String(depot)] = newSite(0);

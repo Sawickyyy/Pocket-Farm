@@ -478,9 +478,9 @@ function barrel(ctx: Ctx2D, x: number, y: number): void {
 
 // ---------------------------------------------------------------- modele
 
-function drawField(ctx: Ctx2D, f: Frame): void {
+function drawField(ctx: Ctx2D, f: Frame, grain = false): void {
   const { T, R, B, L, g, w, h } = f;
-  poly(ctx, [T, R, B, L], '#8a5a2e');
+  poly(ctx, [T, R, B, L], grain ? '#b8873e' : '#8a5a2e');
   // grządki: wałki wzdłuż osi X z kiełkami
   for (let j = 0.5; j < h; j += 0.5) {
     const a = g(0.2, j);
@@ -500,6 +500,19 @@ function drawField(ctx: Ctx2D, f: Frame): void {
     ctx.stroke();
     for (let i = 0.5; i < w; i += 0.5) {
       const p = g(i, j);
+      if (grain) {
+        // kępka zboża: trzy źdźbła z kłosami
+        for (const dx of [-5, 0, 5]) {
+          ctx.strokeStyle = '#c99a3a';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(p.x + dx, p.y - 2);
+          ctx.lineTo(p.x + dx * 1.4, p.y - 24);
+          ctx.stroke();
+          ellipse(ctx, p.x + dx * 1.4, p.y - 27, 3.2, 7, dx ? '#f2c14e' : '#ffd66b', dx * 0.05);
+        }
+        continue;
+      }
       ellipse(ctx, p.x - 4, p.y - 7, 6, 3.5, '#5fb544', -0.6);
       ellipse(ctx, p.x + 4, p.y - 7, 6, 3.5, '#7cc95a', 0.6);
     }
@@ -773,7 +786,7 @@ export function drawSettlementBuilding(ctx: Ctx2D, def: BuildingDef, style: numb
   const f: Frame = { T, R, B, L, g, w, h };
   const pal = paletteFor(def, style);
   const m = def.art.model ?? 'box';
-  if (m === 'field') return drawField(ctx, f);
+  if (m === 'field' || m === 'grain') return drawField(ctx, f, m === 'grain');
   if (m === 'plaza') return drawPlaza(ctx, f);
   if (m === 'well') return drawWell(ctx, f, pal);
   if (m === 'tent') return drawTent(ctx, f, style);
@@ -869,7 +882,7 @@ export function settlementEntries(c: Content): Entry[] {
         w: size.w,
         h: size.h,
         draw: (ctx, x, y) => drawSettlementBuilding(ctx, def, st, x, y, c),
-        style: { outline: def.art.model === 'field' || def.art.model === 'plaza' ? 3 : 4, shade: true },
+        style: { outline: def.art.model === 'field' || def.art.model === 'grain' || def.art.model === 'plaza' ? 3 : 4, shade: true },
       });
     }
   }

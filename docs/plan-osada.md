@@ -57,7 +57,7 @@ bez aktualizacji tego dokumentu.
 - **Dostęp budynku**: kafel drogi przylega (4-sąsiedztwo) do obrysu budynku.
 - **Sieć**: spójne składowe kafli drogi (BFS, 4-sąsiedztwo).
 - **Dojazd** dom → praca: obie budowle mają dostęp do tej samej składowej **albo** odległość środków
-  (Manhattan) ≤ 6 kafli (≤ 12 z zajezdnią). Bez dojazdu mieszkaniec nie dostanie tej pracy.
+  (Manhattan) ≤ 8 kafli (≤ 16 z zajezdnią). Bez dojazdu mieszkaniec nie dostanie tej pracy.
 - `findPath(s, c, world, from, to)` – najkrótsza trasa po kaflach drogi (A*/BFS) dla grafiki chodzących
   mieszkańców; zwraca listę kafli albo `null`.
 - Droga kamienna (`road`) daje +25% prędkości chodu w grafice (bez wpływu na symulację).
@@ -71,7 +71,7 @@ Resident { id, name, family, child, bornDay, home: uid|null, job: uid|null,
 
 - **Napływ** (codziennie o 9:00, `population.hour`): jeśli są wolne miejsca w ukończonych, nieuszkodzonych domach,
   średnie szczęście ≥ 0,45 (albo osada pusta) i w magazynie jest jedzenie na ≥ 1 dzień dla obecnych mieszkańców
-  (pusta osada: bez warunku jedzenia), przyjeżdża do `1 + (szczęście > 0,7) + floor(peakTier / 2)` rodzin.
+  (pusta osada: bez warunku jedzenia), bezrobotnych najwyżej max(3, 25% dorosłych) – przyjeżdża do `1 + (szczęście > 0,7) + floor(peakTier / 2)` rodzin.
   Rodzina: 1–2 dorosłych + 0–2 dzieci, liczebność ≤ największego wolnego miejsca w jednym domu
   (rodzina mieszka razem). Imiona z `settlement.json` (`names.given` + `names.family`), wylosowane `rand`.
   Zdarzenie `arrived{family, count, home, at}`.
@@ -79,7 +79,8 @@ Resident { id, name, family, child, bornDay, home: uid|null, job: uid|null,
   `homelessDays ≥ 2` wyjeżdża razem z dziećmi z rodziny; zdarzenie `left{count, reason}`.
 - **Dzieci** dorastają po `childDays = 10` dniach (`grewUp`). Dorosły może pracować.
 - **Para przybyszów**: rodzina z dwojgiem dorosłych przyjeżdża jako małżeństwo (relacja `partner`).
-- **Narodziny**: para (`partner`) w jednym domu z wolnym miejscem: szansa 0,06/dzień → dziecko (`born`).
+- **Narodziny**: para (`partner`) w jednym domu z wolnym miejscem: szansa 0,12/dzień → dziecko (`born`). Przy napływie
+  dom pary zostawia jedno wolne miejsce na dziecko (przybysze go nie zajmą).
 - **Bezdomni**: gdy dom zniknie lub zostanie uszkodzony, próbujemy przenieść rodzinę do wolnego domu (codziennie).
 
 ## 5. Zawody i praca
@@ -109,12 +110,13 @@ Resident { id, name, family, child, bornDay, home: uid|null, job: uid|null,
 
 - Budynek z `production {inputs, output, hours}`: co godzinę pracy `progress += Σ wydajność / hours`; przy
   `progress ≥ 1` zużywa wejścia z magazynu i dodaje wyjście (jeśli brak wejść – czeka; jeśli magazyn pełny – czeka).
-- `seasonal` (pole osady): wyjście zależy od pory roku, zima = przestój.
+- `seasonal`: wyjście zależy od pory roku (brak wpisu = przestój). Pole osady daje jedzenie cały rok (marchew, pomidory,
+  dynie, jarmuż); pole zboża (etap 2) daje pszenicę latem i jesienią.
 - `"@fish"` (rybaczówka): losowa ryba dostępna w danej porze roku/pogodzie.
 - **Maszyny gracza z obsadą** (`jobs` + `autoRecipes` na młynie, piekarni, mleczarni, przetwórni, tkalni): pracownicy
   sami wykonują pierwszą wykonalną recepturę z listy, z prędkością `0,4 + 0,3 × pracujący` (2 osoby ≈ tempo gracza),
   z magazynu do magazynu (niezależnie od ręcznej kolejki gracza).
-- Łańcuch: pole osady → pszenica → młyn → mąka → piekarnia → chleb → sklep (mieszkańcy kupują).
+- Łańcuch: pole zboża (albo pszenica z farmy gracza) → młyn → mąka → piekarnia → chleb → sklep (mieszkańcy kupują).
 - **Magazyn**: pojemność `300 + Σ storage` (magazyny +300, ratusz +100); liczy się suma sztuk w ekwipunku.
   Przy pełnym magazynie produkcja osady staje (zbiory gracza nie).
 
@@ -167,7 +169,7 @@ Rozliczenie w `settlement.budget[0]` (bieżący dzień; przy nowym dniu przesuwa
 | sklep | `market` | 9 | sprzedaż jedzenia |
 | faktoria | `trade` | – | karawany |
 | ratusz | `hall` | – | +100 magazynu, rada: zniżka 10%, wymagany do specjalizacji |
-| zajezdnia | `transport` | – | dojazd bez dróg do 12 kafli, +10% wydajności |
+| zajezdnia | `transport` | – | dojazd bez dróg do 16 kafli, +10% wydajności |
 | plac budowy | `build` | – | budowlańcy: budowa i naprawy |
 
 ## 10. Wydarzenia losowe (`events.newDay` + `events.hour`)

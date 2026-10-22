@@ -78,6 +78,7 @@ Resident { id, name, family, child, bornDay, home: uid|null, job: uid|null,
 - **Wyjazd** (codziennie): dorosły z `sadDays ≥ 3` (szczęście < 0,25 przez kolejne doby) albo
   `homelessDays ≥ 2` wyjeżdża razem z dziećmi z rodziny; zdarzenie `left{count, reason}`.
 - **Dzieci** dorastają po `childDays = 10` dniach (`grewUp`). Dorosły może pracować.
+- **Para przybyszów**: rodzina z dwojgiem dorosłych przyjeżdża jako małżeństwo (relacja `partner`).
 - **Narodziny**: para (`partner`) w jednym domu z wolnym miejscem: szansa 0,06/dzień → dziecko (`born`).
 - **Bezdomni**: gdy dom zniknie lub zostanie uszkodzony, próbujemy przenieść rodzinę do wolnego domu (codziennie).
 
@@ -191,9 +192,9 @@ Losowane raz na dobę (nie offline, nie przed 3. dniem osady, max 1 katastrofa n
 
 `Relation {a, b, kind: 'friend'|'love'|'partner'|'conflict', v}` (a < b, max 6 relacji na osobę).
 
-- Przyjaźń: współpracownicy lub sąsiedzi (domy ≤ 4 kafle) – szansa 0,15/dzień `v += 0,2` (relacja `friend`).
-- Miłość: przyjaciele z `v ≥ 0,6`, dorośli, oboje bez partnera, z różnych rodzin – szansa 0,1 → `love`;
-  `love` z `v ≥ 1` po kolejnych dniach (+0,25/dzień) → ślub (`partner`): wspólna rodzina, przeprowadzka do domu
+- Przyjaźń: współpracownicy lub sąsiedzi (domy ≤ 4 kafle) – szansa 0,08/dzień `v += 0,2` (relacja `friend`).
+- Miłość: przyjaciele z `v ≥ 0,6`, dorośli, oboje bez partnera, z różnych rodzin – szansa 0,04 → `love`;
+  `love` z `v ≥ 1` po kolejnych dniach (+0,15/dzień) → ślub (`partner`): wspólna rodzina, przeprowadzka do domu
   z miejscem (jeśli jest). Zdarzenie `relation`.
 - Konflikty: sąsiedzi o szczęściu < 0,35 – szansa 0,1 (×0,5 przy posterunku) → `conflict` (`v` rośnie, gaśnie
   −0,1/dzień przy dobrym szczęściu). Każdy konflikt −0,05 szczęścia.

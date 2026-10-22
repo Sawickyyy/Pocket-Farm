@@ -112,11 +112,18 @@ function arriveFamily(ctx: Ctx, home: number, room: number): number {
   const family = nextId(s);
   const used = new Set<string>();
   const childAge = c.settlement.constants.childDays * 0.8;
+  const first = st.residents.length;
   for (let i = 0; i < adults + kids; i++) {
     const child = i >= adults;
     const name = fullName(s, c, used, surname);
     const bornDay = child ? day - Math.floor(rand(s) * childAge) : -1;
     st.residents.push(newResident(ctx, { name, family, child, bornDay, home }));
+  }
+  // Dwoje dorosłych w rodzinie to małżeństwo: mogą mieć dzieci i dostają premię partnera.
+  if (adults === 2) {
+    const a = st.residents[first]!.id;
+    const b = st.residents[first + 1]!.id;
+    st.relations.push({ a: Math.min(a, b), b: Math.max(a, b), kind: 'partner', v: 1 });
   }
   const count = adults + kids;
   if (st.foundedDay < 0) st.foundedDay = day;

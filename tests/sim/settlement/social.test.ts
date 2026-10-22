@@ -6,7 +6,7 @@ import { makeCtx, type Ctx } from '../../../src/sim/ctx';
 import type { SimEvent } from '../../../src/sim/events';
 import type { Simulation } from '../../../src/sim/simulation';
 import { newSite } from '../../../src/sim/systems/settlement/common';
-import { partnerOf, relationBetween, relationBonus, relationsOf, socialDay } from '../../../src/sim/systems/settlement/social';
+import { FRIEND_CHANCE, LOVE_CHANCE, LOVE_STEP, partnerOf, relationBetween, relationBonus, relationsOf, socialDay } from '../../../src/sim/systems/settlement/social';
 import type { GameState, Relation, Resident } from '../../../src/sim/types';
 import { setTime } from '../helpers';
 import { addResident, makeTown } from './helpers';
@@ -63,17 +63,17 @@ function neighbors(dist = 4, patchA: Partial<Resident> = {}, patchB: Partial<Res
 const rel = (a: Resident, b: Resident, kind: Relation['kind'], v: number): Relation => ({ a: Math.min(a.id, b.id), b: Math.max(a.id, b.id), kind, v });
 
 describe('osada: przyjaźnie', () => {
-  it('sąsiedzi (≤ 4 kafle) zaprzyjaźniają się z szansą 0,15', () => {
+  it('sąsiedzi (≤ 4 kafle) zaprzyjaźniają się z szansą FRIEND_CHANCE', () => {
     const { sim, s, a, b } = neighbors(4);
-    forced.push(0.149);
+    forced.push(FRIEND_CHANCE - 0.001);
     const events = social(sim);
     expect(s.settlement.relations).toEqual([{ a: a.id, b: b.id, kind: 'friend', v: 0.2 }]);
     expect(relEvents(events)).toEqual([{ type: 'relation', kind: 'friend', a: a.id, b: b.id }]);
   });
 
-  it('rzut ≥ 0,15 – brak przyjaźni', () => {
+  it('rzut ≥ FRIEND_CHANCE – brak przyjaźni', () => {
     const { sim, s } = neighbors(4);
-    forced.push(0.15);
+    forced.push(FRIEND_CHANCE);
     expect(social(sim)).toEqual([]);
     expect(s.settlement.relations).toEqual([]);
   });
@@ -92,7 +92,7 @@ describe('osada: przyjaźnie', () => {
     const a = addResident(s, { job: 77 });
     const b = addResident(s, { job: 77 });
     addResident(s, { job: 78 });
-    forced.push(0.1);
+    forced.push(FRIEND_CHANCE / 2);
     social(sim);
     expect(s.settlement.relations).toEqual([{ a: a.id, b: b.id, kind: 'friend', v: 0.2 }]);
   });
@@ -108,11 +108,11 @@ describe('osada: przyjaźnie', () => {
   it('istniejąca przyjaźń rośnie o 0,2 (najwyżej do 1)', () => {
     const { sim, s, a, b } = neighbors(2);
     s.settlement.relations.push(rel(a, b, 'friend', 0.2));
-    forced.push(0.1);
+    forced.push(FRIEND_CHANCE / 2);
     social(sim);
     expect(s.settlement.relations[0]!.v).toBe(0.4);
     s.settlement.relations[0]!.v = 0.9;
-    forced.push(0.1, 0.99); // wzrost, nieudany rzut na miłość
+    forced.push(FRIEND_CHANCE / 2, 0.99); // wzrost, nieudany rzut na miłość
     social(sim, DAY + 1);
     expect(s.settlement.relations[0]).toMatchObject({ kind: 'friend', v: 1 });
   });
@@ -168,10 +168,10 @@ describe('osada: przyjaźnie', () => {
 });
 
 describe('osada: miłość i śluby', () => {
-  it('przyjaciele (v ≥ 0,6), dorośli, bez partnerów → miłość z szansą 0,1', () => {
+  it('przyjaciele (v ≥ 0,6), dorośli, bez partnerów → miłość z szansą LOVE_CHANCE', () => {
     const { sim, s, a, b } = neighbors(2);
     s.settlement.relations.push(rel(a, b, 'friend', 0.6));
-    forced.push(0.99, 0.099); // bez wzrostu przyjaźni, udany rzut na miłość
+    forced.push(0.99, LOVE_CHANCE - 0.001); // bez wzrostu przyjaźni, udany rzut na miłość
     const events = social(sim);
     expect(s.settlement.relations[0]).toMatchObject({ kind: 'love', v: 0.6 });
     expect(relEvents(events)).toEqual([{ type: 'relation', kind: 'love', a: a.id, b: b.id }]);
@@ -214,12 +214,13 @@ describe('osada: miłość i śluby', () => {
     expect(loves).toEqual([{ a: a.id, b: b.id, kind: 'love', v: 0.8 }]);
   });
 
-  it('miłość rośnie o 0,25 dziennie; przy v ≥ 1 ślub (wspólna rodzina, kronika, zdarzenie)', () => {
+  it('miłość rośnie o LOVE_STEP dziennie; przy v ≥ 1 ślub (wspólna rodzina, kronika, zdarzenie)', () => {
     const { sim, s, a, b, ha } = neighbors(2);
     s.objects.find((o) => o.uid === ha)!.type = 'house'; // u a jest miejsce
-    s.settlement.relations.push(rel(a, b, 'love', 0.5));
+    s.settlement.relations.push(rel(a, b, 'love', 0.95 - LOVE_STEP));
     expect(social(sim)).toEqual([]);
-    expect(s.settlement.relations[0]).toMatchObject({ kind: 'love', v: 0.75 });
+    expect(s.settlement.relations[0]!.kind).toBe('love');
+    expect(s.settlement.relations[0]!.v).toBeCloseTo(0.95, 9);
     const events = social(sim, DAY + 1);
     expect(s.settlement.relations[0]).toEqual({ a: a.id, b: b.id, kind: 'partner', v: 1 });
     expect(relEvents(events)).toEqual([{ type: 'relation', kind: 'partner', a: a.id, b: b.id }]);

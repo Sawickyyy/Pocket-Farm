@@ -6,13 +6,13 @@ import { centerOf, chronicle, coverageAtHome, freeHousing, objectByUid } from '.
 
 /** Kontakt sąsiedzki: środki domów w odległości Czebyszewa ≤ 4 kafle. */
 export const NEIGHBOR_DISTANCE = 4;
-export const FRIEND_CHANCE = 0.15;
+export const FRIEND_CHANCE = 0.08;
 export const FRIEND_STEP = 0.2;
 /** Przyjaźń bez kontaktu (nie współpracownicy, nie sąsiedzi) słabnie o tyle dziennie. */
 export const FRIEND_FADE = 0.05;
 export const LOVE_MIN = 0.6;
-export const LOVE_CHANCE = 0.1;
-export const LOVE_STEP = 0.25;
+export const LOVE_CHANCE = 0.04;
+export const LOVE_STEP = 0.15;
 /** Konflikty: sąsiedzi o szczęściu poniżej progu. */
 export const CONFLICT_MOOD = 0.35;
 export const CONFLICT_CHANCE = 0.1;

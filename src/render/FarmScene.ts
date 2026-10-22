@@ -7,6 +7,7 @@ import { DAY_MS, HOUR_MS, calendarAt, daylight } from '../sim/calendar';
 import type { SimEvent } from '../sim/events';
 import { PLOT_COUNT } from '../sim/initialState';
 import type { GameState } from '../sim/types';
+import type { CoverageKind } from '../content/content';
 import { CHUNK, CHUNKS_X, FIELD, generateWorld, plotTile, type WorldMap } from '../sim/world';
 import { SPRITES_KEY, TILE, TILES_KEY, buildingFrame, cropFrame, drawSpriteAtlas, drawTileset, itemFrame, type ParticleFrame } from './art/atlas';
 import { CameraModel, type Viewport } from './cameraModel';
@@ -36,6 +37,17 @@ export interface Ghost {
   x: number;
   y: number;
   valid: boolean;
+  /** Wariant wyglądu budynku osady (domyślnie 0). */
+  style?: number;
+}
+
+/** Rodzaj zasięgu usług pokazywany jako nakładka (docs/plan-osada.md §9). */
+export type CoverageOverlay = CoverageKind;
+/** Podgląd zasięgu budynku przed postawieniem (duch w trybie budowania). */
+export interface CoveragePreview {
+  type: string;
+  x: number;
+  y: number;
 }
 
 const SYNC_MS = 120;
@@ -299,6 +311,31 @@ export class FarmScene extends Phaser.Scene {
       .setPosition(place.x, place.y)
       .setTint(g.valid ? 0xffffff : 0xff9a9a)
       .setVisible(def.kind !== 'path');
+  }
+
+  // ------------------------------------------------------------- osada (STUB – moduł „scena osady”)
+
+  /** Nakładka zasięgu usługi (kolorowe kafle wokół budynków danego rodzaju); null = wyłącz. */
+  setCoverage(kind: CoverageOverlay | null, preview?: CoveragePreview | null): void {
+    void kind;
+    void preview;
+  }
+
+  /** Tryb terenu: obrys terenu osady, fragmenty do kupienia z cenami. */
+  setTerritoryMode(on: boolean): void {
+    void on;
+  }
+
+  /** Mieszkaniec osady pod punktem ekranu → id mieszkańca. */
+  residentAt(sx: number, sy: number): number | null {
+    void sx;
+    void sy;
+    return null;
+  }
+
+  /** Kamera na mieszkańca (jego postać albo dom). */
+  focusResident(id: number): void {
+    void id;
   }
 
   /**

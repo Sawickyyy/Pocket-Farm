@@ -47,7 +47,7 @@ export type Command =
   | { type: 'treatAnimals'; home: number }
   | { type: 'specialize'; id: string }
   | { type: 'renameSettlement'; name: string }
-  | { type: 'debug'; op: 'coins' | 'xp' | 'skipHours' | 'timeScale' | 'revealAll' | 'growAll'; value: number };
+  | { type: 'debug'; op: 'coins' | 'xp' | 'skipHours' | 'timeScale' | 'revealAll' | 'growAll' | 'tier' | 'buildAll' | 'residents'; value: number };
 
 export type FailReason =
   | 'invalid'

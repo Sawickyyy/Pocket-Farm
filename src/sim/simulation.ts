@@ -5,7 +5,7 @@ import { CONTENT, parseKey, type Content } from '../content/content';
 import { EventBus } from '../core/eventBus';
 import { HOUR_MS, MAX_CATCHUP_MS, STEP_MS, calendarAt } from './calendar';
 import type { Command, CommandResult } from './commands';
-import { OK, addXp, fail, levelOf, makeCtx, type Ctx } from './ctx';
+import { OK, addXp, fail, levelOf, makeCtx, rand, type Ctx } from './ctx';
 import type { SimEvent } from './events';
 import { START_UNLOCKED } from './initialState';
 import * as animals from './systems/animals';
@@ -19,6 +19,7 @@ import * as skills from './systems/skills';
 import * as tutorial from './systems/tutorial';
 import * as village from './systems/village';
 import { SETTLEMENT_COMMANDS, settlementCommand, settlementDay, settlementHour } from './systems/settlement';
+import { freeHousing, nextId } from './systems/settlement/common';
 import type { GameState } from './types';
 import { CHUNKS_X, CHUNKS_Y } from './world';
 
@@ -290,6 +291,16 @@ export class Simulation {
       case 'growAll':
         for (const p of s.plots) if (p.crop && !p.crop.withered) p.crop.growth = 1;
         break;
+      // Osada: etap, natychmiastowe ukończenie budów, mieszkańcy w wolnych domach (do testów interfejsu).
+      case 'tier':
+        s.settlement.peakTier = Math.max(0, Math.min(this.content.settlement.tiers.length - 1, Math.floor(value)));
+        break;
+      case 'buildAll':
+        for (const site of Object.values(s.settlement.sites)) site.built = 1;
+        break;
+      case 'residents':
+        debugResidents(this.ctx, Math.floor(value));
+        break;
     }
     return OK;
   }
@@ -301,4 +312,35 @@ export function inventoryEntries(s: GameState, c: Content = CONTENT) {
     .filter(([, n]) => n > 0)
     .map(([key, n]) => ({ key, n, ...parseKey(key), def: c.items[parseKey(key).id] }))
     .filter((e) => e.def);
+}
+
+/** Debug: n dorosłych mieszkańców w wolnych domach (bez warunków napływu). */
+function debugResidents(ctx: Ctx, n: number): void {
+  const { s, c } = ctx;
+  const { given, family } = c.settlement.names;
+  const day = ctx.cal.day;
+  for (let i = 0; i < n; i++) {
+    const free = [...freeHousing(s, c)].filter(([, k]) => k > 0).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+    if (!free) return;
+    const id = nextId(s);
+    s.settlement.residents.push({
+      id,
+      name: `${given[Math.floor(rand(s) * given.length)]} ${family[Math.floor(rand(s) * family.length)]}`,
+      family: id,
+      child: false,
+      bornDay: -1,
+      home: free[0],
+      job: null,
+      needs: { food: 0.7, housing: 0.7, work: 0.7, safety: 0.7, fun: 0.7 },
+      happiness: 0.7,
+      sadDays: 0,
+      homelessDays: 0,
+      arrivedDay: day,
+      look: Math.floor(rand(s) * 8),
+      meals: { eaten: 0, due: 0, kinds: [] },
+      mood: { value: 0, untilDay: -1 },
+    });
+    s.settlement.stats.arrived++;
+    if (s.settlement.foundedDay < 0) s.settlement.foundedDay = day;
+  }
 }

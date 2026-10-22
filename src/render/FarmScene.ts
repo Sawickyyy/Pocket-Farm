@@ -39,6 +39,8 @@ export interface Ghost {
   valid: boolean;
   /** Wariant wyglądu budynku osady (domyślnie 0). */
   style?: number;
+  /** Rysowanie dróg linią: kafle do postawienia (każdy z własną poprawnością); x/y = ostatni kafel. */
+  line?: { x: number; y: number; valid: boolean }[];
 }
 
 /** Rodzaj zasięgu usług pokazywany jako nakładka (docs/plan-osada.md §9). */

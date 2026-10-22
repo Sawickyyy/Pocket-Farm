@@ -81,14 +81,21 @@ export class BuildMode {
     this.app.scene()?.setGhost(null);
   }
 
-  /** Palec nad kaflem (tap lub przeciąganie) – budynek centrowany pod palcem. */
-  pointTile(x: number, y: number): void {
+  /**
+   * Palec nad kaflem (tap lub przeciąganie) – budynek centrowany pod palcem.
+   * `phase`: 'tap' (dotknięcie), 'start'/'move' (przeciąganie; drogi rysuje się linią od 'start').
+   */
+  pointTile(x: number, y: number, phase: 'tap' | 'start' | 'move' = 'tap'): void {
+    void phase;
     if (!this.st) return;
     const [w, h] = CONTENT.buildings[this.st.type]?.size ?? [1, 1];
     this.st.x = Math.round(x - (w - 1) / 2);
     this.st.y = Math.round(y - (h - 1) / 2);
     this.show();
   }
+
+  /** Koniec przeciągania w trybie budowania. */
+  dragEnd(): void {}
 
   private valid(): boolean {
     if (!this.st) return false;

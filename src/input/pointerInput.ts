@@ -135,7 +135,7 @@ export function bindPointerInput(
       if (build.active) {
         dragMode = 'build';
         const tl = tileUnder(x, y);
-        build.pointTile(tl.x, tl.y);
+        build.pointTile(tl.x, tl.y, 'start');
         return;
       }
       const plot = plotUnder(x, y);
@@ -154,7 +154,7 @@ export function bindPointerInput(
     dragMove(x, y) {
       if (dragMode === 'build') {
         const tl = tileUnder(x, y);
-        build.pointTile(tl.x, tl.y);
+        build.pointTile(tl.x, tl.y, 'move');
       } else if (dragMode === 'tool') {
         const plot = plotUnder(x, y);
         if (plot === null || plot === lastDragPlot) return;
@@ -169,6 +169,7 @@ export function bindPointerInput(
       }
     },
     dragEnd() {
+      if (dragMode === 'build') build.dragEnd();
       if (dragMode === 'pan' && !app.reducedMotion()) scene.cam.release();
       dragMode = null;
       lastDragPlot = null;

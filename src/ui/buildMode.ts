@@ -188,6 +188,8 @@ interface BuildState {
   /** Rysowana linia dróg (kafle z poprawnością) i jej początek. */
   line: LineTile[] | null;
   lineStart: TileXY | null;
+  /** Po postawieniu serii (drogi, płoty): czekamy na kolejny gest – bez ducha i bez komunikatu o błędzie. */
+  idle: boolean;
 }
 
 export class BuildMode {
@@ -251,12 +253,12 @@ export class BuildMode {
     return { x: tl.x + 0.5, y: tl.y + 0.5 };
   }
 
-  /** Wolne miejsce przy nowym budynku: blisko środka ekranu, inaczej blisko farmy. */
+  /** Wolne miejsce przy nowym budynku: na terenie osady, najbliżej środka ekranu. */
   private freeSpot(type: string): TileXY {
     const s = this.app.store.get();
     const world = this.world();
-    const spot = findFreeSpot(s, CONTENT, world, type, this.viewCenter()) ?? findFreeSpot(s, CONTENT, world, type, { x: FIELD.x + FIELD.w / 2, y: FIELD.y - 2 });
-    return spot ?? { x: FIELD.x, y: FIELD.y - 3 };
+    // Kandydaci to cały teren osady, więc brak miejsca przy środku ekranu = brak miejsca w ogóle.
+    return findFreeSpot(s, CONTENT, world, type, this.viewCenter()) ?? { x: FIELD.x, y: FIELD.y - 3 };
   }
 
   start(type: string, style?: number): void {
@@ -267,7 +269,7 @@ export class BuildMode {
     const spot = this.freeSpot(type);
     const max = Math.max(1, def.styles ?? 1);
     const chosen = Math.min(max - 1, Math.max(0, style ?? this.lastStyle.get(type) ?? 0));
-    this.st = { mode: 'place', type, x: spot.x, y: spot.y, style: chosen, line: null, lineStart: null };
+    this.st = { mode: 'place', type, x: spot.x, y: spot.y, style: chosen, line: null, lineStart: null, idle: false };
     this.show();
     this.app.scene()?.focusTile(spot.x, spot.y);
   }
@@ -277,7 +279,7 @@ export class BuildMode {
     if (!o) return;
     mapModes.exitTerritory?.();
     hideCoverage(this.app);
-    this.st = { mode: 'move', type: o.type, uid, x: o.x, y: o.y, style: o.style ?? 0, line: null, lineStart: null };
+    this.st = { mode: 'move', type: o.type, uid, x: o.x, y: o.y, style: o.style ?? 0, line: null, lineStart: null, idle: false };
     this.show();
     this.app.scene()?.focusTile(o.x, o.y);
   }
@@ -298,6 +300,8 @@ export class BuildMode {
     const st = this.st;
     if (!st || this.busy) return;
     const def = CONTENT.buildings[st.type];
+    const wasIdle = st.idle;
+    st.idle = false;
     if (st.mode === 'place' && isLineDef(def) && phase !== 'tap') {
       if (phase === 'start' || !st.lineStart) st.lineStart = { x, y };
       else if (st.x === x && st.y === y && st.line) return;
@@ -310,7 +314,7 @@ export class BuildMode {
     const [w, hgt] = def?.size ?? [1, 1];
     const nx = Math.round(x - (w - 1) / 2);
     const ny = Math.round(y - (hgt - 1) / 2);
-    if (!st.line && nx === st.x && ny === st.y && phase === 'move') return;
+    if (!st.line && !wasIdle && nx === st.x && ny === st.y && phase === 'move') return;
     st.line = null;
     st.lineStart = null;
     st.x = nx;
@@ -388,7 +392,10 @@ export class BuildMode {
     let error = '';
     const pills: string[] = [];
 
-    if (st.line) {
+    if (st.idle) {
+      valid = false;
+      pills.push(`<span class="bt-pill${cost > s.coins ? ' miss' : ''}">${fmt(cost)}${ic('coin')}</span>`);
+    } else if (st.line) {
       const ok = st.line.filter((tl) => tl.valid);
       valid = ok.length > 0;
       const total = ok.length * cost;
@@ -409,14 +416,15 @@ export class BuildMode {
         const have = countItem(s, m.item);
         const need = st.line ? m.qty * Math.max(1, st.line.filter((tl) => tl.valid).length) : m.qty;
         pills.push(
-          `<span class="bt-pill${have < need ? ' miss' : ''}"><img src="${itemIconUrl(m.item, 48)}" alt="" />${need}<span class="sr">${itemName(m.item)}</span></span>`,
+          `<span class="bt-pill${have < need ? ' miss' : ''}"><img src="${itemIconUrl(m.item, 48)}" alt="" />${need}<span class="sr-only">${itemName(m.item)}</span></span>`,
         );
       }
     }
     if (def.service && def.service.radius > 0) pills.push(`<span class="bt-pill">${t('buildTown.stat.radius', { r: def.service.radius })}</span>`);
     if (def.service) pills.push(`<span class="bt-pill soft">${serviceEffect(def)}</span>`);
 
-    const hint = st.mode === 'move' ? t('build.moving') : isLineDef(def) ? t('buildTown.drawHint') : t('build.placing');
+    const hint =
+      st.mode === 'move' ? t('build.moving') : st.idle ? t(isLineDef(def) ? 'buildTown.drawMore' : 'buildTown.placeMore') : isLineDef(def) ? t('buildTown.drawHint') : t('build.placing');
     this.bar.hidden = false;
     this.msg.textContent = `${buildingName(st.type)} · ${hint}`;
     const html = pills.join('');
@@ -432,6 +440,10 @@ export class BuildMode {
     this.confirmBtn.textContent = st.line ? t('buildTown.placeN', { n: st.line.filter((tl) => tl.valid).length }) : t('build.confirm');
     this.removeBtn.hidden = st.mode !== 'move';
 
+    if (st.idle) {
+      this.app.scene()?.setGhost(null);
+      return;
+    }
     const ghost: Ghost = { type: st.type, x: st.x, y: st.y, valid };
     if ((def.styles ?? 1) > 1) ghost.style = st.style;
     if (st.line) ghost.line = st.line.map((tl) => ({ x: tl.x, y: tl.y, valid: tl.valid }));
@@ -457,6 +469,7 @@ export class BuildMode {
     // Ścieżki, drogi i płoty stawia się seriami – zostajemy w trybie budowania.
     const s = this.app.store.get();
     if (st.mode === 'place' && (isLineDef(def) || st.type === 'fence') && s.coins >= placeCost(s, CONTENT, st.type, viewCtx(s).cal.day)) {
+      st.idle = true;
       this.show();
       return;
     }
@@ -500,6 +513,7 @@ export class BuildMode {
     if (this.st !== st) return;
     st.line = null;
     st.lineStart = null;
+    st.idle = placed > 0;
     this.show();
   }
 }

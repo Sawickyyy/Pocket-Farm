@@ -305,8 +305,9 @@ export function economyHour(ctx: Ctx, hour: number): void {
 /** Raz na dobę: zdarzenie `budget{day, net}` za miniony dzień, podatki, utrzymanie. */
 export function economyDay(ctx: Ctx): void {
   const { s, c } = ctx;
-  const last = s.settlement.budget[0];
-  if (last && last.day === ctx.cal.day - 1) ctx.bus.emit({ type: 'budget', day: last.day, net: budgetNet(last) });
+  // Zwykle `budget[0]`; szukamy po dniu, gdyby dzisiejszy wpis powstał już przed rozliczeniem (np. komenda).
+  const last = s.settlement.budget.find((b) => b.day === ctx.cal.day - 1);
+  if (last) ctx.bus.emit({ type: 'budget', day: last.day, net: budgetNet(last) });
   const taxes = dailyTaxes(s, c);
   if (taxes > 0) {
     s.coins += taxes;

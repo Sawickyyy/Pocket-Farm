@@ -1,4 +1,5 @@
-// Ziemia całej mapy na TilemapGPULayer: biomy (zależne od sezonu), pole uprawne (wilgoć, żyzność), ścieżki.
+// Ziemia całej mapy na TilemapGPULayer: biomy (zależne od sezonu), pole uprawne (wilgoć, żyzność), ścieżki,
+// drogi i mosty osady (kafle, nie sprite'y).
 
 import type Phaser from 'phaser';
 import type { Content } from '../../content/content';
@@ -16,6 +17,10 @@ export class GroundLayer {
    */
   readonly flat: Phaser.GameObjects.Container;
   private readonly cache = new Int16Array(MAP_W * MAP_H).fill(-1);
+  /** Kafle dróg i mostów osady (−1 = brak) – bufor wielokrotnego użytku. */
+  private readonly over = new Int16Array(MAP_W * MAP_H);
+  private base: Int16Array | null = null;
+  private baseSeason = -1;
 
   constructor(
     scene: Phaser.Scene,
@@ -43,24 +48,15 @@ export class GroundLayer {
     return poor ? Tile.TilledPoor : Tile.Tilled;
   }
 
-  sync(state: GameState, cal: Calendar): void {
-    const s = cal.seasonIndex;
-    // Ścieżki, brukowane drogi osady i mosty to kafle ziemi (nie sprite'y).
-    const paths = new Map<number, number>();
-    for (const o of state.objects) {
-      const def = this.content.buildings[o.type];
-      if (def?.kind === 'path') paths.set(tileIndex(o.x, o.y), def.art.model === 'stone' ? Tile.Road : Tile.Path);
-      else if (def?.kind === 'bridge') paths.set(tileIndex(o.x, o.y), Tile.Bridge);
-    }
-    let dirty = false;
+  /** Kafle biomów i dróg wioski dla pory roku – liczone raz na sezon (hash kwiatów i biom nie zmieniają się). */
+  private baseTiles(season: number): Int16Array {
+    if (this.base && this.baseSeason === season) return this.base;
+    const out = this.base ?? new Int16Array(MAP_W * MAP_H);
     for (let y = 0; y < MAP_H; y++) {
       for (let x = 0; x < MAP_W; x++) {
         const i = tileIndex(x, y);
         let tile: number;
-        const plot = plotAtTile(x, y);
-        if (plot !== null) tile = this.fieldTile(state, state.plots[plot]!, plot);
-        else if (paths.has(i)) tile = paths.get(i)!;
-        else if (this.world.road[i]) tile = Tile.Path;
+        if (this.world.road[i]) tile = Tile.Path;
         else {
           switch (this.world.biome[i]) {
             case BiomeId.water:
@@ -70,15 +66,38 @@ export class GroundLayer {
               tile = Tile.Sand;
               break;
             case BiomeId.forest:
-              tile = Tile.forest(s);
+              tile = Tile.forest(season);
               break;
             case BiomeId.meadow:
-              tile = Tile.meadow(s);
+              tile = Tile.meadow(season);
               break;
             default:
-              tile = hashFloat(this.world.seed, x, y, 5) < 0.12 ? Tile.flowers(s) : Tile.grass(s);
+              tile = hashFloat(this.world.seed, x, y, 5) < 0.12 ? Tile.flowers(season) : Tile.grass(season);
           }
         }
+        out[i] = tile;
+      }
+    }
+    this.base = out;
+    this.baseSeason = season;
+    return out;
+  }
+
+  sync(state: GameState, cal: Calendar): void {
+    const base = this.baseTiles(cal.seasonIndex);
+    // Ścieżki, brukowane drogi osady i mosty to kafle ziemi (nie sprite'y); pole uprawne ma pierwszeństwo.
+    const over = this.over.fill(-1);
+    for (const o of state.objects) {
+      const def = this.content.buildings[o.type];
+      if (def?.kind === 'path') over[tileIndex(o.x, o.y)] = def.art.model === 'stone' ? Tile.Road : Tile.Path;
+      else if (def?.kind === 'bridge') over[tileIndex(o.x, o.y)] = Tile.Bridge;
+    }
+    let dirty = false;
+    for (let y = 0; y < MAP_H; y++) {
+      for (let x = 0; x < MAP_W; x++) {
+        const i = tileIndex(x, y);
+        const plot = plotAtTile(x, y);
+        const tile = plot !== null ? this.fieldTile(state, state.plots[plot]!, plot) : over[i]! >= 0 ? over[i]! : base[i]!;
         if (this.cache[i] !== tile) {
           this.cache[i] = tile;
           this.layer.putTileAt(tile, x, y);

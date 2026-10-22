@@ -14,6 +14,35 @@ export const PARTICLE_FALLBACK: Readonly<Record<TownParticle, { frame: ParticleF
   p_ember: { frame: 'p_firefly', tint: 0xff6a1f },
 };
 
+/**
+ * Pula „żetonów” efektów: każdy efekt zabiera żeton, żetony wracają co `refillMs` (do `max`).
+ * Seria zdarzeń (np. nadrabianie offline) gra kilka efektów, a resztę pomija.
+ */
+export class FxBudget {
+  private tokens: number;
+  private last = -Infinity;
+
+  constructor(
+    private readonly max: number,
+    private readonly refillMs: number,
+  ) {
+    this.tokens = max;
+  }
+
+  take(now: number): boolean {
+    if (this.last === -Infinity) this.last = now;
+    const back = Math.floor((now - this.last) / this.refillMs);
+    if (back > 0) {
+      this.tokens = Math.min(this.max, this.tokens + back);
+      this.last += back * this.refillMs;
+    }
+    if (this.tokens >= this.max) this.last = now;
+    if (this.tokens <= 0) return false;
+    this.tokens--;
+    return true;
+  }
+}
+
 export interface EmitOptions {
   speed?: number;
   /** Dodatkowa prędkość w górę (px/s). */
@@ -32,6 +61,8 @@ export interface EmitOptions {
   tint?: number;
   /** Bez obrotu (płomienie, dym). */
   still?: boolean;
+  /** Krycie na starcie (domyślnie 1; zanika do ~0). */
+  alpha?: number;
 }
 
 /**
@@ -79,6 +110,7 @@ export class ParticleLayer {
       name = fb.frame;
       tint ??= fb.tint;
     }
+    const alpha = opts.alpha ?? 1;
     const spread = opts.spread ?? 2.4;
     const jitter = opts.jitter ?? 40;
     for (let n = 0; n < count; n++) {
@@ -95,7 +127,7 @@ export class ParticleLayer {
         rotation: opts.still ? 0 : { base: Math.random() * 6, amplitude: (Math.random() - 0.5) * 8, duration: life, ease: 'Linear', loop: false },
         scaleX: grow,
         scaleY: grow,
-        alpha: { base: 1, amplitude: -0.95, duration: life, ease: 'Linear', loop: false },
+        alpha: { base: alpha, amplitude: 0.05 - alpha, duration: life, ease: 'Linear', loop: false },
         tintTopLeft: tint ?? 0xffffff,
         tintTopRight: tint ?? 0xffffff,
         tintBottomLeft: tint ?? 0xffffff,

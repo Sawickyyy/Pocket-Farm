@@ -1,9 +1,9 @@
 // Ikony menu „Farma” malowane tym samym pędzlem co świat gry (zamiast emoji): sakiewka, stragan,
-// młotek, chatka, zwój, gwiazdka, koszyk, zębatka. Rysowane w kwadracie 128×128.
+// młotek, chatka, osada, zwój, gwiazdka, koszyk, zębatka. Rysowane w kwadracie 128×128.
 
 import { ellipse, rrect, shade, star, type Ctx2D } from './draw';
 
-export const MENU_ICONS = ['market', 'shop', 'build', 'village', 'progress', 'skills', 'inventory', 'settings'] as const;
+export const MENU_ICONS = ['market', 'shop', 'build', 'village', 'settlement', 'progress', 'skills', 'inventory', 'settings'] as const;
 export type MenuIcon = (typeof MENU_ICONS)[number];
 
 function shadow(ctx: Ctx2D): void {
@@ -128,6 +128,46 @@ export function drawMenuIcon(ctx: Ctx2D, name: string): void {
         ctx.lineTo(98, 74 + i * 10);
         ctx.stroke();
       }
+      break;
+    }
+    case 'settlement': {
+      // mała osada: większy dom z niebieskim dachem i flagą, przed nim chatka z czerwonym dachem i krzaczek
+      rrect(ctx, 60, 50, 46, 54, 6, '#f6e7cf');
+      rrect(ctx, 60, 50, 46, 10, 4, shade('#f6e7cf', -0.08));
+      ctx.fillStyle = '#3f8fcf';
+      ctx.beginPath();
+      ctx.moveTo(52, 56);
+      ctx.quadraticCurveTo(83, 6, 114, 56);
+      ctx.closePath();
+      ctx.fill();
+      ellipse(ctx, 74, 34, 9, 4, shade('#3f8fcf', 0.3), -0.6);
+      ellipse(ctx, 94, 70, 7, 7, '#ffd27a');
+      rrect(ctx, 74, 80, 14, 24, 7, '#8a5a34');
+      // maszt i flaga na kalenicy
+      rrect(ctx, 81, 2, 4, 30, 2, '#8a5a34');
+      ctx.fillStyle = '#f2b632';
+      ctx.beginPath();
+      ctx.moveTo(85, 4);
+      ctx.quadraticCurveTo(96, 2, 106, 8);
+      ctx.quadraticCurveTo(96, 12, 85, 16);
+      ctx.closePath();
+      ctx.fill();
+      // chatka z przodu
+      rrect(ctx, 18, 70, 46, 36, 6, '#fbe9c8');
+      ctx.fillStyle = '#c0503a';
+      ctx.beginPath();
+      ctx.moveTo(8, 74);
+      ctx.quadraticCurveTo(41, 30, 74, 74);
+      ctx.closePath();
+      ctx.fill();
+      ellipse(ctx, 30, 56, 8, 3.5, shade('#c0503a', 0.3), -0.7);
+      rrect(ctx, 34, 84, 14, 22, 7, '#8a5a34');
+      ellipse(ctx, 54, 86, 5, 5, '#ffd27a');
+      rrect(ctx, 50, 38, 8, 16, 3, '#9a6a3c');
+      // krzaczek
+      ellipse(ctx, 100, 104, 9, 7, shade('#6cbf3c', -0.1));
+      ellipse(ctx, 112, 101, 10, 9, '#6cbf3c');
+      ellipse(ctx, 109, 97, 4.5, 2.8, shade('#6cbf3c', 0.35), -0.3);
       break;
     }
     case 'settings': {

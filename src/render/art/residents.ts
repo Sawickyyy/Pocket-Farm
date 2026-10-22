@@ -10,11 +10,16 @@ import { STYLE_NONE } from './palette';
 
 /** Liczba wariantów wyglądu w atlasie (look mieszkańca % LOOKS). */
 export const LOOKS = 4;
-/** Mieszkaniec: `res_<zawód|idle>_<look>_<klatka 0|1>`; dziecko: `res_child_<look>_<klatka>`. */
-export const residentFrame = (prof: string | null, look: number, f: number): string => `res_${prof ?? 'idle'}_${look % LOOKS}_${f}`;
-export const childFrame = (look: number, f: number): string => `res_child_${look % LOOKS}_${f}`;
+/** Wygląd z symulacji (dowolna liczba całkowita) → wariant 0..LOOKS-1. */
+const wrapLook = (look: number): number => (((Math.floor(look) % LOOKS) + LOOKS) % LOOKS) || 0;
+/**
+ * Mieszkaniec: `res_<zawód|idle>_<look>_<klatka 0|1>`; dziecko: `res_child_<look>_<klatka>`.
+ * Nieznany zawód → 'idle'; klatka może być licznikiem kroków (liczy się parzystość).
+ */
+export const residentFrame = (prof: string | null, look: number, f: number): string => `res_${prof && KIND_SET.has(prof) ? prof : 'idle'}_${wrapLook(look)}_${f & 1}`;
+export const childFrame = (look: number, f: number): string => `res_child_${wrapLook(look)}_${f & 1}`;
 /** Wóz karawany (klatki kół 0|1). */
-export const caravanFrame = (f: number): string => `caravan_${f}`;
+export const caravanFrame = (f: number): string => `caravan_${f & 1}`;
 
 /**
  * Klatka mieszkańca (także dziecka): rozmiar w px, punkt stóp jako ułamek wysokości (originX = 0,5)
@@ -28,6 +33,7 @@ export const CARAVAN_FRAME = { w: 224, h: 184, originY: 0.75, scale: 1.15 } as c
 
 /** Zawody w atlasie + 'idle' (bez pracy). */
 export const RESIDENT_KINDS: readonly string[] = [...PROFESSIONS, 'idle'];
+const KIND_SET: ReadonlySet<string> = new Set(RESIDENT_KINDS);
 export const CHARACTER_PARTICLES = ['p_fire', 'p_ember'] as const;
 export const SCENE_ICONS = ['icon_wrench', 'icon_sick'] as const;
 
@@ -53,7 +59,7 @@ const LOOK: readonly Look[] = [
   { skin: '#ffe3cf', hair: '#d0682e', style: 'braids', shirt: '#5fb57a', pants: '#7a5a3a', kid: '#7cc95a', freckles: true },
 ];
 
-const lookOf = (look: number): Look => LOOK[((look % LOOKS) + LOOKS) % LOOKS]!;
+const lookOf = (look: number): Look => LOOK[wrapLook(look)]!;
 
 interface Outfit {
   shirt: string;

@@ -7,7 +7,7 @@ import { makeCtx, rand, type Ctx } from '../../../src/sim/ctx';
 import type { SimEvent } from '../../../src/sim/events';
 import type { Simulation } from '../../../src/sim/simulation';
 import { availableFish } from '../../../src/sim/systems/exploration';
-import { budgetNet, storageCap } from '../../../src/sim/systems/settlement/common';
+import { budgetNet, ensureSite, storageCap } from '../../../src/sim/systems/settlement/common';
 import {
   FISH_OUTPUT,
   TAX_BASE,
@@ -24,7 +24,7 @@ import {
   specAreaOf,
 } from '../../../src/sim/systems/settlement/economy';
 import type { GameState } from '../../../src/sim/types';
-import { reason, setTime } from '../helpers';
+import { HOUR_MS, reason, setTime } from '../helpers';
 import { addResident, freeSpot, makeTown, ok, placeBuilt } from './helpers';
 
 const SPRING = 3;
@@ -162,11 +162,11 @@ describe('osada: produkcja budynków', () => {
     const sim = makeTown();
     const uid = placeBuilt(sim, 'sawmill'); // 2 drewna → 1 deska / 2 h
     stock(sim, { wood: 3 });
-    crew(sim, uid, 2);
-    work(sim, 2);
+    crew(sim, uid, 2); // moc 2 → jeden cykl na godzinę
+    work(sim, 1);
     expect(sim.state.inventory).toEqual({ wood: 1, planks: 1 });
     expect(site(sim, uid)!.progress).toBeCloseTo(0, 9);
-    work(sim, 6, SPRING, 10);
+    work(sim, 6, SPRING, 9);
     expect(sim.state.inventory).toEqual({ wood: 1, planks: 1 });
     expect(site(sim, uid)!.progress).toBe(1);
     sim.state.inventory.wood = 2;
@@ -180,7 +180,7 @@ describe('osada: produkcja budynków', () => {
     const sim = makeTown();
     const uid = placeBuilt(sim, 'sawmill');
     stock(sim, { wood: 1, 'wood*2': 3 });
-    crew(sim, uid, 4); // 2 cykle na godzinę, starczy na jeden
+    crew(sim, uid, 2); // jeden cykl: najpierw zwykłe drewno, potem najlepsze
     work(sim, 1);
     expect(sim.state.inventory).toEqual({ 'wood*2': 2, planks: 1 });
   });
@@ -200,7 +200,7 @@ describe('osada: produkcja budynków', () => {
     const saw = placeBuilt(sim, 'sawmill');
     stock(sim);
     crew(sim, field, 3);
-    crew(sim, saw, 2);
+    crew(sim, saw, 1);
     work(sim, 1);
     expect(site(sim, field)!.progress).toBeCloseTo((3 * 1.25) / 6, 9);
     expect(site(sim, saw)!.progress).toBeCloseTo(1 / 2, 9); // bez drewna nie ma cyklu, ale postęp rośnie
@@ -209,7 +209,16 @@ describe('osada: produkcja budynków', () => {
     site(sim, saw)!.progress = 0;
     work(sim, 1);
     expect(site(sim, field)!.progress).toBeCloseTo(3 / 6, 9);
-    expect(site(sim, saw)!.progress).toBeCloseTo(1, 9); // 2 × 1,25 / 2 = 1,25 → czeka z pełnym cyklem
+    expect(site(sim, saw)!.progress).toBeCloseTo(1.25 / 2, 9);
+  });
+
+  it('bez drewna tartak dochodzi do pełnego cyklu i czeka (postęp nie rośnie ponad 1)', () => {
+    const sim = makeTown();
+    const saw = placeBuilt(sim, 'sawmill');
+    stock(sim);
+    crew(sim, saw, 2);
+    expect(work(sim, 4)).toEqual([]);
+    expect(site(sim, saw)!.progress).toBe(1);
   });
 
   it('wydajność pracownika: szczęście i narzędzia', () => {
@@ -360,7 +369,7 @@ describe('osada: maszyny z obsadą', () => {
     const bakery = placeBuilt(sim, 'bakery');
     stock(sim, { egg: 3 });
     crew(sim, bakery, 2);
-    site(sim, bakery)!.progress = 0.5;
+    ensureSite(sim.state, bakery).progress = 0.5; // maszyny farmy nie mają stanu budowy
     expect(work(sim, 4)).toEqual([]);
     expect(site(sim, bakery)!.progress).toBe(0.5);
   });
@@ -401,13 +410,11 @@ describe('osada: maszyny z obsadą', () => {
 describe('osada: płace', () => {
   /** Rolnicy na polu (8), piekarz (10), bezrobotny i dziecko. */
   function payrollTown(coins: number): { sim: Simulation; workers: number[]; idle: number } {
-    const sim = makeTown((s) => {
-      s.coins = 0;
-    });
+    const sim = makeTown();
     const field = placeBuilt(sim, 'allotment');
     const bakery = placeBuilt(sim, 'bakery');
     stock(sim);
-    sim.state.coins = coins;
+    sim.state.coins = coins; // dopiero po postawieniu (budynki kosztują)
     sim.state.settlement.budget = [];
     const workers = [
       addResident(sim.state, { job: field }).id,
@@ -511,6 +518,7 @@ describe('osada: podatki i utrzymanie', () => {
   it('utrzymanie liczy tylko ukończone budynki', () => {
     const sim = taxTown();
     expect(dailyUpkeep(sim.state, CONTENT)).toBe(4);
+    sim.state.inventory.wood = 12; // materiały domu
     const spot = freeSpot(sim.state, 'house');
     ok(sim, { type: 'place', building: 'house', x: spot.x, y: spot.y }); // w budowie
     expect(dailyUpkeep(sim.state, CONTENT)).toBe(4);
@@ -554,6 +562,18 @@ describe('osada: podatki i utrzymanie', () => {
     const b = at(sim, 0, SPRING + 1);
     economyDay(b.ctx);
     expect(ofType(b.events, 'budget')).toEqual([]);
+  });
+
+  it('zdarzenie budget za wczoraj także, gdy dzisiejszy wpis powstał przed rozliczeniem', () => {
+    const sim = taxTown();
+    const today = { day: SPRING, taxes: 0, sales: 0, exports: 0, wages: 0, upkeep: 0, imports: 0, investments: 50 };
+    const yesterday = { day: SPRING - 1, taxes: 9, sales: 3, exports: 0, wages: 4, upkeep: 2, imports: 0, investments: 0 };
+    sim.state.settlement.budget = [today, yesterday];
+    const { ctx, events } = at(sim, 0, SPRING);
+    economyDay(ctx);
+    expect(ofType(events, 'budget')).toEqual([{ type: 'budget', day: SPRING - 1, net: 6 }]);
+    expect(sim.state.settlement.budget.map((b) => b.day)).toEqual([SPRING, SPRING - 1]);
+    expect(sim.state.settlement.budget[0]).toMatchObject({ investments: 50, taxes: 7, upkeep: 4 });
   });
 
   it('pełna doba: płace z wieczora trafiają do zdarzenia budget następnego dnia', () => {
@@ -694,6 +714,32 @@ describe('osada: informacje o produkcji (UI)', () => {
   });
 });
 
+describe('osada: gospodarka w pełnej symulacji', () => {
+  it('dzień pracy: plony w godzinach 7–17, płace o 18:00, podatki i zdarzenie budget o północy', () => {
+    const sim = makeTown();
+    const field = placeBuilt(sim, 'allotment');
+    for (let i = 0; i < 3; i++) addResident(sim.state, { job: field });
+    stock(sim, { tools: 1 }); // makeTown daje zapasy ponad pojemność magazynu
+    sim.state.coins = 1000;
+    sim.state.settlement.budget = [];
+    const upkeep = dailyUpkeep(sim.state, CONTENT);
+    setTime(sim.state, SPRING, 6);
+    const events: SimEvent[] = [];
+    sim.bus.onAny((e) => events.push(e));
+    sim.advance(13 * HOUR_MS); // 6:00 → 19:00
+    const crops = ofType(events, 'produced').filter((e) => e.uid === field);
+    expect(crops.length).toBeGreaterThan(0);
+    for (const e of crops) expect(e).toMatchObject({ item: 'carrot', qty: 3 });
+    expect(sim.state.settlement.residents.filter((r) => r.job === field)).toHaveLength(3);
+    expect(sim.state.settlement.budget).toEqual([expect.objectContaining({ day: SPRING, wages: 24 })]);
+    expect(ofType(events, 'unpaid')).toEqual([]);
+    sim.advance(5.5 * HOUR_MS); // → 0:30 następnego dnia
+    const yesterday = sim.state.settlement.budget.find((b) => b.day === SPRING)!;
+    expect(ofType(events, 'budget')).toEqual([{ type: 'budget', day: SPRING, net: budgetNet(yesterday) }]);
+    expect(sim.state.settlement.budget[0]).toMatchObject({ day: SPRING + 1, taxes: Math.round(3 * 0.1 * 18), upkeep });
+  });
+});
+
 describe('osada: determinizm i wydajność gospodarki', () => {
   /** Kilka dób produkcji, płac i rozliczeń na bezpośrednich wywołaniach. */
   function simulate(seed: number): unknown {
@@ -735,10 +781,12 @@ describe('osada: determinizm i wydajność gospodarki', () => {
   it('godzina produkcji i płac przy 200 mieszkańcach i 150 budynkach ≤ 2 ms', () => {
     const sim = makeTown();
     const s = sim.state;
-    const types = ['allotment', 'lumber', 'fishery', 'sawmill', 'workshop', 'clinic', 'mill', 'bakery', 'dairy', 'loom', 'preserves', 'shop', 'tent'];
+    const types = ['allotment', 'lumber', 'fishery', 'sawmill', 'workshop', 'clinic', 'mill', 'bakery', 'dairy', 'loom', 'preserves', 'shop', 'school', 'depot', 'tent'];
     const uids: number[] = [];
     for (let i = 0; i < 150; i++) uids.push(put(s, types[i % types.length]!, (i * 3) % 60, Math.floor(i / 20) * 3));
-    for (let i = 0; i < 200; i++) addResident(s, { job: uids[i % uids.length]!, happiness: 0.6 });
+    // Mieszkańcy z domami (pokrycie szkoły w domu) i pracą – pełna ścieżka wydajności.
+    const homes = uids.filter((uid) => s.objects.find((o) => o.uid === uid)?.type === 'tent');
+    for (let i = 0; i < 200; i++) addResident(s, { job: uids[i % uids.length]!, home: homes[i % homes.length]!, happiness: 0.6 });
     stock(sim, { wheat: 50, wood: 50, herb: 10, flour: 10, milk: 10, wool: 10 });
     s.coins = 1_000_000;
     const { ctx } = at(sim, 9);

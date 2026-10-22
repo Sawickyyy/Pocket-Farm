@@ -29,7 +29,7 @@ import { ObjectLayer } from './layers/ObjectLayer';
 import { PlantLayer } from './layers/PlantLayer';
 import { ResidentLayer } from './layers/ResidentLayer';
 import { TerritoryLayer } from './layers/TerritoryLayer';
-import { ParticleLayer, type AnyParticle, type EmitOptions } from './ParticleLayer';
+import { FxBudget, ParticleLayer, type AnyParticle, type EmitOptions } from './ParticleLayer';
 
 export interface SceneDeps {
   store: Store<GameState>;
@@ -64,6 +64,18 @@ const SYNC_MS = 120;
 /** Limit efektów zdarzeń osady: pula „żetonów” odnawiana w czasie (nadrabianie potrafi przysłać setki zdarzeń). */
 const FX_TOKENS = 10;
 const FX_REFILL_MS = 250;
+/** Kolory (mnożone) cząsteczek dymu, pary i kurzu – ciepłe, bez fioletu. */
+const SMOKE_DARK = 0x8a7d72;
+const SMOKE_SOFT = 0xcfc4b8;
+const STEAM = 0xf2f8ff;
+const DUST = 0xd9b98a;
+/** Iskierki na rogach kupionego fragmentu terenu. */
+const TERRITORY_SPARKS: readonly [number, number][] = [
+  [-1, -1],
+  [1, -1],
+  [1, 1],
+  [-1, 1],
+];
 /** Kolory ducha budowy: poprawne / niepoprawne miejsce. */
 const GHOST_OK = 0x7dff8a;
 const GHOST_BAD = 0xff6b6b;
@@ -117,8 +129,7 @@ export class FarmScene extends Phaser.Scene {
   /** Zasięg zamówiony przez UI i podgląd zasięgu ducha budowy (ma pierwszeństwo). */
   private coverageUser: { kind: CoverageKind | null; preview: CoveragePreview | null } = { kind: null, preview: null };
   private coverageGhost: { kind: CoverageKind; preview: CoveragePreview } | null = null;
-  private fxTokens = FX_TOKENS;
-  private fxRefill = 0;
+  private readonly fxBudget = new FxBudget(FX_TOKENS, FX_REFILL_MS);
   private fireTick = 0;
   private smokeTick = 0;
   private lastFly = 0;
@@ -537,10 +548,91 @@ export class FarmScene extends Phaser.Scene {
     return project(at.x, at.y);
   }
 
-  private burst(at: { x: number; y: number }, frame: ParticleFrame, count: number, opts?: Parameters<ParticleLayer['emit']>[4]): void {
+  private burst(at: { x: number; y: number }, frame: AnyParticle, count: number, opts?: EmitOptions): void {
     const p = this.px(at);
     const n = this.deps.reducedMotion() ? Math.ceil(count / 3) : count;
     this.particles.emit(p.x, p.y, frame, n, opts);
+  }
+
+  /** Czy zagrać efekt zdarzenia osady w punkcie (kafle): musi być w kadrze i mieścić się w puli efektów. */
+  private townFx(at: { x: number; y: number } | null): at is { x: number; y: number } {
+    if (!at) return false;
+    const p = this.px(at);
+    return this.inView(p.x, p.y, 240) && this.fxBudget.take(this.time.now);
+  }
+
+  /** Środek domu mieszkańca (kafle) albo null. */
+  private homeOf(id: number): { x: number; y: number } | null {
+    const s = this.deps.store.get();
+    const r = s.settlement.residents.find((v) => v.id === id);
+    const o = r?.home !== null && r?.home !== undefined ? objectByUid(s, r.home) : undefined;
+    return o ? centerOf(CONTENT, o) : null;
+  }
+
+  /** Błysk ciepłego światła nad budynkiem (ukończenie budowy). */
+  private flash(at: { x: number; y: number }, size = 1): void {
+    const p = this.px(at);
+    const img = this.add
+      .image(p.x, p.y - TILE * 0.45, SPRITES_KEY, 'p_sparkle')
+      .setDepth(49)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setScale(4 * size)
+      .setAlpha(0.95);
+    const reduced = this.deps.reducedMotion();
+    this.tweens.add({ targets: img, scale: reduced ? 4 * size : 13 * size, alpha: 0, duration: reduced ? 380 : 620, ease: 'Cubic.easeOut', onComplete: () => img.destroy() });
+  }
+
+  /** Konfetti (płatki, liście, gwiazdki) – świętowanie przyjazdu, awansu osady. */
+  private confetti(at: { x: number; y: number }, count: number, speed = 700): void {
+    const per = Math.max(1, Math.round(count / 4));
+    const opts = { speed, life: 1100, gravity: 0.35, spread: 2.2, jitter: 60, scale: 1.7 };
+    this.burst(at, 'p_petal', per, opts);
+    this.burst(at, 'p_autumn', per, opts);
+    this.burst(at, 'p_leaf', per, opts);
+    this.burst(at, 'p_star', per, { ...opts, scale: 1.1 });
+  }
+
+  /** Para wodna, dym, kurz: miękkie kłęby unoszące się i rosnące. */
+  private puff(at: { x: number; y: number }, count: number, tint: number, opts: EmitOptions = {}): void {
+    this.burst(at, 'p_smoke', count, { speed: 160, up: 120, gravity: -0.12, spread: 1.6, jitter: 90, life: 1300, scale: 1.6, grow: 1.8, still: true, tint, alpha: 0.7, ...opts });
+  }
+
+  /**
+   * Efekty ciągłe osady: płomienie i iskry nad płonącymi budynkami, od czasu do czasu dym nad osmalonymi
+   * i zgliszczami. Tylko budynki w kadrze, z limitem emisji na takt i liczby żywych cząsteczek.
+   */
+  private townEffects(time: number): void {
+    const list = this.objects.effects;
+    if (!list.length) return;
+    const reduced = this.deps.reducedMotion();
+    const eco = this.economy();
+    if (time - this.fireTick >= (reduced ? 320 : eco ? 180 : 110)) {
+      this.fireTick = time;
+      let budget = this.particles.alive > 200 ? 0 : 6;
+      for (let i = 0; i < list.length && budget > 0; i++) {
+        const fx = list[i]!;
+        if (!fx.burning || !this.inView(fx.x, fx.y, 200)) continue;
+        budget--;
+        const jitter = fx.width * 0.45;
+        this.particles.emit(fx.x, fx.y, 'p_fire', reduced ? 1 : 2, { speed: 80, up: 170, gravity: -0.1, spread: 0.7, jitter, life: 620, scale: 2.6, grow: -0.55, still: true });
+        if (!reduced && !eco && Math.random() < 0.45) this.particles.emit(fx.x, fx.y - 40, 'p_ember', 1, { speed: 240, up: 200, gravity: -0.04, spread: 1.5, jitter, life: 950, scale: 0.9 });
+      }
+    }
+    if (time - this.smokeTick >= (reduced ? 1400 : 650)) {
+      this.smokeTick = time;
+      let budget = this.particles.alive > 220 ? 0 : 4;
+      for (let i = 0; i < list.length && budget > 0; i++) {
+        const fx = list[i]!;
+        if (!this.inView(fx.x, fx.y, 200)) continue;
+        if (fx.burning) {
+          budget--;
+          this.particles.emit(fx.x, fx.y - 60, 'p_smoke', 2, { speed: 90, up: 150, gravity: -0.12, spread: 0.9, jitter: fx.width * 0.3, life: 1800, scale: 1.7, grow: 2.2, still: true, tint: SMOKE_DARK, alpha: 0.75 });
+        } else if (fx.smoking && Math.random() < 0.35) {
+          budget--;
+          this.particles.emit(fx.x, fx.y, 'p_smoke', 1, { speed: 60, up: 90, gravity: -0.08, spread: 0.6, jitter: fx.width * 0.25, life: 2000, scale: 1.1, grow: 2.4, still: true, tint: SMOKE_SOFT, alpha: 0.55 });
+        }
+      }
+    }
   }
 
   playEvents(events: readonly SimEvent[]): void {
@@ -611,8 +703,99 @@ export class FarmScene extends Phaser.Scene {
           this.celebrate();
           break;
         default:
+          this.playTownEvent(e);
           break;
       }
+    }
+  }
+
+  /** Efekty zdarzeń osady (oszczędnie: w kadrze, z pulą efektów – nadrabianie offline przysyła ich setki). */
+  private playTownEvent(e: SimEvent): void {
+    const motion = !this.deps.reducedMotion();
+    switch (e.type) {
+      case 'constructed': {
+        if (!this.townFx(e.at)) break;
+        if (motion) this.objects.bounce(e.uid, this.deps.store.get());
+        this.flash(e.at);
+        this.burst(e.at, 'p_sparkle', 12, { speed: 520, up: 200, life: 900, scale: 2 });
+        this.burst(e.at, 'p_star', 5, { speed: 650, scale: 1.2 });
+        break;
+      }
+      case 'arrived':
+        if (!this.townFx(e.at)) break;
+        this.burst(e.at, 'p_heart', 6, { speed: 360, up: 120, gravity: 0.25, life: 1000 });
+        this.confetti(e.at, 12, 620);
+        break;
+      case 'born': {
+        const at = this.homeOf(e.id);
+        if (!this.townFx(at)) break;
+        this.burst(at, 'p_heart', 8, { speed: 320, up: 160, gravity: 0.2, life: 1100 });
+        this.burst(at, 'p_sparkle', 4, { speed: 300, scale: 1.4 });
+        break;
+      }
+      case 'relation': {
+        if (e.kind !== 'partner') break;
+        const at = this.homeOf(e.a) ?? this.homeOf(e.b);
+        this.residents.cheer(e.a);
+        this.residents.cheer(e.b);
+        if (!this.townFx(at)) break;
+        this.burst(at, 'p_heart', 10, { speed: 380, up: 160, gravity: 0.2, life: 1200 });
+        this.burst(at, 'p_petal', 6, { speed: 500, gravity: 0.3, life: 1100 });
+        break;
+      }
+      case 'tierUp':
+      case 'specialized':
+        this.celebrate(true);
+        break;
+      case 'fire':
+        if (!this.townFx(e.at)) break;
+        this.burst(e.at, 'p_fire', 6, { speed: 220, up: 160, gravity: -0.1, spread: 1, life: 700, scale: 2.4, still: true });
+        this.puff(e.at, 8, SMOKE_DARK);
+        break;
+      case 'fireOut':
+        if (!this.townFx(e.at)) break;
+        this.puff(e.at, 12, STEAM, { speed: 220, life: 1500 });
+        break;
+      case 'breakdown':
+        if (!this.townFx(e.at)) break;
+        this.puff(e.at, 5, SMOKE_SOFT, { life: 900 });
+        break;
+      case 'repaired':
+        if (!this.townFx(e.at)) break;
+        this.burst(e.at, 'p_sparkle', 10, { speed: 480, up: 160, life: 850, scale: 1.8 });
+        this.burst(e.at, 'p_star', 4, { speed: 600, scale: 1.1 });
+        break;
+      case 'produced': {
+        // Mały przedmiot leci do licznika – tylko w kadrze, rzadko (co najwyżej raz na 0,9 s, ten sam budynek co 6 s).
+        const now = this.time.now;
+        if (now - this.lastFly < 900 || now - (this.producedAt.get(e.uid) ?? -Infinity) < 6000) break;
+        if (!this.townFx(e.at)) break;
+        this.lastFly = now;
+        this.producedAt.set(e.uid, now);
+        if (this.producedAt.size > 64) this.producedAt.clear();
+        const frame = itemFrame(parseKey(e.item).id);
+        if (this.textures.get(SPRITES_KEY).has(frame)) this.flyToHud(e.at, frame, 0.75);
+        break;
+      }
+      case 'caravan': {
+        const s = this.deps.store.get();
+        const post = s.objects.find((o) => CONTENT.buildings[o.type]?.service?.kind === 'trade');
+        const at = post ? centerOf(CONTENT, post) : null;
+        if (!this.townFx(at)) break;
+        this.puff(at, 10, DUST, { speed: 260, up: 40, gravity: 0.05, life: 1100, scale: 2 });
+        break;
+      }
+      case 'territory': {
+        const r = chunkRect(e.chunk);
+        const c = { x: r.x + r.w / 2, y: r.y + r.h / 2 };
+        if (!this.fxBudget.take(this.time.now)) break;
+        this.burst(c, 'p_sparkle', 10, { speed: 500, up: 220, life: 1000, scale: 2.2 });
+        for (const [dx, dy] of TERRITORY_SPARKS) this.burst({ x: c.x + dx * r.w * 0.32, y: c.y + dy * r.h * 0.32 }, 'p_sparkle', 4, { speed: 360, up: 160, life: 900, scale: 1.8 });
+        this.burst(c, 'p_coin', 6, { speed: 600 });
+        break;
+      }
+      default:
+        break;
     }
   }
 
@@ -660,9 +843,17 @@ export class FarmScene extends Phaser.Scene {
     this.tweens.add({ targets: label, y: p.y - TILE * 0.95, alpha: 0, duration: 950, ease: 'Cubic.easeOut', onComplete: () => label.destroy() });
   }
 
-  private celebrate(): void {
+  /** Świętowanie na środku kadru; `big` (awans osady, specjalizacja) – dwie fale gwiazdek i konfetti. */
+  private celebrate(big = false): void {
+    const reduced = this.deps.reducedMotion();
     const c = this.cam.toWorld(this.cam.viewport.width / 2, this.cam.viewport.height / 2);
-    this.particles.emit(c.x, c.y, 'p_star', this.deps.reducedMotion() ? 6 : 24, { speed: 900, life: 1000, scale: 2 });
-    if (!this.deps.reducedMotion()) this.cameras.main.shake(220, 0.004);
+    this.particles.emit(c.x, c.y, 'p_star', reduced ? 6 : 24, { speed: 900, life: 1000, scale: 2 });
+    if (big) {
+      const t = unproject(c.x, c.y);
+      this.confetti(t, 32, 1000);
+      this.particles.emit(c.x, c.y, 'p_sparkle', reduced ? 4 : 14, { speed: 700, life: 1100, scale: 2.4 });
+      if (!reduced) this.time.delayedCall(320, () => this.particles.emit(c.x, c.y - 120, 'p_star', 18, { speed: 1100, life: 1100, scale: 2.4 }));
+    }
+    if (!reduced) this.cameras.main.shake(big ? 320 : 220, big ? 0.005 : 0.004);
   }
 }

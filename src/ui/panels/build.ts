@@ -156,7 +156,7 @@ function personRow(app: App, r: Resident, sub: string): HTMLElement {
   return h(
     'button',
     {
-      class: `bt-person mood-${mood}`,
+      class: `bt-person m-ceramic mood-${mood}`,
       type: 'button',
       attrs: { 'aria-label': `${r.name}, ${sub}, ${t(`buildTown.mood.${mood}`)}` },
       on: {

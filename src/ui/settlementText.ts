@@ -25,7 +25,7 @@ export function signed(n: number): string {
 export const dayText = (day: number): string => t('town.day', { day: day + 1 });
 
 /** Pełna godzina „07:00”. */
-export const hourText = (hour: number): string => `${String(Math.floor(hour) % 24).padStart(2, '0')}:00`;
+export const hourText = (hour: number): string => `${String(((Math.floor(hour) % 24) + 24) % 24).padStart(2, '0')}:00`;
 
 export const dayHourText = (day: number, hour: number): string => t('town.dayHour', { day: day + 1, hour: hourText(hour) });
 
@@ -77,7 +77,19 @@ export function budgetSummary(b: BudgetDay | undefined): BudgetSummary {
   return { income, expense, net: income - expense };
 }
 
-/** Bilans z opisem: „+120 (na plusie)”. */
+/** Suma kilku dni (np. tygodnia). */
+export function budgetTotal(days: readonly BudgetDay[]): BudgetSummary {
+  const out = { income: 0, expense: 0, net: 0 };
+  for (const b of days) {
+    const x = budgetSummary(b);
+    out.income += x.income;
+    out.expense += x.expense;
+    out.net += x.net;
+  }
+  return out;
+}
+
+/** Bilans z opisem: „+120 – na plusie”. */
 export function balanceText(net: number): string {
   const r = Math.round(net);
   return t(r > 0 ? 'town.balance.plus' : r < 0 ? 'town.balance.minus' : 'town.balance.even', { n: signed(r) });
@@ -91,15 +103,20 @@ export function daysToAdult(r: Resident, day: number, c: Content = CONTENT): num
   return Math.max(0, r.bornDay + c.settlement.constants.childDays - day);
 }
 
-/** Wiek: dziecko – ile dni do dorosłości; dorosły – urodzony w osadzie albo przybysz. */
+/** Urodzony w osadzie (a nie przybyły z rodziną). */
+export const bornHere = (r: Resident): boolean => r.bornDay >= 0 && r.bornDay >= r.arrivedDay;
+
+/** Wiek: dziecko – ile dni do dorosłości; dorosły – rodem z osady albo przybysz. */
 export function ageText(r: Resident, day: number, c: Content = CONTENT): string {
   if (r.child) {
     const n = daysToAdult(r, day, c);
-    return n > 0 ? t('resident.age.child', { days: daysText(n) }) : t('resident.age.childSoon');
+    return n > 1 ? t('resident.age.child', { days: daysText(n) }) : t('resident.age.childSoon');
   }
-  if (r.bornDay >= 0) return t('resident.age.adultBorn', { day: r.bornDay + 1 });
-  return t('resident.age.adult');
+  return bornHere(r) ? t('resident.age.adultBorn') : t('resident.age.adult');
 }
+
+/** Od kiedy w osadzie: dzień narodzin albo przyjazdu. */
+export const sinceText = (r: Resident): string => (bornHere(r) ? t('resident.born', { day: r.bornDay + 1 }) : t('resident.arrived', { day: r.arrivedDay + 1 }));
 
 export const relationLabel = (kind: RelationKind): string => t(`resident.rel.${kind}`);
 
@@ -110,6 +127,8 @@ export function givenName(name: string): string {
 }
 
 // ---------------------------------------------------------------- wydarzenia (aktywne)
+
+export const GOOD_EVENTS: readonly string[] = ['festival', 'harvest', 'richCaravan'];
 
 /** Tytuł aktywnego wydarzenia; `building` = typ budynku celu (pożar, awaria, epidemia). */
 export function eventTitle(kind: SettlementEventKind | string, building?: string): string {
@@ -138,32 +157,42 @@ function proposalParams(tpl: ProposalTpl | undefined, c: Content): Record<string
   };
 }
 
+const tplOf = (tplId: string, c: Content): ProposalTpl | undefined => c.settlement.proposals.find((p) => p.id === tplId);
+
 export function proposalTitle(tplId: string, c: Content = CONTENT): string {
   const key = `town.proposal.${tplId}`;
-  return has(key) ? t(key, proposalParams(c.settlement.proposals.find((p) => p.id === tplId), c)) : t('town.proposal.other');
+  return has(key) ? t(key, proposalParams(tplOf(tplId, c), c)) : t('town.proposal.other');
 }
 
 export function proposalDesc(tplId: string, c: Content = CONTENT): string {
   const key = `town.proposal.${tplId}.desc`;
-  return has(key) ? t(key, proposalParams(c.settlement.proposals.find((p) => p.id === tplId), c)) : '';
+  return has(key) ? t(key, proposalParams(tplOf(tplId, c), c)) : '';
 }
 
-/** Skutek zatwierdzenia: bon na budowę, obniżka podatku, festyn, dotacja. */
-export function proposalEffect(tplId: string, c: Content = CONTENT): string {
-  const tpl = c.settlement.proposals.find((p) => p.id === tplId);
+/** Skutek zatwierdzenia: bon na budowę, obniżka podatku, festyn, dotacja; `discount` = bieżąca zniżka bonu (0..1). */
+export function proposalEffect(tplId: string, c: Content = CONTENT, discount?: number): string {
+  const tpl = tplOf(tplId, c);
   if (!tpl) return '';
-  return t(`town.effect.${tpl.kind}`, proposalParams(tpl, c));
+  const p = proposalParams(tpl, c);
+  if (discount !== undefined) p.discount = Math.round(discount * 100);
+  return t(`town.effect.${tpl.kind}`, p);
 }
 
 // ---------------------------------------------------------------- kronika
 
-/** Rodzaje wpisów kroniki znane interfejsowi (symulacja może dopisać nowe – wtedy tekst ogólny). */
+/**
+ * Rodzaje wpisów kroniki znane interfejsowi. Pierwsza grupa pochodzi z `chronicle(ctx, …)` w src/sim, reszta
+ * odpowiada zdarzeniom osady z src/sim/events.ts (moduły w toku mogą je dopisać) – nieznany rodzaj → tekst ogólny.
+ */
 export const CHRONICLE_KINDS = [
-  'founded', 'arrived', 'left', 'born', 'grewUp', 'wedding', 'quarrel', 'friend', 'love',
-  'placed', 'constructed', 'repaired', 'territory', 'tierUp', 'renamed',
-  'fire', 'fireOut', 'breakdown', 'epidemic', 'epidemicOver', 'treated', 'crisis', 'goodEvent', 'festival', 'harvest', 'richCaravan',
-  'caravan', 'caravanLeft', 'traded', 'proposal', 'decided', 'budget', 'unpaid', 'specialized',
+  'arrived', 'left', 'born', 'grewUp', 'wedding', 'quarrel', 'placed', 'constructed', 'repaired', 'territory', 'tierUp', 'tax', 'unpaid',
+  'proposal', 'decided', 'specialized', 'renamed', 'caravan', 'caravanLeft', 'fire', 'fireOut', 'breakdown', 'epidemic', 'epidemicOver',
+  'treated', 'crisis', 'goodEvent', 'eventOver',
+  'founded', 'friend', 'love', 'festival', 'harvest', 'richCaravan', 'traded', 'budget',
 ] as const;
+
+/** Flaga w parametrach wpisu (1, '1', 'true', 'yes'). */
+const yes = (v: string | number | undefined): boolean => v === 1 || v === '1' || v === 'true' || v === 'yes';
 
 const KIND_ICONS: Record<string, string> = {
   founded: 'townhall',
@@ -181,6 +210,7 @@ const KIND_ICONS: Record<string, string> = {
   territory: 'map',
   tierUp: 'crown',
   renamed: 'townhall',
+  tax: 'scales',
   fire: 'flame',
   fireOut: 'flame',
   breakdown: 'wrench',
@@ -189,6 +219,7 @@ const KIND_ICONS: Record<string, string> = {
   treated: 'medkit',
   crisis: 'chart',
   goodEvent: 'balloon',
+  eventOver: 'scroll',
   festival: 'balloon',
   harvest: 'bread',
   richCaravan: 'wagon',
@@ -202,21 +233,50 @@ const KIND_ICONS: Record<string, string> = {
   specialized: 'crown',
 };
 
-/** Ikona wpisu kroniki (nieznany rodzaj → zwój). */
-export const chronicleIcon = (kind: string): string => KIND_ICONS[kind] ?? 'scroll';
+/** Ton wpisu (kolor ikony): dobre wieści, kłopoty, zwykłe. */
+const BAD_KINDS = new Set(['left', 'quarrel', 'fire', 'breakdown', 'epidemic', 'crisis', 'unpaid']);
+const GOOD_KINDS = new Set(['arrived', 'born', 'grewUp', 'wedding', 'friend', 'love', 'constructed', 'repaired', 'tierUp', 'fireOut', 'epidemicOver', 'treated', 'goodEvent', 'festival', 'harvest', 'richCaravan', 'specialized', 'founded']);
+
+/** Rodzaj wydarzenia w parametrze `kind` (dobre wydarzenie, koniec wydarzenia). */
+const subKind = (e: Pick<ChronicleEntry, 'kind' | 'params'>): string | undefined => {
+  const k = e.params?.kind;
+  return (e.kind === 'goodEvent' || e.kind === 'eventOver') && typeof k === 'string' ? k : undefined;
+};
+
+export function chronicleTone(e: Pick<ChronicleEntry, 'kind' | 'params'> | string): 'good' | 'bad' | 'plain' {
+  const entry = typeof e === 'string' ? { kind: e } : e;
+  if (entry.kind === 'eventOver') return subKind(entry) === 'crisis' ? 'good' : 'plain';
+  if (entry.kind === 'fireOut' && yes(entry.params?.damaged)) return 'plain';
+  return BAD_KINDS.has(entry.kind) ? 'bad' : GOOD_KINDS.has(entry.kind) ? 'good' : 'plain';
+}
+
+/** Ikona wpisu kroniki (wg rodzaju wydarzenia dla `goodEvent`/`eventOver`; nieznany rodzaj → zwój). */
+export function chronicleIcon(e: Pick<ChronicleEntry, 'kind' | 'params'> | string): string {
+  const entry = typeof e === 'string' ? { kind: e } : e;
+  const sub = subKind(entry);
+  return (sub && entry.kind === 'goodEvent' ? KIND_ICONS[sub] : undefined) ?? KIND_ICONS[entry.kind] ?? 'scroll';
+}
 
 /** Ikona aktywnego wydarzenia. */
 export const eventIcon = (kind: string): string => KIND_ICONS[kind] ?? 'warning';
 
-const yes = (v: string | number | undefined): boolean => v === 1 || v === '1' || v === 'true' || v === 'yes';
+/** Odczyt stanu dla parametrów-identyfikatorów (uid budynku, id mieszkańca); kronika sama jest bezstanowa. */
+export interface ChronicleLookup {
+  /** uid budynku → typ budynku. */
+  building?(uid: number): string | undefined;
+  /** id mieszkańca → imię i nazwisko. */
+  resident?(id: number): string | undefined;
+}
 
 function maybe(prefix: string, id: string | number): string {
   const key = `${prefix}.${id}`;
   return has(key) ? t(key) : String(id);
 }
 
+const BUILDING_REFS = ['uid', 'home', 'target'] as const;
+
 /** Parametr wpisu w postaci do wyświetlenia (nazwy budynków, przedmiotów, partnerów, etapów…). */
-function formatParam(kind: string, name: string, v: string | number, c: Content): string | number {
+function formatParam(kind: string, name: string, v: string | number, c: Content, look: ChronicleLookup): string | number {
   switch (name) {
     case 'building':
     case 'type':
@@ -236,10 +296,16 @@ function formatParam(kind: string, name: string, v: string | number, c: Content)
       return kind === 'specialized' ? maybe('spec', v) : v;
     case 'tpl':
       return proposalTitle(String(v), c);
+    case 'a':
+    case 'b':
+    case 'name':
+      return typeof v === 'number' ? (look.resident?.(v) ?? '…') : v;
     case 'days':
       return typeof v === 'number' ? daysText(v) : v;
     case 'net':
       return typeof v === 'number' ? signed(v) : v;
+    case 'rate':
+      return typeof v === 'number' ? `${v}%` : v;
     case 'count':
     case 'qty':
     case 'cost':
@@ -259,19 +325,37 @@ function variantKey(kind: string, p: Record<string, string | number>): string | 
   if (p.kind !== undefined) tries.push(`${base}.${p.kind}`);
   if (p.approve !== undefined) tries.push(`${base}.${yes(p.approve) ? 'yes' : 'no'}`);
   if (p.damaged !== undefined && yes(p.damaged)) tries.push(`${base}.damaged`);
-  if (kind === 'left') tries.push(p.reason !== undefined && has(`chronicle.reason.${p.reason}`) ? base : `${base}.plain`);
+  if (p.spread !== undefined && yes(p.spread)) tries.push(`${base}.spread`);
+  if (kind === 'left' && (p.reason === undefined || !has(`chronicle.reason.${p.reason}`))) tries.push(`${base}.plain`);
   if (kind === 'arrived' && !p.family) tries.push(`${base}.noname`);
   return tries.find((k) => has(k)) ?? null;
 }
 
-/** Tekst wpisu kroniki z parametrami; nieznany rodzaj → tekst ogólny, brakujące parametry → „…”. */
-export function chronicleText(e: ChronicleEntry, c: Content = CONTENT): string {
-  const raw = e.params ?? {};
+/**
+ * Tekst wpisu kroniki z parametrami. Nieznany rodzaj → tekst ogólny; gdy brakuje parametru, a jest wariant
+ * `.plain` – wariant bez parametrów, inaczej brakujące miejsce zastępuje „…”.
+ */
+export function chronicleText(e: ChronicleEntry, c: Content = CONTENT, look: ChronicleLookup = {}): string {
+  const raw: Record<string, string | number> = { ...(e.params ?? {}) };
+  // uid budynku zamiast typu (np. zdarzenia pożaru) → typ z bieżącego stanu
+  if (raw.building === undefined) {
+    for (const k of BUILDING_REFS) {
+      const v = raw[k];
+      const type = typeof v === 'number' ? look.building?.(v) : undefined;
+      if (type) {
+        raw.building = type;
+        break;
+      }
+    }
+  }
   const p: Record<string, string | number> = {};
-  for (const [k, v] of Object.entries(raw)) p[k] = formatParam(e.kind, k, v, c);
+  for (const [k, v] of Object.entries(raw)) p[k] = formatParam(e.kind, k, v, c, look);
   if (typeof raw.count === 'number') p.people = plural(raw.count, t('chronicle.people.one'), t('chronicle.people.few'), t('chronicle.people.many'));
   if (raw.reason !== undefined) p.reason = has(`chronicle.reason.${raw.reason}`) ? t(`chronicle.reason.${raw.reason}`) : String(raw.reason);
   const key = variantKey(e.kind, raw) ?? `chronicle.${e.kind}`;
   if (!has(key)) return t('chronicle.unknown');
-  return t(key, p).replace(/\{\w+\}/g, '…');
+  const text = t(key, p);
+  if (!/\{\w+\}/.test(text)) return text;
+  const plain = `chronicle.${e.kind}.plain`;
+  return has(plain) && key !== plain ? t(plain) : text.replace(/\{\w+\}/g, '…');
 }

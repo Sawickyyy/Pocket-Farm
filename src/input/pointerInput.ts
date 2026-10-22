@@ -1,5 +1,6 @@
-// Pointer Events na elemencie gry → GestureRecognizer → trasowanie: budowanie, zwierzęta, pola, budynki,
-// zbieractwo, łowienie, odkrywanie mgły. Przeciąganie po polu = akcja na wielu polach, poza polem = przesuwanie mapy.
+// Pointer Events na elemencie gry → GestureRecognizer → trasowanie: budowanie, teren osady, mieszkańcy, karawana,
+// zwierzęta, pola, budynki, zbieractwo, łowienie, odkrywanie mgły.
+// Przeciąganie po polu = akcja na wielu polach, poza polem (i w trybie terenu) = przesuwanie mapy.
 
 import { CONTENT } from '../content/content';
 import { t } from '../i18n/i18n';
@@ -8,7 +9,7 @@ import { canUnlock, plotUnlockCost } from '../sim/systems/fields';
 import { objectAt } from '../sim/systems/building';
 import { canExplore, exploreCost, forageReady, isRevealed } from '../sim/systems/exploration';
 import { START_UNLOCKED } from '../sim/initialState';
-import { MAP_H, MAP_W, biomeAt, chunkOfTile, generateWorld, plotAtTile, tileIndex } from '../sim/world';
+import { MAP_H, MAP_W, biomeAt, chunkOfTile, generateWorld, plotAtTile, tileIndex, type WorldMap } from '../sim/world';
 import type { App } from '../ui/app';
 import type { BuildMode } from '../ui/buildMode';
 import type { TerritoryMode } from '../ui/territoryMode';
@@ -29,6 +30,12 @@ export function bindPointerInput(
   let lastDragPlot: number | null = null;
   let lastPan = { x: 0, y: 0 };
   const peek = new PlotPeek(() => app.store.get());
+  // Mapa świata zależy tylko od ziarna – generujemy ją raz (generateWorld jest kosztowne).
+  let worldCache: { seed: number; world: WorldMap } | null = null;
+  const worldOf = (seed: number): WorldMap => {
+    if (worldCache?.seed !== seed) worldCache = { seed, world: generateWorld(seed) };
+    return worldCache.world;
+  };
   const unsubscribePeek = app.store.subscribe(() => peek.visible && peek.render());
 
   const toLocal = (x: number, y: number): [number, number] => {
@@ -46,11 +53,22 @@ export function bindPointerInput(
     const tile = tileUnder(x, y);
     scene.showHighlight(null);
     if (build.active) {
-      build.pointTile(tile.x, tile.y);
+      build.pointTile(tile.x, tile.y, 'tap');
       return;
     }
     if (territory?.active) {
       territory.tapTile(tile.x, tile.y);
+      return;
+    }
+
+    // Postacie stoją przed budynkami – mieszkaniec i wóz karawany mają pierwszeństwo.
+    const resident = scene.residentAt(...toLocal(x, y));
+    if (resident !== null) {
+      app.openSheet('resident', resident);
+      return;
+    }
+    if (scene.caravanAt(...toLocal(x, y))) {
+      app.openSheet('settlement', undefined, 'trade');
       return;
     }
     if (tile.x < 0 || tile.y < 0 || tile.x >= MAP_W || tile.y >= MAP_H) return;
@@ -117,7 +135,7 @@ export function bindPointerInput(
       return;
     }
 
-    const world = generateWorld(state.seed);
+    const world = worldOf(state.seed);
     const ti = tileIndex(tile.x, tile.y);
     if (world.forage[ti] && forageReady(viewCtx(state), ti)) {
       void app.send({ type: 'forage', tile: ti });
@@ -138,7 +156,7 @@ export function bindPointerInput(
         build.pointTile(tl.x, tl.y, 'start');
         return;
       }
-      const plot = plotUnder(x, y);
+      const plot = territory?.active ? null : plotUnder(x, y);
       if (plot !== null && app.store.get().plots[plot]?.unlocked) {
         dragMode = 'tool';
         lastDragPlot = plot;
@@ -188,7 +206,7 @@ export function bindPointerInput(
     },
     longPress(x, y) {
       // Podgląd działa na grządkach; gdzie indziej przytrzymanie zachowuje się jak zwykły tap.
-      const plot = build.active ? null : plotUnder(x, y);
+      const plot = build.active || territory?.active ? null : plotUnder(x, y);
       if (plot === null) {
         tap(x, y);
         return;
@@ -216,7 +234,7 @@ export function bindPointerInput(
     }
     scene.cam.stop();
     recognizer.down(point(e));
-    if (recognizer.currentMode === 'pending' && !build.active) {
+    if (recognizer.currentMode === 'pending' && !build.active && !territory?.active) {
       const tl = tileUnder(e.clientX, e.clientY);
       scene.showHighlight(plotAtTile(tl.x, tl.y) !== null ? tl : null);
     } else scene.showHighlight(null);

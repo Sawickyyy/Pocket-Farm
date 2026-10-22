@@ -1,1 +1,803 @@
-/* Osada – build-town (docs/plan-osada.md §15). */
+/* Osada – build-town (docs/plan-osada.md §15): katalog budowy, belka budowania z wyborem wyglądu i drogami,
+   tryb terenu, panel budynku osady. Same tokeny i materiały motywu: drewno, papier, ceramika. */
+
+/* ================================================================ metki (wspólne: belka, katalog, panel)
+   Ceramiczna kapsułka zostaje jasna także wieczorem, więc tusz jest stały (var(--ink)). */
+.bt-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-height: 1.65rem;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 10%, rgb(255 255 255 / 0.65), rgb(255 255 255 / 0) 70%),
+    linear-gradient(var(--ceram-hi), var(--ceram));
+  box-shadow:
+    inset 0 -0.1rem 0 rgb(0 0 0 / 0.06),
+    0 0.12rem 0 var(--ceram-lo);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 900;
+  line-height: 1.2;
+  text-shadow: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-pill img {
+  width: 1.15rem;
+  height: 1.15rem;
+  object-fit: contain;
+}
+
+.bt-pill .ic {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.bt-pill.miss {
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 10%, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0) 70%),
+    linear-gradient(color-mix(in srgb, var(--terra-hi) 45%, var(--ceram-hi)), color-mix(in srgb, var(--terra-hi) 55%, var(--ceram)));
+  color: var(--terra-lo);
+}
+
+.bt-pill.warn {
+  background: linear-gradient(color-mix(in srgb, var(--sun-hi) 70%, var(--ceram-hi)), color-mix(in srgb, var(--sun) 45%, var(--ceram)));
+  color: #6a3c06;
+}
+
+/* opis efektu: dłuższy tekst, spokojniejszy */
+.bt-pill.soft {
+  font-weight: 700;
+  color: color-mix(in srgb, var(--ink) 82%, var(--ceram));
+}
+
+/* ================================================================ belka budowania */
+.build-bar .bt-info {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+  margin: 0.45rem 0 0;
+  font-weight: 900;
+}
+
+.build-bar .bt-info .bt-pill.soft {
+  flex-basis: 100%;
+  justify-content: center;
+  max-width: 24rem;
+  margin: 0 auto;
+  border-radius: 0.8rem;
+  text-align: center;
+}
+
+/* próbki wyglądu: ceramiczne guziki z miniaturą wariantu */
+.bt-styles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.55rem;
+  margin: 0.55rem 0 0;
+}
+
+.bt-styles-label {
+  flex-basis: 100%;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  opacity: 0.92;
+}
+
+.bt-swatch {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.15rem;
+  height: 3.15rem;
+  margin-bottom: 0.22rem;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  --depth: 0.22rem;
+}
+
+.bt-swatch img {
+  width: 2.7rem;
+  height: 2.7rem;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 0.1rem 0 rgb(60 30 10 / 0.25));
+}
+
+.bt-swatch[aria-checked='true'] {
+  --c-hi: var(--sun-hi);
+  --c: var(--sun);
+  --c-lo: var(--sun-lo);
+  translate: 0 -0.15rem;
+  box-shadow:
+    0 0 0 0.2rem #fff6e4,
+    0 0 0 0.34rem var(--leaf-deep),
+    0 var(--depth) 0 var(--c-lo),
+    0 calc(var(--depth) + 0.4rem) 0.7rem var(--contact);
+}
+
+/* zaznaczenie także bez koloru: zielony znaczek z ptaszkiem */
+.bt-swatch[aria-checked='true']::after {
+  content: '';
+  position: absolute;
+  right: -0.3rem;
+  bottom: -0.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background:
+    var(--icon-check) center / 0.85rem no-repeat,
+    radial-gradient(circle at 35% 30%, var(--leaf-hi), var(--leaf-deep) 70%);
+  box-shadow: 0 0.1rem 0 var(--leaf-lo);
+}
+
+.bt-swatch:focus-visible {
+  outline: 0.2rem solid var(--sky);
+  outline-offset: 0.2rem;
+}
+
+/* powód odmowy: kartka zawieszona pod belką */
+.build-bar {
+  overflow: visible;
+}
+
+.build-bar .bt-error {
+  position: absolute;
+  top: calc(100% + 0.55rem);
+  left: 50%;
+  translate: -50% 0;
+  width: max-content;
+  max-width: calc(100% - 1.5rem);
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.8rem 0.95rem 0.75rem 0.9rem;
+  background:
+    var(--grain),
+    linear-gradient(var(--ceram-hi), color-mix(in srgb, var(--terra-hi) 30%, var(--ceram)));
+  box-shadow:
+    inset 0 0 0 0.12rem rgb(240 112 79 / 0.45),
+    0 0.14rem 0 color-mix(in srgb, var(--terra-lo) 60%, var(--ceram-lo)),
+    0 0.45rem 0.9rem var(--contact);
+  color: var(--terra-lo);
+  font-size: 0.88rem;
+  font-weight: 900;
+  line-height: 1.3;
+  text-shadow: none;
+  animation: bt-tag-in 380ms var(--spring-pop);
+}
+
+/* sznurki, na których wisi kartka */
+.build-bar .bt-error::before {
+  content: '';
+  position: absolute;
+  top: -0.6rem;
+  left: 1.2rem;
+  right: 1.2rem;
+  height: 0.62rem;
+  border-inline: 0.14rem solid color-mix(in srgb, var(--wood-lo) 80%, transparent);
+}
+
+@keyframes bt-tag-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.4rem) rotate(-3deg);
+  }
+}
+
+/* ================================================================ plakietka zasięgu (z panelu budynku) */
+.bt-coverage {
+  position: fixed;
+  top: calc(var(--safe-top) + 3.7rem);
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100% - 1.5rem);
+  padding: 0.3rem 0.35rem 0.3rem 0.9rem;
+  border-radius: 1rem;
+  translate: -50% 0;
+  font-weight: 900;
+  white-space: nowrap;
+  animation: ribbon-in 420ms var(--spring-pop);
+  --wood-hi: var(--wood-mid);
+  --wood: var(--wood-deep);
+}
+
+.bt-coverage > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bt-coverage > .ic {
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.bt-coverage-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  margin-bottom: 0.2rem;
+  border-radius: 50%;
+  --depth: 0.2rem;
+}
+
+.bt-coverage-close .ic {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+body:has(.bt-coverage:not([hidden])) .clock {
+  display: none;
+}
+
+/* ================================================================ tryb terenu */
+.territory-bar .tb-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-size: 1.05rem;
+}
+
+.territory-bar .tb-title .ic {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.tb-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+/* wyrzeźbione w desce okienka z liczbami */
+.tb-stat {
+  display: grid;
+  justify-items: center;
+  gap: 0.05rem;
+  padding: 0.35rem 0.25rem 0.4rem;
+  border-radius: 0.85rem;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0) 70%),
+    linear-gradient(var(--ceram), var(--ceram-hi));
+  box-shadow:
+    inset 0 0.16rem 0.28rem rgb(74 46 26 / 0.28),
+    0 0.12rem 0 rgb(255 236 200 / 0.4);
+  color: var(--ink);
+  text-shadow: none;
+}
+
+.tb-stat small {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ink) 72%, var(--ceram));
+}
+
+.tb-stat b {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 1.08rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tb-stat b .ic {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.tb-stat.miss b {
+  color: var(--terra-lo);
+}
+
+.tb-stat.dim b {
+  opacity: 0.55;
+}
+
+.territory-bar .tb-hint {
+  margin-top: 0.45rem;
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+/* ================================================================ katalog */
+.bt-tabhint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0 0 0.95rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.9rem 1rem 0.85rem 1.05rem;
+  background: color-mix(in srgb, var(--sun-hi) 30%, transparent);
+  box-shadow: inset 0 0 0 0.12rem color-mix(in srgb, var(--sun) 45%, transparent);
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.35;
+  rotate: -0.4deg;
+}
+
+.bt-tabhint .ic {
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-top: -0.05rem;
+}
+
+/* karta katalogu: miniatura | nazwa, cena, metki na całą szerokość; „Postaw” w prawym górnym rogu */
+.bt-card {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  min-height: 5.6rem;
+}
+
+.bt-card .thumb {
+  margin-top: 0.15rem;
+}
+
+.bt-card .actions {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.75rem;
+}
+
+.bt-card .actions:empty {
+  display: none;
+}
+
+.bt-card:has(.actions:not(:empty)) :is(h4, .bt-price) {
+  padding-right: 6.9rem;
+}
+
+.bt-card h4 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+  min-height: 1.5rem;
+  line-height: 1.2;
+}
+
+.bt-card h4 .chip {
+  margin-left: 0.15rem;
+}
+
+.bt-price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin-top: 0.1rem;
+}
+
+.bt-price .price {
+  font-size: 0.95rem;
+}
+
+.bt-old {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: line-through 0.12rem color-mix(in srgb, var(--terra) 80%, transparent);
+}
+
+.bt-mats {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.bt-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.4rem;
+}
+
+.bt-pills .bt-pill {
+  min-height: 1.45rem;
+  padding: 0.05rem 0.45rem;
+  font-size: 0.72rem;
+}
+
+.bt-pills .bt-pill img,
+.bt-pills .bt-pill .ic {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.bt-pills .bt-pill.soft {
+  border-radius: 0.6rem;
+}
+
+/* przedmiot z ilością (materiały, wejścia i wyjścia produkcji) */
+.bt-mat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.08rem 0.45rem 0.08rem 0.2rem;
+  border-radius: 999px;
+  background: rgb(201 138 74 / 0.16);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bt-mat img {
+  width: 1.25rem;
+  height: 1.25rem;
+  object-fit: contain;
+}
+
+.bt-mat.miss {
+  background: rgb(240 112 79 / 0.16);
+  color: var(--terra-lo);
+}
+
+/* ================================================================ panel budynku osady */
+.bt-status {
+  position: relative;
+  margin: 0 0 0.85rem;
+  padding: 0.75rem 0.85rem 0.7rem 1.05rem;
+  border-radius: 1.05rem 1.2rem 1rem 1.15rem;
+  background:
+    var(--grain),
+    radial-gradient(ellipse 80% 60% at 15% 0%, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0) 70%),
+    var(--paper-hi);
+  box-shadow:
+    inset 0.42rem 0 0 var(--bt-accent, var(--sky)),
+    inset 0 0 0 0.12rem color-mix(in srgb, var(--bt-accent, var(--sky)) 35%, transparent),
+    0 0.14rem 0 var(--paper-edge),
+    0 0.5rem 1rem var(--contact-soft);
+  overflow: hidden;
+}
+
+.bt-status h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.3rem;
+  font-size: 1.05rem;
+}
+
+.bt-status h4 .ic {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.bt-status p {
+  margin: 0.3rem 0 0;
+  line-height: 1.35;
+}
+
+.bt-status .row {
+  justify-content: flex-start;
+  margin-top: 0.65rem;
+}
+
+/* budowa: taśma ostrzegawcza u góry kartki */
+.bt-status.is-build {
+  --bt-accent: var(--sun);
+  padding-top: 1.05rem;
+}
+
+.bt-status.is-build::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0.4rem;
+  background: repeating-linear-gradient(-45deg, var(--sun) 0 0.55rem, var(--wood-dark) 0.55rem 1.1rem);
+  opacity: 0.85;
+}
+
+.bt-pct {
+  margin-left: auto;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: linear-gradient(var(--sun-hi), var(--sun));
+  box-shadow: 0 0.1rem 0 var(--sun-lo);
+  color: #5a3208;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-eta {
+  font-weight: 900;
+}
+
+.bt-status.is-fire {
+  --bt-accent: var(--terra);
+  background:
+    radial-gradient(ellipse 70% 80% at 100% 100%, rgb(255 197 61 / 0.35), rgb(255 197 61 / 0) 70%),
+    var(--paper-hi);
+  animation: bt-glow 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes bt-glow {
+  to {
+    box-shadow:
+      inset 0.42rem 0 0 var(--terra),
+      inset 0 0 0 0.12rem rgb(240 112 79 / 0.6),
+      0 0.14rem 0 var(--paper-edge),
+      0 0 1.1rem rgb(255 150 60 / 0.55);
+  }
+}
+
+:root[data-reduced='true'] .bt-status.is-fire {
+  animation: none;
+}
+
+.bt-status.is-broken {
+  --bt-accent: var(--sun-lo);
+}
+
+.bt-status.is-damage {
+  --bt-accent: var(--terra-hi);
+}
+
+.bt-status.is-sick {
+  --bt-accent: var(--berry);
+}
+
+/* sekcje: kartki przypięte do szkicownika */
+.bt-section {
+  margin: 0.85rem 0 0;
+  padding: 0.7rem 0.85rem 0.75rem;
+  border-radius: 1.1rem 1.25rem 1.05rem 1.2rem;
+  background:
+    var(--grain),
+    radial-gradient(ellipse 80% 60% at 15% 0%, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0) 70%),
+    var(--paper-hi);
+  box-shadow:
+    inset 0 0 0 0.12rem rgb(255 255 255 / 0.3),
+    0 0.14rem 0 var(--paper-edge),
+    0 0.45rem 0.9rem var(--contact-soft);
+}
+
+.bt-section:first-child {
+  margin-top: 0;
+}
+
+.sheet .bt-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.bt-section h3 .ic {
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.bt-section > p {
+  margin: 0.4rem 0 0;
+}
+
+.bt-section .row {
+  justify-content: flex-start;
+  margin-top: 0.65rem;
+}
+
+.bt-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.35rem 0.9rem;
+  margin: 0;
+}
+
+.bt-facts dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.bt-facts dd {
+  margin: 0;
+  font-weight: 900;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-meter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.bt-meter .bar {
+  flex: 1;
+  min-width: 4rem;
+  max-width: 9rem;
+  margin: 0;
+}
+
+.bt-meter.wide .bar {
+  max-width: none;
+}
+
+.bt-meter b {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bt-effect {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+/* mieszkańcy i pracownicy: ceramiczne wiersze z buźką */
+.bt-people {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.6rem;
+}
+
+.bt-person {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: var(--tap);
+  margin-bottom: 0.2rem;
+  padding: 0.3rem 0.75rem 0.3rem 0.35rem;
+  border-radius: 1rem;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  --depth: 0.2rem;
+}
+
+.bt-face {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--bt-mood-hi), var(--bt-mood) 72%);
+  box-shadow:
+    inset 0 -0.14rem 0 rgb(0 0 0 / 0.12),
+    0 0.1rem 0 var(--bt-mood-lo);
+}
+
+.bt-face .ic {
+  width: 1.85rem;
+  height: 1.85rem;
+}
+
+.bt-person.mood-happy {
+  --bt-mood-hi: var(--leaf-hi);
+  --bt-mood: var(--leaf);
+  --bt-mood-lo: var(--leaf-lo);
+}
+
+.bt-person.mood-ok {
+  --bt-mood-hi: var(--sun-hi);
+  --bt-mood: var(--sun);
+  --bt-mood-lo: var(--sun-lo);
+}
+
+.bt-person.mood-sad {
+  --bt-mood-hi: var(--sky-hi);
+  --bt-mood: var(--sky);
+  --bt-mood-lo: var(--sky-lo);
+}
+
+.bt-person-text {
+  display: grid;
+  min-width: 0;
+}
+
+.bt-person-text b {
+  overflow: hidden;
+  font-size: 0.95rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bt-person-text small {
+  overflow: hidden;
+  color: color-mix(in srgb, var(--ink) 72%, var(--ceram));
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bt-chev {
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-right: 0.2rem;
+  border-right: 0.2rem solid color-mix(in srgb, var(--ink) 55%, var(--ceram));
+  border-bottom: 0.2rem solid color-mix(in srgb, var(--ink) 55%, var(--ceram));
+  border-radius: 0.1rem;
+  rotate: -45deg;
+}
+
+/* produkcja: wejścia → wyjście */
+.bt-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.bt-arrow {
+  width: 1.5rem;
+  height: 0.95rem;
+  background: linear-gradient(var(--wood-hi), var(--wood));
+  clip-path: polygon(0 32%, 58% 32%, 58% 0, 100% 50%, 58% 100%, 58% 68%, 0 68%);
+}
+
+.bt-auto p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.2rem 0 0;
+}
+
+.bt-note {
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.7rem;
+  background: rgb(240 112 79 / 0.12);
+  color: var(--terra-lo);
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.bt-styles.in-panel {
+  justify-content: flex-start;
+  margin-top: 0.2rem;
+}
+
+.bt-upkeep {
+  margin: 0.9rem 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.bt-actions {
+  margin-top: 1.1rem;
+}
+
+/* ================================================================ wieczór: jaśniejsze ostrzeżenia na ciemnym papierze */
+@media (prefers-color-scheme: dark) {
+  .bt-mat.miss,
+  .bt-note {
+    color: var(--terra-hi);
+  }
+
+  .bt-old {
+    text-decoration-color: var(--terra-hi);
+  }
+}

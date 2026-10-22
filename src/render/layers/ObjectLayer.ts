@@ -337,11 +337,12 @@ export class ObjectLayer {
       const def = this.content.buildings[o.type]!;
       const at = badgeAnchor(def, o.x, o.y);
       const frame = this.badgeFrame(icon);
+      // Ikonka atlasu 128×128: ogonek dymku kończy się na 3/4 wysokości klatki – tam jest punkt zaczepienia.
       const img = (frame.key === SPRITES_KEY ? this.scene.add.image(at.x, at.y, SPRITES_KEY, frame.frame) : this.scene.add.image(at.x, at.y, frame.key))
-        .setOrigin(0.5, 1)
-        .setScale(frame.key === SPRITES_KEY ? 0.75 : 1)
+        .setOrigin(0.5, frame.key === SPRITES_KEY ? 0.75 : 1)
+        .setScale(frame.key === SPRITES_KEY ? 1.05 : 1.2)
         .setDepth(27);
-      if (this.motion()) this.scene.tweens.add({ targets: img, y: at.y - 16, duration: 900, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
+      if (this.motion()) this.scene.tweens.add({ targets: img, y: at.y - 18, duration: 900, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
       this.badges.set(uid, img);
     }
   }
@@ -430,7 +431,8 @@ export function badgeAnchor(def: BuildingDef, x: number, y: number): { x: number
   const size = buildingFrameSize(def);
   const top = p.y - size.h * p.originY * p.scale;
   const c = project(x + def.size[0] / 2, y + def.size[1] / 2);
-  return { x: c.x, y: top + 28 };
+  // Klatka ma nad dachem margines (ISO_PAD) – ikonka „siada” tuż nad kalenicą.
+  return { x: c.x, y: top + 24 };
 }
 
 /** Prosta ikonka w dymku (zastępstwo do czasu narysowania ikon przez moduł postaci). */

@@ -14,6 +14,7 @@ import type { Simulation } from '../../../src/sim/simulation';
 import type { GameState } from '../../../src/sim/types';
 import { FIELD, MAP_W, generateWorld, tileIndex, type WorldMap } from '../../../src/sim/world';
 import { HOUR_MS, makeSim } from '../helpers';
+import { addResident } from './helpers';
 
 const c = CONTENT;
 const CENTER = { x: FIELD.x + FIELD.w / 2, y: FIELD.y + FIELD.h / 2 };
@@ -341,6 +342,20 @@ describe('osada: symulowana rozgrywka', () => {
     expect(last.happy).toBeGreaterThan(0.5);
     expect(bot.log.filter((l) => l.food === 0).length).toBeLessThanOrEqual(3);
     expect(bot.s.coins).toBeGreaterThan(0);
+  });
+
+  it('wydajność: godzina gry dużej osady mieści się w budżecie', () => {
+    const bot = play(7, 40);
+    const sim = bot.sim;
+    // Dodatkowi mieszkańcy do ~200 (wolne miejsca nie są potrzebne – mierzymy koszt systemów).
+    const homes = sim.state.objects.filter((o) => c.buildings[o.type]!.kind === 'house');
+    const jobs = sim.state.objects.filter((o) => c.buildings[o.type]!.jobs);
+    for (let i = population(sim.state); i < 200; i++) addResident(sim.state, { home: homes[i % homes.length]!.uid, job: i % 3 ? null : jobs[i % jobs.length]!.uid, happiness: 0.6 });
+    const t0 = performance.now();
+    for (let h = 0; h < 48; h++) sim.advance(HOUR_MS);
+    const perHour = (performance.now() - t0) / 48;
+    if (process.env.PLAYTEST_REPORT) console.log('ms/godz.', perHour.toFixed(2), 'mieszkańców', population(sim.state), 'obiektów', sim.state.objects.length);
+    expect(perHour).toBeLessThan(12);
   });
 });
 

@@ -11,6 +11,8 @@ import { drawVillager } from './villager';
 import { drawMenuIcon } from './menuIcons';
 import { drawUiIcon } from './uiIcons';
 import { drawMascot, type MascotMood } from './mascot';
+import { drawSettlementBuilding, settlementEntries } from './settlementArt';
+import { characterEntries } from './residents';
 
 export const TILE = 128;
 export const TILES_KEY = 'tiles';
@@ -32,6 +34,8 @@ export const Tile = {
   Path: 23,
   Water: 24,
   Sand: 25,
+  Road: 26,
+  Bridge: 27,
 } as const;
 
 export const ICONS = ['icon_lock', 'icon_drop', 'icon_ready', 'icon_bowl', 'icon_explore', 'icon_forage'] as const;
@@ -259,12 +263,55 @@ export function drawTileset(): HTMLCanvasElement {
   watercolor(ctx, x, y, TILE, TILE, rs, 0.07, 8);
   for (let i = 0; i < 16; i++) ellipse(ctx, x + rs() * TILE, y + rs() * TILE, 2, 2, 'rgba(170,130,80,0.4)');
   for (let i = 0; i < 2; i++) flower(ctx, x + 20 + rs() * 88, y + 20 + rs() * 88, 5, '#ffd1e8');
+
+  // Brukowana droga osady: zaokrąglone kocie łby z jasnym połyskiem i fugami.
+  [x, y] = pos(Tile.Road);
+  ctx.fillStyle = '#a89e8c';
+  ctx.fillRect(x, y, TILE, TILE);
+  const rr = rng(14);
+  for (let row = 0; row < 5; row++) {
+    const off = row % 2 ? 13 : 0;
+    for (let col = -1; col < 5; col++) {
+      const cx = x + off + col * 26 + 13 + (rr() - 0.5) * 4;
+      const cy = y + row * 26 + 13 + (rr() - 0.5) * 4;
+      if (cx < x - 8 || cx > x + TILE + 8) continue;
+      const tone = shade('#c9c0ae', -0.05 - rr() * 0.14);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, TILE, TILE);
+      ctx.clip();
+      rrect(ctx, cx - 11, cy - 10, 22, 20, 8, tone);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(74,46,26,0.35)';
+      ctx.stroke();
+      ellipse(ctx, cx - 3, cy - 4, 5, 3, 'rgba(255,252,240,0.45)');
+      ctx.restore();
+    }
+  }
+
+  // Most: deski na wodzie z poręczami po bokach.
+  [x, y] = pos(Tile.Bridge);
+  const gb = ctx.createLinearGradient(x, y, x + TILE, y + TILE);
+  gb.addColorStop(0, P.water);
+  gb.addColorStop(1, P.waterDeep);
+  ctx.fillStyle = gb;
+  ctx.fillRect(x, y, TILE, TILE);
+  for (let i = 0; i < 6; i++) {
+    const py = y + 12 + i * 18;
+    rrect(ctx, x + 14, py, TILE - 28, 15, 4, i % 2 ? '#b8834a' : '#a8743f');
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(74,46,26,0.5)';
+    ctx.stroke();
+    ellipse(ctx, x + 24, py + 7, 2, 2, '#5b3a1e');
+    ellipse(ctx, x + TILE - 24, py + 7, 2, 2, '#5b3a1e');
+  }
+  for (const bx of [x + 6, x + TILE - 14]) rrect(ctx, bx, y, 8, TILE, 3, '#7c5128');
   return c;
 }
 
 // ------------------------------------------------------------------ atlas sprite'ów
 
-interface Entry {
+export interface Entry {
   name: string;
   w: number;
   h: number;
@@ -317,6 +364,8 @@ export function drawSpriteAtlas(c: Content = CONTENT): { canvas: HTMLCanvasEleme
     }
   }
   for (const b of c.buildingList) {
+    // Bryły osady z modelem rysuje settlementEntries (z wariantami wyglądu).
+    if (b.art.model && isBox(b)) continue;
     const emblemId = b.art.emblem;
     const emblem = emblemId ? itemIconDrawer(c, emblemId) : undefined;
     const size = buildingFrameSize(b);
@@ -361,9 +410,16 @@ export function drawSpriteAtlas(c: Content = CONTENT): { canvas: HTMLCanvasEleme
   for (const p of PARTICLES) entries.push({ name: p, w: 32, h: 32, draw: (ctx, x, y) => drawParticle(ctx, p, x + 16, y + 16), style: STYLE_NONE });
   entries.push({ name: 'fog', w: 256, h: 256, draw: (ctx, x, y) => drawFogPuff(ctx, x, y), style: STYLE_NONE });
 
-  // Szerokość 2048, wysokość dopasowana do zawartości (maks. 4096 – limit tekstur na iOS jest wyższy).
-  const size = 2048;
-  const placed = shelfPack(entries, size, 4096);
+  // Osada (budynki z wariantami) i postacie (mieszkańcy, karawana, cząsteczki) – rejestrowane przez swoje moduły.
+  entries.push(...settlementEntries(c), ...characterEntries(c));
+
+  // Szerokość 2048 (a gdy treści przybędzie – 4096), wysokość dopasowana do zawartości (maks. 4096).
+  let size = 2048;
+  let placed = shelfPack(entries, size, 4096);
+  if (!placed) {
+    size = 4096;
+    placed = shelfPack(entries, size, 4096);
+  }
   if (!placed) throw new Error('Atlas się nie mieści');
   const usedH = Math.max(...placed.map((p, i) => p.y + entries[i]!.h));
   const [canvas, ctx] = makeCanvas(size, Math.ceil(usedH / 256) * 256);
@@ -492,7 +548,8 @@ export function buildingIconUrl(id: string, size = 96, c: Content = CONTENT): st
     ctx.translate((size - fw * s) / 2, (size - fh * s) / 2);
     ctx.scale(s, s);
     const emblem = def.art.emblem ? itemIconDrawer(c, def.art.emblem) : undefined;
-    if (isBox(def)) drawIsoBuilding(ctx, def, 0, 0, emblem);
+    if (def.art.model && isBox(def)) drawSettlementBuilding(ctx, def, 0, 0, 0, c);
+    else if (isBox(def)) drawIsoBuilding(ctx, def, 0, 0, emblem);
     else drawBuilding(ctx, def, 0, 0, TILE, emblem);
   });
 }

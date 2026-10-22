@@ -28,6 +28,9 @@ import { registerEconomy } from './ui/panels/economy';
 import { registerProgress } from './ui/panels/progress';
 import { registerSettings } from './ui/panels/settings';
 import { registerVillage } from './ui/panels/village';
+import { registerSettlement } from './ui/panels/settlement';
+import { TerritoryMode } from './ui/territoryMode';
+import { mountTownHud } from './ui/townHud';
 import { SheetManager } from './ui/sheet';
 import { Toasts } from './ui/toast';
 import { installIconStyles } from './ui/uiIcons';
@@ -162,6 +165,7 @@ async function boot(): Promise<void> {
   $('#confirm-no').addEventListener('click', () => confirmPop.hidePopover());
 
   let build!: BuildMode;
+  let territory!: TerritoryMode;
   let fishing!: Fishing;
   let sheets!: SheetManager;
 
@@ -196,6 +200,7 @@ async function boot(): Promise<void> {
       confirmPop.showPopover();
     },
     startBuild: (type) => build.start(type),
+    startTerritory: () => territory.start(),
     startMove: (uid) => build.startMove(uid),
     startFishing() {
       const p = store.get().world.pendingFish;
@@ -210,13 +215,16 @@ async function boot(): Promise<void> {
   registerEconomy(app, sheets);
   registerBuild(app, sheets);
   registerVillage(app, sheets);
+  registerSettlement(app, sheets);
   registerProgress(app, sheets);
   registerSettings(app, sheets, () => persisted);
   const hud = mountHud(app);
   mountBeacons(app, dpr);
   mountPlotList(app);
+  mountTownHud(app);
   watchFrameRate();
   build = new BuildMode(app);
+  territory = new TerritoryMode(app);
   fishing = new Fishing(app);
   mountTutorial(app);
   const caption = mountCaptions(app);
@@ -287,7 +295,7 @@ async function boot(): Promise<void> {
       s.cam.fit(false);
       s.applyCamera();
       s.setPostFx(store.get().settings.colorblind, store.get().settings.fx, store.get().settings.dof);
-      bindPointerInput(gameEl, s, app, build, dpr, () => audio.resumeIfNeeded());
+      bindPointerInput(gameEl, s, app, build, dpr, () => audio.resumeIfNeeded(), territory);
       // Hak dla narzędzi deweloperskich i testów automatycznych (tylko w trybie debugowania).
       if (app.debugEnabled()) Object.assign(window, { __pocketFarm: { app, scene: s, store } });
     },

@@ -76,7 +76,7 @@ export class ObjectLayer {
     this.hits = [];
     for (const o of state.objects) {
       const def = this.content.buildings[o.type];
-      if (!def || def.kind === 'path') continue;
+      if (!def || def.kind === 'path' || def.kind === 'bridge') continue;
       const p = buildingPlacement(def, o.x, o.y);
       if (!this.popping.has(o.uid)) items.push({ x: p.x, y: p.y, frame: buildingFrame(o.type), sortY: p.sortY, scale: p.scale, originX: p.originX, originY: p.originY });
       const size = buildingFrameSize(def);
@@ -117,7 +117,7 @@ export class ObjectLayer {
   bounce(uid: number, state: GameState): void {
     const o = state.objects.find((x) => x.uid === uid);
     const def = o && this.content.buildings[o.type];
-    if (!o || !def || def.kind === 'path') return;
+    if (!o || !def || def.kind === 'path' || def.kind === 'bridge') return;
     const p = buildingPlacement(def, o.x, o.y);
     const sc = p.scale;
     this.popping.add(uid);

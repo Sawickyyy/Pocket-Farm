@@ -11,11 +11,20 @@ import { START_UNLOCKED } from '../sim/initialState';
 import { MAP_H, MAP_W, biomeAt, chunkOfTile, generateWorld, plotAtTile, tileIndex } from '../sim/world';
 import type { App } from '../ui/app';
 import type { BuildMode } from '../ui/buildMode';
+import type { TerritoryMode } from '../ui/territoryMode';
 import { viewCtx } from '../ui/view';
 import { PlotPeek } from '../ui/peek';
 import { GestureRecognizer } from './gestures';
 
-export function bindPointerInput(el: HTMLElement, scene: FarmScene, app: App, build: BuildMode, dpr: () => number, onFirstInteraction: () => void): () => void {
+export function bindPointerInput(
+  el: HTMLElement,
+  scene: FarmScene,
+  app: App,
+  build: BuildMode,
+  dpr: () => number,
+  onFirstInteraction: () => void,
+  territory?: TerritoryMode,
+): () => void {
   let dragMode: 'tool' | 'pan' | 'build' | null = null;
   let lastDragPlot: number | null = null;
   let lastPan = { x: 0, y: 0 };
@@ -38,6 +47,10 @@ export function bindPointerInput(el: HTMLElement, scene: FarmScene, app: App, bu
     scene.showHighlight(null);
     if (build.active) {
       build.pointTile(tile.x, tile.y);
+      return;
+    }
+    if (territory?.active) {
+      territory.tapTile(tile.x, tile.y);
       return;
     }
     if (tile.x < 0 || tile.y < 0 || tile.x >= MAP_W || tile.y >= MAP_H) return;

@@ -7,3 +7,6 @@
 @import './theme/hud.css';
 @import './theme/panels.css';
 @import './theme/overlays.css';
+@import './theme/settlement.css';
+@import './theme/build-town.css';
+@import './theme/town-hud.css';

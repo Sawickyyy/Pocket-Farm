@@ -21,7 +21,9 @@ export interface App {
   openSheet(id: string, arg?: unknown, tab?: string): void;
   closeSheet(): void;
   confirm(title: string, html: string, yes: string, onYes: () => void, disabled?: boolean): void;
-  startBuild(type: string): void;
+  startBuild(type: string, style?: number): void;
+  /** Tryb terenu (kupno fragmentów mapy). */
+  startTerritory(): void;
   startMove(uid: number): void;
   startFishing(): void;
   debugEnabled(): boolean;

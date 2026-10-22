@@ -45,8 +45,13 @@ export class GroundLayer {
 
   sync(state: GameState, cal: Calendar): void {
     const s = cal.seasonIndex;
-    const paths = new Set<number>();
-    for (const o of state.objects) if (this.content.buildings[o.type]?.kind === 'path') paths.add(tileIndex(o.x, o.y));
+    // Ścieżki, brukowane drogi osady i mosty to kafle ziemi (nie sprite'y).
+    const paths = new Map<number, number>();
+    for (const o of state.objects) {
+      const def = this.content.buildings[o.type];
+      if (def?.kind === 'path') paths.set(tileIndex(o.x, o.y), def.art.model === 'stone' ? Tile.Road : Tile.Path);
+      else if (def?.kind === 'bridge') paths.set(tileIndex(o.x, o.y), Tile.Bridge);
+    }
     let dirty = false;
     for (let y = 0; y < MAP_H; y++) {
       for (let x = 0; x < MAP_W; x++) {
@@ -54,7 +59,8 @@ export class GroundLayer {
         let tile: number;
         const plot = plotAtTile(x, y);
         if (plot !== null) tile = this.fieldTile(state, state.plots[plot]!, plot);
-        else if (paths.has(i) || this.world.road[i]) tile = Tile.Path;
+        else if (paths.has(i)) tile = paths.get(i)!;
+        else if (this.world.road[i]) tile = Tile.Path;
         else {
           switch (this.world.biome[i]) {
             case BiomeId.water:

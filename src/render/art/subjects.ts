@@ -393,6 +393,11 @@ export function drawBuilding(ctx: Ctx2D, def: BuildingDef, ox: number, oy: numbe
     case 'path':
       rrect(ctx, 6, roofH + 6, W - 12, H - 12, 18, wall);
       break;
+    case 'bridge':
+      rrect(ctx, 4, roofH + 18, W - 8, H - 36, 12, '#5ab0e0');
+      for (let i = 0; i < 5; i++) rrect(ctx, 12, roofH + 24 + i * 16, W - 24, 12, 4, i % 2 ? shade(wall, 0.08) : wall);
+      for (const bx of [8, W - 16]) rrect(ctx, bx, roofH + 12, 8, H - 24, 3, roof);
+      break;
     case 'deco':
       drawDeco(ctx, def, W, H, roofH);
       break;

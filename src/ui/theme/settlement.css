@@ -447,10 +447,11 @@
 
 .stl-steps li small {
   color: var(--muted);
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   font-weight: 800;
   line-height: 1.15;
-  overflow-wrap: anywhere;
+  /* dłuższe nazwy (Obozowisko) wystają poza kolumnę zamiast łamać się w środku słowa */
+  white-space: nowrap;
 }
 
 .stl-steps li.on .stl-peg {
@@ -862,7 +863,7 @@
   color: var(--stl-bad);
 }
 
-/* medalion postaci: kolor wg wyglądu (8 ciepłych wariantów), ikona dorosłego albo dziecka */
+/* medalion postaci: kolor wg wyglądu (8 ciepłych wariantów), portret z atlasu albo ikona dorosłego/dziecka */
 .stl-av {
   --av-hi: var(--sky-hi);
   --av: var(--sky);
@@ -880,6 +881,20 @@
     inset 0 -0.14rem 0 rgb(60 30 10 / 0.18),
     0 0 0 0.16rem var(--paper-hi),
     0 0.14rem 0 0.16rem var(--paper-edge);
+}
+
+/* portret: głowa i ramiona wychodzą z dołu medalionu */
+.stl-av.pic {
+  overflow: hidden;
+}
+
+.stl-av img {
+  width: 112%;
+  height: 112%;
+  margin-top: 12%;
+  object-fit: contain;
+  filter: drop-shadow(0 0.08rem 0 rgb(40 20 5 / 0.2));
+  pointer-events: none;
 }
 
 .stl-av .ic {

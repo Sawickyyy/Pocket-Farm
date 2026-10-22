@@ -4,9 +4,10 @@
 
 import { CONTENT, NEEDS, parseKey, type BuildingDef, type CoverageKind, type NeedId } from '../../content/content';
 import { buildingName, fmt, itemName, t } from '../../i18n/i18n';
-import { buildingIconUrl, itemIconUrl } from '../../render/art/atlas';
+import { SPRITES_KEY, buildingIconUrl, itemIconUrl } from '../../render/art/atlas';
+import { childFrame, residentFrame } from '../../render/art/residents';
 import { HOUR_MS } from '../../sim/calendar';
-import { coverageAtHome, freeHousing, hasService, objectByUid, professionOf, storageCap, storageUsed, tierOf, wageOf } from '../../sim/systems/settlement/common';
+import { coverageAtHome, freeHousing, hasService, objectByUid, professionOf, residentsAt, storageCap, storageUsed, tierOf, wageOf } from '../../sim/systems/settlement/common';
 import { voucherRate } from '../../sim/systems/settlement/council';
 import { priceMult } from '../../sim/systems/settlement/events';
 import { freeJobs } from '../../sim/systems/settlement/jobs';
@@ -183,12 +184,41 @@ function lookupFor(s: GameState): ChronicleLookup {
 
 // ---------------------------------------------------------------- małe klocki widoku
 
-/** Miniatura postaci: kolorowy medalion (kolor wg wyglądu) z ikoną dorosłego albo dziecka. */
-function avatar(r: Resident, big = false): HTMLElement {
+// ---------------------------------------------------------------- portrety (z atlasu sceny)
+
+/** Wycinek klatki postaci (72×104) z głową i ramionami; dziecko stoi niżej w tej samej klatce. */
+const PORTRAIT_CUT = { adult: { x: 5, y: 2, size: 62 }, child: { x: 9, y: 18, size: 54 } } as const;
+const PORTRAIT_PX = 96;
+/** Klatka → data URL portretu. Wspólny dla wszystkich o tym samym zawodzie i wyglądzie (najwyżej ~60 obrazków). */
+const portraits = new Map<string, string>();
+
+/** Portret mieszkańca wycięty z atlasu sceny; null, gdy scena (atlas) nie jest jeszcze gotowa. */
+function portraitUrl(app: App, s: GameState, r: Resident): string | null {
+  const frame = r.child ? childFrame(r.look, 0) : residentFrame(professionOf(s, C, r), r.look, 0);
+  const hit = portraits.get(frame);
+  if (hit) return hit;
+  const tex = app.scene()?.textures.get(SPRITES_KEY);
+  if (!tex?.has(frame)) return null;
+  const src = tex.getSourceImage();
+  if (!(src instanceof HTMLCanvasElement) && !(src instanceof HTMLImageElement)) return null;
+  const f = tex.get(frame);
+  const cut = r.child ? PORTRAIT_CUT.child : PORTRAIT_CUT.adult;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = PORTRAIT_PX;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(src, f.cutX + cut.x, f.cutY + cut.y, cut.size, cut.size, 0, 0, PORTRAIT_PX, PORTRAIT_PX);
+  const url = canvas.toDataURL('image/png');
+  portraits.set(frame, url);
+  return url;
+}
+
+/** Miniatura postaci: kolorowy medalion (kolor wg wyglądu) z portretem albo – bez sceny – ikoną dorosłego/dziecka. */
+function avatar(r: Resident, portrait: string | null, big = false): HTMLElement {
   return h(
     'span',
-    { class: `stl-av look-${((r.look % 8) + 8) % 8}${big ? ' big' : ''}${r.child ? ' kid' : ''}`, attrs: { 'aria-hidden': 'true' } },
-    icEl(r.child ? 'baby' : 'people'),
+    { class: `stl-av look-${((r.look % 8) + 8) % 8}${big ? ' big' : ''}${r.child ? ' kid' : ''}${portrait ? ' pic' : ''}`, attrs: { 'aria-hidden': 'true' } },
+    portrait ? h('img', { attrs: { src: portrait, alt: '', width: '48', height: '48', decoding: 'async' } }) : icEl(r.child ? 'baby' : 'people'),
   );
 }
 
@@ -264,6 +294,8 @@ export function registerSettlement(app: App, sheets: SheetManager): void {
     app.click();
     fn();
   };
+
+  const avatarOf = (s: GameState, r: Resident, big = false) => avatar(r, portraitUrl(app, s, r), big);
 
   /** Zawartość arkusza w jednym korzeniu (arkusz `#sheet-body` jest wspólny dla wszystkich paneli). */
   const mount = (body: HTMLElement, cls: string, parts: (HTMLElement | null)[]) => body.replaceChildren(h('div', { class: `stl ${cls}` }, ...parts));
@@ -571,7 +603,7 @@ export function registerSettlement(app: App, sheets: SheetManager): void {
       ),
     );
     const children: (HTMLElement | null)[] = [
-      h('div', { class: 'stl-tier-head' }, h('span', { class: 'stl-ribbon m-cloth', html: `${ic('crown')}<span>${t(`tier.${curId}`)}</span>` }), h('small', { text: t('town.tier.of', { n: cur + 1, total: ST.tiers.length }) })),
+      h('div', { class: 'stl-tier-head' }, h('span', { class: 'stl-ribbon m-cloth', html: `${ic('crown')}<span>${t(`tier.${curId}`)}</span>` }), h('small', { text: t('town.tier.of', { n: cur + 1, total: ST.tiers.length }) + (peak > cur ? ` · ${t('town.tier.peak', { tier: t(`tier.${ST.tiers[peak]?.id ?? 'camp'}`) })}` : '') })),
       steps,
     ];
     if (next) {
@@ -732,7 +764,7 @@ export function registerSettlement(app: App, sheets: SheetManager): void {
           attrs: { 'data-rid': r.id, 'aria-label': `${r.name}, ${role}${r.home === null ? `, ${t('town.role.homeless')}` : ''}, ${t('town.stat.happiness')} ${pct(r.happiness)}` },
           on: { click: tap(() => app.openSheet('resident', r.id)) },
         },
-        avatar(r),
+        avatarOf(s, r),
         h(
           'span',
           { class: 'stl-res-main' },
@@ -1172,7 +1204,7 @@ export function registerSettlement(app: App, sheets: SheetManager): void {
       h(
         'div',
         { class: `stl-card ${moodLevel(r.happiness)}` },
-        avatar(r, true),
+        avatarOf(s, r, true),
         h(
           'div',
           { class: 'stl-card-main' },
@@ -1192,7 +1224,7 @@ export function registerSettlement(app: App, sheets: SheetManager): void {
       'div',
       { class: `stl-row-card${homeObj ? '' : ' warn'}` },
       homeObj ? thumb(buildingIconUrl(homeObj.type, 64)) : h('span', { class: 'stl-row-ic', html: ic('cottage') }),
-      h('div', { class: 'stl-row-main' }, h('b', { text: homeObj ? buildingName(homeObj.type) : t('resident.noHome') }), h('p', { text: homeObj ? t('resident.home') : t('resident.hint.housing.none') })),
+      h('div', { class: 'stl-row-main' }, h('b', { text: homeObj ? buildingName(homeObj.type) : t('resident.noHome') }), h('p', { text: homeObj ? t('resident.homeBeds', { n: residentsAt(s, homeObj.uid).length, max: C.buildings[homeObj.type]?.housing ?? 0 }) : t('resident.hint.housing.none') })),
       btn(
         t('resident.show'),
         tap(() => {
@@ -1240,7 +1272,7 @@ export function registerSettlement(app: App, sheets: SheetManager): void {
               h(
                 'button',
                 { class: 'stl-chip', type: 'button', attrs: { 'aria-label': `${x.name}, ${t(`resident.kin.${kinOf(r, x, partner)}`)}` }, on: { click: tap(() => app.openSheet('resident', x.id)) } },
-                avatar(x),
+                avatarOf(s, x),
                 h('span', {}, h('b', { text: givenName(x.name) }), h('small', { text: t(`resident.kin.${kinOf(r, x, partner)}`) })),
               ),
             ),
@@ -1333,5 +1365,4 @@ export function registerSettlement(app: App, sheets: SheetManager): void {
     if (low('fun')) out.fun = cov('fun') <= 0 ? missingText(s, 'fun') : t('resident.hint.fun.deco');
     return out;
   }
-
 }

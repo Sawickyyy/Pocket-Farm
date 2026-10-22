@@ -15,6 +15,11 @@ export type SfxName =
   | 'splash'
   | 'craft'
   | 'build'
+  // osada: dzwon alarmowy (pożar), fanfary (awans etapu), dzwoneczki (przyjazd, narodziny, ślub), karawana
+  | 'alarm'
+  | 'fanfare'
+  | 'chime'
+  | 'caravan'
   // dźwięki materiałów interfejsu: drewno, papier, płótno, złoto, wosk (ceramika = 'click')
   | 'wood'
   | 'paper'
@@ -152,6 +157,30 @@ export class AudioEngine {
         break;
       case 'build':
         [0, 0.12, 0.24].forEach((d) => this.noiseBurst(out, t + d, 0.06, 900, 0.5));
+        break;
+      case 'alarm':
+        // dzwon strażacki: trzy szybkie uderzenia z metalicznym alikwotem
+        [0, 0.2, 0.4].forEach((d) => {
+          this.tone(out, t + d, 1250, 0.18, 'triangle', 0.3);
+          this.tone(out, t + d, 1875, 0.14, 'sine', 0.12);
+          this.tone(out, t + d, 625, 0.1, 'square', 0.05);
+        });
+        break;
+      case 'fanfare':
+        [392, 523, 659].forEach((f, i) => this.tone(out, t + i * 0.11, f, 0.16, 'triangle', 0.3));
+        [523, 659, 784, 1047].forEach((f) => this.tone(out, t + 0.36, f, 0.55, 'triangle', 0.16));
+        this.tone(out, t + 0.36, 1047, 0.5, 'square', 0.04);
+        break;
+      case 'chime':
+        [1047, 1319, 1568].forEach((f, i) => {
+          this.tone(out, t + i * 0.08, f, 0.3, 'sine', 0.18);
+          this.tone(out, t + i * 0.08, f * 2, 0.12, 'sine', 0.05);
+        });
+        break;
+      case 'caravan':
+        // stukot kopyt i dzwoneczki uprzęży
+        [0, 0.14, 0.32, 0.46].forEach((d) => this.noiseBurst(out, t + d, 0.05, 380, 0.45));
+        [1568, 1760, 1568].forEach((f, i) => this.tone(out, t + 0.05 + i * 0.16, f, 0.14, 'sine', 0.12));
         break;
     }
   }

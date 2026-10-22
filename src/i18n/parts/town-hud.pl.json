@@ -15,6 +15,7 @@
   "townHud.moment.unlocks": "Nowe budynki",
   "townHud.moment.spec": "Możesz wybrać specjalizację osady w ratuszu.",
   "townHud.moment.more": "i {n} więcej",
+  "townHud.moment.open": "Zobacz osadę",
   "townHud.moment.close": "Zamknij",
   "townEvent.show": "Pokaż",
   "townEvent.trade": "Handel",

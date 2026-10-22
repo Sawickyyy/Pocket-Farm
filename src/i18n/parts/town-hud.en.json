@@ -15,6 +15,7 @@
   "townHud.moment.unlocks": "New buildings",
   "townHud.moment.spec": "You can choose the town's specialisation at the town hall.",
   "townHud.moment.more": "and {n} more",
+  "townHud.moment.open": "View town",
   "townHud.moment.close": "Close",
   "townEvent.show": "Show",
   "townEvent.trade": "Trade",

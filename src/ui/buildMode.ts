@@ -15,6 +15,7 @@ import { FIELD, generateWorld, type WorldMap } from '../sim/world';
 import type { Ghost } from '../render/FarmScene';
 import type { App } from './app';
 import { $, h } from './dom';
+import { plural } from './format';
 import { ic, icEl } from './uiIcons';
 import { viewCtx } from './view';
 
@@ -133,16 +134,23 @@ export const coverageKindOf = (def: BuildingDef | undefined): CoverageKind | nul
 export function serviceEffect(def: BuildingDef): string {
   const sv = def.service;
   if (!sv) return '';
-  return t(`buildTown.effect.${sv.kind}`, { r: sv.radius, v: sv.value ?? 0 });
+  return t(`buildTown.effect.${sv.kind}`, { r: sv.radius, v: sv.value ?? 0, d: CONTENT.settlement.constants.offroadDistanceDepot });
+}
+
+/** „n kafli” z polską odmianą. */
+export function tilesText(n: number): string {
+  return t(plural(n, 'buildTown.tiles.one', 'buildTown.tiles.few', 'buildTown.tiles.many'), { n });
 }
 
 // ---------------------------------------------------------------- nakładka zasięgu (z panelu budynku)
 
 let coverageChip: HTMLElement | null = null;
 
-/** Pokazuje zasięg usługi na mapie z plakietką „ukryj” u góry ekranu. */
-export function showCoverage(app: App, kind: CoverageKind, label: string): void {
-  app.scene()?.setCoverage(kind);
+/** Pokazuje zasięg usługi na mapie (kamera nad budynkiem `at`) z plakietką „ukryj” u góry ekranu. */
+export function showCoverage(app: App, kind: CoverageKind, label: string, at?: TileXY): void {
+  const scene = app.scene();
+  scene?.setCoverage(kind);
+  if (at) scene?.focusTile(at.x, at.y);
   if (!coverageChip) {
     const text = h('span');
     const close = h('button', {
@@ -399,7 +407,7 @@ export class BuildMode {
       const ok = st.line.filter((tl) => tl.valid);
       valid = ok.length > 0;
       const total = ok.length * cost;
-      pills.push(`<span class="bt-pill${total > s.coins ? ' miss' : ''}">${t('buildTown.lineCount', { n: ok.length })} · ${fmt(total)}${ic('coin')}</span>`);
+      pills.push(`<span class="bt-pill${total > s.coins ? ' miss' : ''}">${tilesText(ok.length)} · ${fmt(total)}${ic('coin')}</span>`);
       if (!valid) {
         const last = st.line[st.line.length - 1]!;
         const r = canPlace(s, CONTENT, st.type, last.x, last.y, -1, world);

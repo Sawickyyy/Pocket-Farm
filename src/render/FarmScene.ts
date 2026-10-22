@@ -608,7 +608,8 @@ export class FarmScene extends Phaser.Scene {
     const eco = this.economy();
     if (time - this.fireTick >= (reduced ? 320 : eco ? 180 : 110)) {
       this.fireTick = time;
-      let budget = this.particles.alive > 200 ? 0 : 6;
+      // Płomienie mają własną (addytywną) pulę – limit żywych świecących cząsteczek.
+      let budget = this.particles.aliveGlow > 72 ? 0 : 6;
       for (let i = 0; i < list.length && budget > 0; i++) {
         const fx = list[i]!;
         if (!fx.burning || !this.inView(fx.x, fx.y, 200)) continue;

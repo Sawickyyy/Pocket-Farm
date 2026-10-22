@@ -150,8 +150,9 @@ describe('kronika osady', () => {
     expect(chronicleText(entry('treated'))).toBe('Wyleczono zwierzęta.');
     expect(chronicleText(entry('left', { count: 1, reason: 'boredom' }))).toBe('Część mieszkańców wyjechała z osady.');
     expect(chronicleText(entry('wedding', { a: 'Ala' }))).toBe('W osadzie odbył się ślub!');
-    // rodzaj bez wariantu `.plain`: brakujący parametr zastępuje wielokropek
-    expect(chronicleText(entry('decided', { approve: 1 }))).toBe('Przyjęto wniosek: ….');
+    // brakujący parametr → wariant `.plain` bez parametrów
+    expect(chronicleText(entry('decided', { approve: 1 }))).toBe('Rada podjęła decyzję.');
+    expect(chronicleText(entry('arrived', { family: 'Nowak' }))).toBe('Do osady przyjechała nowa rodzina.');
     expect(chronicleText(entry('proposal', { tpl: 'nowy_szablon' }))).toBe('Nowy wniosek rady: Wniosek mieszkańców.');
     setLanguage('en');
     expect(chronicleText(entry('meteor'))).toBe('Something happened in the settlement.');

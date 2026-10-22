@@ -364,7 +364,7 @@ export function registerSettlement(app: App, sheets: SheetManager): void {
           joblessCount(s),
           moodLevel(averageHappiness(s)),
           daily > 0 ? Math.floor(foodStock(s, C) / daily) : Math.round(foodStock(s, C) / 10),
-          storageUsed(s) >= storageCap(s, C),
+          storageUsed(s, C) >= storageCap(s, C),
           events,
           st.territory.length,
           st.bought,
@@ -432,7 +432,7 @@ export function registerSettlement(app: App, sheets: SheetManager): void {
     const food = foodStock(s, C);
     const daily = dailyFood(s);
     const foodDays = daily > 0 ? food / daily : 0;
-    const used = storageUsed(s);
+    const used = storageUsed(s, C);
     const cap = storageCap(s, C);
     const foodLvl = !pop ? 'happy' : foodDays < 1 ? 'sad' : foodDays < 3 ? 'ok' : 'happy';
     const storeLvl = used >= cap ? 'sad' : used / cap > 0.85 ? 'ok' : 'happy';
@@ -457,7 +457,7 @@ export function registerSettlement(app: App, sheets: SheetManager): void {
             h('span', { class: 'stl-meter-l', html: `${ic('crate')}<span>${t('town.storage')}</span>` }),
             h('span', { class: 'stl-meter-v', text: `${fmt(used)} / ${fmt(cap)}`, attrs: { 'data-val': 'o-storage' } }),
             bar(used / cap, false, 'o-storage'),
-            used >= cap ? h('small', { class: 'stl-hint', html: `${ic('warning')}<span>${t('town.storageFull')}</span>` }) : null,
+            used >= cap ? h('small', { class: 'stl-hint', html: `${ic('warning')}<span>${t('town.storageFull')}</span>` }) : h('small', { class: 'stl-sub', text: t('town.storageNote') }),
           ),
         ),
       ),
@@ -679,7 +679,7 @@ export function registerSettlement(app: App, sheets: SheetManager): void {
     for (const n of NEEDS) updateMeter(root, `o-${n}`, needs[n]);
     setText(root, 'o-happy', pct(averageHappiness(s)));
     setBar(root, 'o-food', Math.min(1, foodStock(s, C) / Math.max(1, dailyFood(s)) / 7));
-    const used = storageUsed(s);
+    const used = storageUsed(s, C);
     const cap = storageCap(s, C);
     setBar(root, 'o-storage', used / cap);
     setText(root, 'o-storage', `${fmt(used)} / ${fmt(cap)}`);

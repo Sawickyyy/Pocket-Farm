@@ -142,8 +142,9 @@ export function lookSignature(look: ObjectLook): string {
 
 // ---------------------------------------------------------------- warstwa
 
-/** Zapasowe ikonki (gdy atlas nie ma jeszcze klatek modułu postaci). */
-const BADGE_FALLBACK: Record<string, string> = { icon_wrench: 'town-badge-wrench', icon_sick: 'town-badge-sick' };
+/** Ikonki nad budynkami (atlas, moduł postaci): klatka 128×128, czubek ogonka dymku na ~77% wysokości. */
+export const BADGE_ORIGIN_Y = 0.77;
+export const BADGE_SCALE = 0.9;
 
 export class ObjectLayer {
   readonly layer: Phaser.GameObjects.SpriteGPULayer;
@@ -336,22 +337,11 @@ export class ObjectLayer {
       const o = state.objects.find((v) => v.uid === uid)!;
       const def = this.content.buildings[o.type]!;
       const at = badgeAnchor(def, o.x, o.y);
-      const frame = this.badgeFrame(icon);
-      // Ikonka atlasu 128×128: ogonek dymku kończy się na 3/4 wysokości klatki – tam jest punkt zaczepienia.
-      const img = (frame.key === SPRITES_KEY ? this.scene.add.image(at.x, at.y, SPRITES_KEY, frame.frame) : this.scene.add.image(at.x, at.y, frame.key))
-        .setOrigin(0.5, frame.key === SPRITES_KEY ? 0.75 : 1)
-        .setScale(frame.key === SPRITES_KEY ? 1.05 : 1.2)
-        .setDepth(27);
+      if (!this.hasFrame(icon)) continue;
+      const img = this.scene.add.image(at.x, at.y, SPRITES_KEY, icon).setOrigin(0.5, BADGE_ORIGIN_Y).setScale(BADGE_SCALE).setDepth(27);
       if (this.motion()) this.scene.tweens.add({ targets: img, y: at.y - 18, duration: 900, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
       this.badges.set(uid, img);
     }
-  }
-
-  private badgeFrame(icon: string): { key: string; frame?: string } {
-    if (this.hasFrame(icon)) return { key: SPRITES_KEY, frame: icon };
-    const key = BADGE_FALLBACK[icon] ?? 'town-badge-wrench';
-    if (!this.scene.textures.exists(key)) this.scene.textures.addCanvas(key, drawBadge(icon === 'icon_sick' ? 'sick' : 'wrench'));
-    return { key };
   }
 
   // ------------------------------------------------------------- animacje
@@ -433,57 +423,4 @@ export function badgeAnchor(def: BuildingDef, x: number, y: number): { x: number
   const c = project(x + def.size[0] / 2, y + def.size[1] / 2);
   // Klatka ma nad dachem margines (ISO_PAD) – ikonka „siada” tuż nad kalenicą.
   return { x: c.x, y: top + 24 };
-}
-
-/** Prosta ikonka w dymku (zastępstwo do czasu narysowania ikon przez moduł postaci). */
-function drawBadge(kind: 'wrench' | 'sick'): HTMLCanvasElement {
-  const c = document.createElement('canvas');
-  c.width = 84;
-  c.height = 96;
-  const ctx = c.getContext('2d')!;
-  // dymek z ogonkiem
-  ctx.fillStyle = '#fff8ea';
-  ctx.strokeStyle = '#6b4428';
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.arc(42, 40, 34, 0, Math.PI * 2);
-  ctx.moveTo(32, 70);
-  ctx.lineTo(42, 92);
-  ctx.lineTo(52, 70);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = '#fff8ea';
-  ctx.beginPath();
-  ctx.arc(42, 40, 31, 0, Math.PI * 2);
-  ctx.fill();
-  if (kind === 'wrench') {
-    ctx.save();
-    ctx.translate(42, 40);
-    ctx.rotate(-Math.PI / 4);
-    ctx.fillStyle = '#8a97a3';
-    ctx.strokeStyle = '#3d4650';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.roundRect(-5, -6, 10, 30, 4);
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(0, -12, 12, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#fff8ea';
-    ctx.fillRect(-4, -26, 8, 14);
-    ctx.restore();
-  } else {
-    ctx.fillStyle = '#3fbf6a';
-    ctx.strokeStyle = '#1f6a3a';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.roundRect(35, 20, 14, 40, 3);
-    ctx.roundRect(22, 33, 40, 14, 3);
-    ctx.fill();
-    ctx.stroke();
-  }
-  return c;
 }

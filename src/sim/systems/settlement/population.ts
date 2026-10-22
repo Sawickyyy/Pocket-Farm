@@ -224,8 +224,8 @@ function rehouse(ctx: Ctx, houses: Map<number, PlacedObject>): void {
         m.home = target;
         m.homelessDays = 0;
       } else {
-        // Dom usunięty z mapy → null; uszkodzony zostaje (po naprawie wracają do siebie).
-        if (m.home !== null && !houses.has(m.home)) m.home = null;
+        // Dom usunięty albo uszkodzony = bezdomny (po naprawie dom znów ma wolne miejsca – wrócą przy przeprowadzce).
+        m.home = null;
         m.homelessDays++;
       }
     }

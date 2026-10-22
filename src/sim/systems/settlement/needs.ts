@@ -5,7 +5,7 @@
 import { COVERAGE_KINDS, NEEDS, parseKey, type Content, type CoverageKind, type NeedId } from '../../../content/content';
 import { removeKey, type Ctx } from '../../ctx';
 import type { At } from '../../events';
-import type { GameState, PlacedObject, Resident } from '../../types';
+import type { GameState, PlacedObject, Relation, Resident } from '../../types';
 import { MAP_H, MAP_W } from '../../world';
 import { addBudget, centerOf, coverage } from './common';
 import { funBoost } from './events';
@@ -237,18 +237,38 @@ export function needsHour(ctx: Ctx, hour: number): void {
   const env = new NeedsEnv(s, c);
   if (c.settlement.constants.mealHours.includes(hour)) meal(ctx, env);
 
-  // relationBonus przegląda wszystkie relacje – wołamy go tylko dla mieszkańców, którzy jakieś mają.
-  const related = new Set<number>();
-  for (const rel of s.settlement.relations) {
-    related.add(rel.a);
-    related.add(rel.b);
-  }
+  const bonus = relationBonuses(s);
   for (const r of rs) {
     const t = targetsFor(env, r);
     for (const n of NEEDS) r.needs[n] += (t[n] - r.needs[n]) * NEED_RATE;
-    const target = happinessTarget(ctx, r, related.has(r.id) ? relationBonus(s, r.id) : 0);
+    const target = happinessTarget(ctx, r, bonus.get(r.id) ?? 0);
     r.happiness += (target - r.happiness) * NEED_RATE;
   }
+}
+
+/**
+ * Wpływ relacji na szczęście dla wszystkich naraz. `relationBonus` (social.ts) przegląda całą listę relacji,
+ * więc wołamy go na widoku stanu z relacjami tylko danej osoby – ten sam wynik w O(relacje) zamiast O(n × relacje).
+ */
+export function relationBonuses(s: GameState): Map<number, number> {
+  const byId = new Map<number, Relation[]>();
+  const add = (id: number, rel: Relation): void => {
+    const list = byId.get(id);
+    if (list) list.push(rel);
+    else byId.set(id, [rel]);
+  };
+  for (const rel of s.settlement.relations) {
+    add(rel.a, rel);
+    if (rel.b !== rel.a) add(rel.b, rel);
+  }
+  const out = new Map<number, number>();
+  if (!byId.size) return out;
+  const view: GameState = { ...s, settlement: { ...s.settlement } };
+  for (const [id, list] of byId) {
+    view.settlement.relations = list;
+    out.set(id, relationBonus(view, id));
+  }
+  return out;
 }
 
 /** Raz na dobę: aktualizacja `sadDays`, wyzerowanie licznika posiłków, wygaszenie `mood`. */

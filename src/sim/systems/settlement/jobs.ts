@@ -6,7 +6,8 @@ import type { Content } from '../../../content/content';
 import type { Ctx } from '../../ctx';
 import type { At } from '../../events';
 import type { GameState, PlacedObject, Resident } from '../../types';
-import { centerOf, isBuilt, isOperational, siteOf } from './common';
+import type { WorldMap } from '../../world';
+import { centerOf, hasService, isBuilt, isOperational, siteOf } from './common';
 import { commuteChecker } from './roads';
 
 /** Liczba etatów budynku danego typu (0 = nie zatrudnia). */
@@ -112,6 +113,13 @@ export function assignJobs(ctx: Ctx): void {
   if (!openings.length) return;
   seekers.sort((a, b) => a.id - b.id);
 
+  // Bezrobotni bez dojazdu do wolnych etatów zostają tacy godzinami – gdy wejścia są te same co w ostatnim
+  // przebiegu bez przydziału, wynik też (nikt), więc nie sprawdzamy dojazdów ponownie.
+  const key = inputKey(s, c, seekers, openings);
+  const last = idleRuns.get(s);
+  if (last && last.c === c && last.world === ctx.world && last.key === key) return;
+  const before = free;
+
   // Kandydaci per dom: posortowani po odległości (Manhattan środków), remis – mniejszy uid. Dojazd sprawdzamy
   // dopiero dla wolnego etatu i zapamiętujemy, więc dom × etat liczy się najwyżej raz na godzinę.
   const commute = commuteChecker(ctx);
@@ -138,6 +146,25 @@ export function assignJobs(ctx: Ctx): void {
       free--;
       break;
     }
-    if (free <= 0) return;
+    if (free <= 0) break;
   }
+  if (free === before) idleRuns.set(s, { c, world: ctx.world, key });
+  else idleRuns.delete(s);
+}
+
+/** Ostatni przebieg przydziału, w którym nikt nie dostał pracy (sygnatura wejść). */
+const idleRuns = new WeakMap<GameState, { c: Content; world: WorldMap; key: string }>();
+
+/**
+ * Sygnatura wszystkiego, od czego zależy przydział: położenie i typ obiektów (domy, praca, drogi), ukończenie
+ * budynków (mosty), zajezdnia, szukający pracy (id → dom) i wolne etaty.
+ */
+function inputKey(s: GameState, c: Content, seekers: Resident[], openings: Opening[]): string {
+  const parts: string[] = [hasService(s, c, 'transport') ? 'T' : '-'];
+  for (const o of s.objects) parts.push(`${o.uid}:${o.type}:${o.x}:${o.y}:${isBuilt(s, o.uid) ? 1 : 0}`);
+  parts.push('#');
+  for (const r of seekers) parts.push(`${r.id}>${r.home}`);
+  parts.push('#');
+  for (const j of openings) parts.push(`${j.uid}+${j.free}`);
+  return parts.join('|');
 }

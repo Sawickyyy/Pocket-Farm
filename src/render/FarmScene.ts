@@ -1,4 +1,5 @@
 // Scena Phasera: składa warstwy, synchronizuje je ze stanem symulacji, steruje kamerą, światłem i efektami.
+// Osada: budowy i zgliszcza (ObjectLayer), zasięg usług, teren, mieszkańcy, karawana, efekty zdarzeń osady.
 
 import Phaser from 'phaser';
 import { CONTENT, parseKey } from '../content/content';
@@ -8,20 +9,27 @@ import type { SimEvent } from '../sim/events';
 import { PLOT_COUNT } from '../sim/initialState';
 import type { GameState } from '../sim/types';
 import type { CoverageKind } from '../content/content';
+import { centerOf, objectByUid } from '../sim/systems/settlement/common';
+import { chunkRect } from '../sim/systems/settlement/territory';
 import { CHUNK, CHUNKS_X, FIELD, generateWorld, plotTile, type WorldMap } from '../sim/world';
-import { SPRITES_KEY, TILE, TILES_KEY, buildingFrame, cropFrame, drawSpriteAtlas, drawTileset, itemFrame, type ParticleFrame } from './art/atlas';
+import { SPRITES_KEY, TILE, TILES_KEY, buildingFrame, cropFrame, drawSpriteAtlas, drawTileset, itemFrame } from './art/atlas';
+import { frameFor } from './art/settlementArt';
 import { CameraModel, type Viewport } from './cameraModel';
 import { buildingPlacement, project, projectedBounds, unproject } from './iso';
 import { colorMatrix20, type ColorblindMode } from './colorblind';
 import { AmbientLayer } from './layers/AmbientLayer';
 import { AnimalLayer } from './layers/AnimalLayer';
+import { CaravanLayer } from './layers/CaravanLayer';
+import { CoverageLayer, isCoverageKind } from './layers/CoverageLayer';
 import { VillagerLayer } from './layers/VillagerLayer';
 import { FogLayer } from './layers/FogLayer';
 import { GroundLayer } from './layers/GroundLayer';
 import { Lighting } from './layers/Lighting';
 import { ObjectLayer } from './layers/ObjectLayer';
 import { PlantLayer } from './layers/PlantLayer';
-import { ParticleLayer } from './ParticleLayer';
+import { ResidentLayer } from './layers/ResidentLayer';
+import { TerritoryLayer } from './layers/TerritoryLayer';
+import { ParticleLayer, type AnyParticle, type EmitOptions } from './ParticleLayer';
 
 export interface SceneDeps {
   store: Store<GameState>;
@@ -53,6 +61,19 @@ export interface CoveragePreview {
 }
 
 const SYNC_MS = 120;
+/** Limit efektów zdarzeń osady: pula „żetonów” odnawiana w czasie (nadrabianie potrafi przysłać setki zdarzeń). */
+const FX_TOKENS = 10;
+const FX_REFILL_MS = 250;
+/** Kolory ducha budowy: poprawne / niepoprawne miejsce. */
+const GHOST_OK = 0x7dff8a;
+const GHOST_BAD = 0xff6b6b;
+
+/** Rysuje prostokąt kafli ducha (tło + obrys) w kontenerze płaskiej ziemi. */
+function ghostTile(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, valid: boolean, thin = false): void {
+  const color = valid ? GHOST_OK : GHOST_BAD;
+  g.fillStyle(color, thin ? 0.38 : 0.3).fillRect(x, y, w * TILE, h * TILE);
+  g.lineStyle(thin ? 6 : 8, color, 0.9).strokeRect(x + (thin ? 6 : 0), y + (thin ? 6 : 0), w * TILE - (thin ? 12 : 0), h * TILE - (thin ? 12 : 0));
+}
 
 const DOF_KEY = 'dof-mask';
 /** Macierze 4×5: jasność do wszystkich kanałów (alfa = 1) oraz ciepłe zabarwienie poświaty. */
@@ -89,6 +110,19 @@ export class FarmScene extends Phaser.Scene {
   private particles!: ParticleLayer;
   private ambient!: AmbientLayer;
   private villagers!: VillagerLayer;
+  private residents!: ResidentLayer;
+  private caravans!: CaravanLayer;
+  private coverage!: CoverageLayer;
+  private territory!: TerritoryLayer;
+  /** Zasięg zamówiony przez UI i podgląd zasięgu ducha budowy (ma pierwszeństwo). */
+  private coverageUser: { kind: CoverageKind | null; preview: CoveragePreview | null } = { kind: null, preview: null };
+  private coverageGhost: { kind: CoverageKind; preview: CoveragePreview } | null = null;
+  private fxTokens = FX_TOKENS;
+  private fxRefill = 0;
+  private fireTick = 0;
+  private smokeTick = 0;
+  private lastFly = 0;
+  private readonly producedAt = new Map<number, number>();
   private vignette: Phaser.Filters.Vignette | null = null;
   private fx = true;
   private highlight!: Phaser.GameObjects.Graphics;
@@ -121,13 +155,15 @@ export class FarmScene extends Phaser.Scene {
 
     this.ground = new GroundLayer(this, this.world, CONTENT);
     this.plants = new PlantLayer(this, PLOT_COUNT);
-    this.objects = new ObjectLayer(this, this.world, CONTENT);
+    this.objects = new ObjectLayer(this, this.world, CONTENT, () => !this.deps.reducedMotion());
     this.animals = new AnimalLayer(this, CONTENT, () => !this.deps.reducedMotion());
     this.villagers = new VillagerLayer(this, CONTENT, () => !this.deps.reducedMotion());
     this.fog = new FogLayer(this);
     this.particles = new ParticleLayer(this);
     this.ambient = new AmbientLayer(this, state.seed);
-    this.lighting = new Lighting(this, CONTENT);
+    this.lighting = new Lighting(this, CONTENT, () => !this.deps.reducedMotion());
+    this.residents = new ResidentLayer(this, this.world, CONTENT, () => !this.deps.reducedMotion());
+    this.caravans = new CaravanLayer(this, this.world, CONTENT, () => !this.deps.reducedMotion());
 
     // Podświetlenie dotkniętego pola – jedyny obiekt z filtrem glow (filtry są kosztowne).
     // Nakładki leżące na ziemi siedzą w kontenerze izometrycznym – rysujemy je jak kwadraty kafli.
@@ -141,6 +177,9 @@ export class FarmScene extends Phaser.Scene {
 
     this.ghostRect = this.add.graphics().setVisible(false);
     this.ground.flat.add([this.highlight, this.tutorialPulse, this.ghostRect]);
+    // Nakładki osady wstawiane tuż nad kaflami: teren pod zasięgiem usług, oba pod podświetleniem i duchem.
+    this.coverage = new CoverageLayer(this, this.ground.flat, CONTENT);
+    this.territory = new TerritoryLayer(this, this.ground.flat, CONTENT, () => this.deps.dpr());
     this.ghostImage = this.add.image(0, 0, SPRITES_KEY, 'icon_ready').setOrigin(0.5, 1).setAlpha(0.8).setDepth(71).setVisible(false);
 
     this.cam = new CameraModel(projectedBounds(FIELD.x, FIELD.y, FIELD.w, FIELD.h), this.boundsFor(state), 0.3, 2.2, 1.35);
@@ -171,11 +210,14 @@ export class FarmScene extends Phaser.Scene {
     const clock = state.clock;
     const hour = ((clock.simMs + clock.accMs) % DAY_MS) / HOUR_MS;
     const cal = calendarAt(clock.simMs, state.seed);
-    this.lighting.update(hour, cal);
+    this.lighting.update(hour, cal, time);
     this.ambient.update(cal, 1 - daylight(hour), this.fx && !this.deps.reducedMotion());
     this.updatePostFx(cal.season, 1 - daylight(hour));
     this.animals.update(time, state);
     this.villagers.update(time, delta, cal);
+    this.residents.update(time, delta, cal);
+    this.caravans.update(time, delta, cal);
+    this.townEffects(time);
     this.particles.update();
     if (this.cam.update(delta)) this.applyCamera();
   }
@@ -192,7 +234,11 @@ export class FarmScene extends Phaser.Scene {
     this.fog.sync(state, motion);
     this.animals.sync(state);
     this.ambient.sync(state, motion);
-    if (force || !prev || prev.objects !== state.objects || prev.plots !== state.plots) this.lighting.sync(state);
+    this.residents.sync(state, cal);
+    this.caravans.sync(state, cal);
+    this.territory.sync(state);
+    this.coverage.sync(state);
+    if (force || !prev || prev.objects !== state.objects || prev.plots !== state.plots || prev.settlement !== state.settlement) this.lighting.sync(state, this.economy());
     if (force || !prev || prev.world.revealed.length !== state.world.revealed.length) this.cam.bounds = this.boundsFor(state);
   }
 
@@ -225,6 +271,19 @@ export class FarmScene extends Phaser.Scene {
     const c = this.cameras.main;
     c.setZoom(this.cam.zoom);
     c.centerOn(this.cam.centerX, this.cam.centerY);
+    // Etykiety cen terenu mają stały rozmiar na ekranie.
+    this.territory?.updateScale(this.cam.zoom, this.deps.dpr());
+  }
+
+  /** Tryb oszczędny: bez efektów bajkowych albo przy niskim klatkażu – mniej świateł i cząsteczek. */
+  private economy(): boolean {
+    return !this.fx || document.documentElement.dataset.lowfps === 'true';
+  }
+
+  /** Czy punkt świata (px) jest w kadrze (z marginesem). */
+  private inView(x: number, y: number, margin = 160): boolean {
+    const v = this.cameras.main.worldView;
+    return x >= v.x - margin && x <= v.right + margin && y >= v.y - margin && y <= v.bottom + margin;
   }
 
   /** Piksele urządzenia → świat. */
@@ -268,7 +327,12 @@ export class FarmScene extends Phaser.Scene {
   }
 
   focusTile(x: number, y: number): void {
-    const p = project(x + 0.5, y + 0.5);
+    this.focusAt(x + 0.5, y + 0.5);
+  }
+
+  /** Kamera na punkt w kaflach (ciągły). */
+  private focusAt(x: number, y: number): void {
+    const p = project(x, y);
     this.cam.focusOn(p.x, p.y, Math.max(this.cam.zoom, this.cam.fitZoom * 0.8));
   }
 
@@ -297,47 +361,94 @@ export class FarmScene extends Phaser.Scene {
     if (!g) {
       this.ghostImage.setVisible(false);
       this.ghostRect.setVisible(false);
+      if (this.coverageGhost) {
+        this.coverageGhost = null;
+        this.applyCoverage();
+      }
       return;
     }
     const def = CONTENT.buildings[g.type];
     if (!def) return;
     const [w, h] = def.size;
-    const color = g.valid ? 0x7dff8a : 0xff6b6b;
-    this.ghostRect.clear().fillStyle(color, 0.3).fillRect(0, 0, w * TILE, h * TILE).lineStyle(8, color, 0.9).strokeRect(0, 0, w * TILE, h * TILE);
-    this.ghostRect.setPosition(g.x * TILE, g.y * TILE).setVisible(true);
-    const place = buildingPlacement(def, g.x, g.y);
-    this.ghostImage
-      .setFrame(buildingFrame(g.type))
-      .setOrigin(place.originX, place.originY)
-      .setScale(place.scale)
-      .setPosition(place.x, place.y)
-      .setTint(g.valid ? 0xffffff : 0xff9a9a)
-      .setVisible(def.kind !== 'path');
+    // Drogi i mosty to kafle ziemi – duch to sam prostokąt kafla (przy rysowaniu linią: każdy kafel osobno).
+    const ground = def.kind === 'path' || def.kind === 'bridge';
+    const r = this.ghostRect.clear();
+    if (g.line?.length) {
+      r.setPosition(0, 0);
+      for (const t of g.line) ghostTile(r, t.x * TILE, t.y * TILE, w, h, t.valid, true);
+    } else {
+      r.setPosition(g.x * TILE, g.y * TILE);
+      ghostTile(r, 0, 0, w, h, g.valid, ground);
+    }
+    r.setVisible(true);
+    if (ground) this.ghostImage.setVisible(false);
+    else {
+      const place = buildingPlacement(def, g.x, g.y);
+      const styled = frameFor(def, g.style);
+      this.ghostImage
+        .setFrame(this.textures.get(SPRITES_KEY).has(styled) ? styled : buildingFrame(g.type))
+        .setOrigin(place.originX, place.originY)
+        .setScale(place.scale)
+        .setPosition(place.x, place.y)
+        .setTint(g.valid ? 0xffffff : 0xff9a9a)
+        .setVisible(true);
+    }
+    // Budynek z usługą: od razu podgląd zasięgu (kafle, które obejmie po postawieniu).
+    const sv = def.service;
+    const next = sv && isCoverageKind(sv.kind) && sv.radius > 0 ? { kind: sv.kind, preview: { type: g.type, x: g.x, y: g.y } } : null;
+    const prev = this.coverageGhost;
+    if (prev?.kind !== next?.kind || prev?.preview.x !== next?.preview.x || prev?.preview.y !== next?.preview.y || prev?.preview.type !== next?.preview.type) {
+      this.coverageGhost = next;
+      this.applyCoverage();
+    }
   }
 
-  // ------------------------------------------------------------- osada (STUB – moduł „scena osady”)
+  // ------------------------------------------------------------- osada
 
   /** Nakładka zasięgu usługi (kolorowe kafle wokół budynków danego rodzaju); null = wyłącz. */
   setCoverage(kind: CoverageOverlay | null, preview?: CoveragePreview | null): void {
-    void kind;
-    void preview;
+    this.coverageUser = { kind, preview: preview ?? null };
+    this.applyCoverage();
+  }
+
+  private applyCoverage(): void {
+    const g = this.coverageGhost;
+    if (g) this.coverage.set(g.kind, g.preview);
+    else this.coverage.set(this.coverageUser.kind, this.coverageUser.preview);
   }
 
   /** Tryb terenu: obrys terenu osady, fragmenty do kupienia z cenami. */
   setTerritoryMode(on: boolean): void {
-    void on;
+    this.territory.setMode(on);
+    this.territory.updateScale(this.cam.zoom, this.deps.dpr());
   }
 
   /** Mieszkaniec osady pod punktem ekranu → id mieszkańca. */
   residentAt(sx: number, sy: number): number | null {
-    void sx;
-    void sy;
-    return null;
+    const w = this.worldAt(sx, sy);
+    return this.residents.hit(w.x, w.y);
+  }
+
+  /** Czy punkt ekranu trafia w wóz karawany (dotknięcie otwiera handel). */
+  caravanAt(sx: number, sy: number): boolean {
+    const w = this.worldAt(sx, sy);
+    return this.caravans.hit(w.x, w.y);
   }
 
   /** Kamera na mieszkańca (jego postać albo dom). */
   focusResident(id: number): void {
-    void id;
+    const pos = this.residents.positionOf(id);
+    if (pos) {
+      this.focusAt(pos.x, pos.y);
+      return;
+    }
+    const s = this.deps.store.get();
+    const r = s.settlement.residents.find((v) => v.id === id);
+    const uid = r ? (r.home ?? r.job) : null;
+    const o = uid !== null ? objectByUid(s, uid) : undefined;
+    if (!o) return;
+    const c = centerOf(CONTENT, o);
+    this.focusAt(c.x, c.y);
   }
 
   /**

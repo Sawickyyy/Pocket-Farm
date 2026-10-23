@@ -481,6 +481,8 @@
 }
 
 .stl-steps li.now small {
+  /* powiększony kołek bieżącego etapu nie zasłania podpisu */
+  margin-top: 0.22rem;
   font-weight: 900;
 }
 

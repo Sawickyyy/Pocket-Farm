@@ -5,7 +5,7 @@ import { CONTENT, COVERAGE_KINDS, type BuildingDef } from '../src/content/conten
 import { BADGE_ORIGIN_Y, FIRE_TINT, SILHOUETTE_TINT, lookSignature, nearestSiteSize, objectLook, scorchTint, silhouetteAlpha } from '../src/render/layers/ObjectLayer';
 import { COVERAGE_COLORS, coverageAlpha, coverageRuns, isCoverageKind, tilesInRadius } from '../src/render/layers/CoverageLayer';
 import { TERRITORY_COLORS, dashSegments, labelScale, territoryEdges, territoryLabels } from '../src/render/layers/TerritoryLayer';
-import { FIRE_COLOR, WINDOW_COLOR, fireFlicker, hasWindows, pickLights, type LightKind } from '../src/render/layers/Lighting';
+import { FIRE_COLOR, MAX_LIGHTS, MAX_LIGHTS_ECONOMY, WINDOW_COLOR, fireFlicker, hasWindows, pickLights, type LightKind } from '../src/render/layers/Lighting';
 import { FxBudget, isGlowParticle } from '../src/render/ParticleLayer';
 import { frameFor, ruinFrame, siteFrame } from '../src/render/art/settlementArt';
 import { coverage } from '../src/sim/systems/settlement/common';
@@ -218,7 +218,12 @@ describe('światła osady', () => {
   it('pierwszeństwo przy limicie: pożar, latarnie, rośliny, okna', () => {
     const list = [L('window', 1), L('plant'), L('window', 2), L('lamp'), L('fire')];
     expect(pickLights(list, 3).map((l) => l.kind)).toEqual(['fire', 'lamp', 'plant']);
-    expect(pickLights(list, 10, true).some((l) => l.kind === 'window')).toBe(false);
+    // tryb oszczędny: niższy limit, okna odpadają pierwsze
+    const many = [...Array.from({ length: 40 }, (_, i) => L('window', i)), ...Array.from({ length: 10 }, () => L('lamp')), L('fire')];
+    const eco = pickLights(many, MAX_LIGHTS, true);
+    expect(eco).toHaveLength(MAX_LIGHTS_ECONOMY);
+    expect(eco.filter((l) => l.kind !== 'window')).toHaveLength(11);
+    expect(pickLights(many, MAX_LIGHTS)).toHaveLength(51);
   });
 
   it('okna mają domy i budynki z bryłą, nie plac ani studnia', () => {

@@ -69,6 +69,11 @@ const SMOKE_DARK = 0x8a7d72;
 const SMOKE_SOFT = 0xcfc4b8;
 const STEAM = 0xf2f8ff;
 const DUST = 0xd9b98a;
+/**
+ * Płomienie są addytywne: mnożymy je przez ciepłą czerwień, żeby za dnia (jasne tło) dawały pomarańcz,
+ * a nie wyblakłą biel; nocą świecą głębokim oranżem.
+ */
+const FLAME = 0xff8a4a;
 /** Iskierki na rogach kupionego fragmentu terenu. */
 const TERRITORY_SPARKS: readonly [number, number][] = [
   [-1, -1],
@@ -615,7 +620,7 @@ export class FarmScene extends Phaser.Scene {
         if (!fx.burning || !this.inView(fx.x, fx.y, 200)) continue;
         budget--;
         const jitter = fx.width * 0.45;
-        this.particles.emit(fx.x, fx.y, 'p_fire', reduced ? 1 : 2, { speed: 80, up: 170, gravity: -0.1, spread: 0.7, jitter, life: 620, scale: 2.6, grow: -0.55, still: true });
+        this.particles.emit(fx.x, fx.y, 'p_fire', reduced ? 1 : 2, { speed: 80, up: 170, gravity: -0.1, spread: 0.7, jitter, life: 620, scale: 2.8, grow: -0.55, still: true, tint: FLAME });
         if (!reduced && !eco && Math.random() < 0.45) this.particles.emit(fx.x, fx.y - 40, 'p_ember', 1, { speed: 240, up: 200, gravity: -0.04, spread: 1.5, jitter, life: 950, scale: 0.9 });
       }
     }
@@ -750,7 +755,7 @@ export class FarmScene extends Phaser.Scene {
         break;
       case 'fire':
         if (!this.townFx(e.at)) break;
-        this.burst(e.at, 'p_fire', 6, { speed: 220, up: 160, gravity: -0.1, spread: 1, life: 700, scale: 2.4, still: true });
+        this.burst(e.at, 'p_fire', 6, { speed: 220, up: 160, gravity: -0.1, spread: 1, life: 700, scale: 2.4, still: true, tint: FLAME });
         this.puff(e.at, 8, SMOKE_DARK);
         break;
       case 'fireOut':

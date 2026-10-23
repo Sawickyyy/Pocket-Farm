@@ -369,7 +369,8 @@ export class ResidentLayer {
         const def = this.content.buildings[o.type];
         if (!def || !isBox(def) || isFlatModel(def)) continue;
         const [w, h] = def.size;
-        const H = def.art.model ? verticalExtent(def) : WALL + roofHeight(w, h);
+        // dach dwuspadowy jest węższy niż pełna bryła – zasłaniamy tylko do ~80% wysokości
+        const H = (def.art.model ? verticalExtent(def) : WALL + roofHeight(w, h)) * 0.8;
         const L = project(o.x, o.y + h);
         const R = project(o.x + w, o.y);
         const F = project(o.x + w, o.y + h);
@@ -383,8 +384,8 @@ export class ResidentLayer {
             if (p.x <= L.x + 12 || p.x >= R.x - 12) continue;
             const bottom = p.x <= F.x ? L.y + ((p.x - L.x) / (F.x - L.x)) * (F.y - L.y) : F.y + ((p.x - F.x) / (R.x - F.x)) * (R.y - F.y);
             const top = (p.x <= B.x ? L.y + ((p.x - L.x) / (B.x - L.x)) * (B.y - L.y) : B.y + ((p.x - B.x) / (R.x - B.x)) * (R.y - B.y)) - H;
-            // stopy nad dolną krawędzią podstawy i poniżej szczytu bryły → postać za budynkiem
-            if (p.y < bottom - 4 && p.y > top + 30) occ[ty * MAP_W + tx] = 1;
+            // stopy nad dolną krawędzią podstawy i wyraźnie poniżej szczytu bryły → postać (prawie cała) za budynkiem
+            if (p.y < bottom - 4 && p.y > top + 40) occ[ty * MAP_W + tx] = 1;
           }
         }
       }

@@ -11,7 +11,8 @@ import { coverageAtHome, freeHousing, hasService, objectByUid, professionOf, res
 import { voucherRate } from '../../sim/systems/settlement/council';
 import { priceMult } from '../../sim/systems/settlement/events';
 import { freeJobs } from '../../sim/systems/settlement/jobs';
-import { averageHappiness, foodStock, moodOf } from '../../sim/systems/settlement/needs';
+import { dailyTaxes } from '../../sim/systems/settlement/economy';
+import { TAX_HAPPINESS, averageHappiness, foodStock, moodOf } from '../../sim/systems/settlement/needs';
 import { arrivalBlock } from '../../sim/systems/settlement/population';
 import { partnerOf, relationsOf } from '../../sim/systems/settlement/social';
 import { territoryCost, territoryLimit } from '../../sim/systems/settlement/territory';
@@ -850,16 +851,9 @@ export function registerSettlement(app: App, sheets: SheetManager): void {
     // podatek
     const k = ST.constants;
     const rateText = (r: number) => `${Math.round(r * 100)}%`;
-    const taxAt = (rate: number) => {
-      let sum = 0;
-      for (const r of st.residents) {
-        if (r.child) continue;
-        const p = professionOf(s, C, r);
-        sum += rate * ((p ? wageOf(C, p) : 0) + 10);
-      }
-      return sum;
-    };
-    const hintText = (rate: number) => t('town.tax.hint', { n: Math.round(rate * 120), coins: fmt(taxAt(rate)) });
+    // wpływ stawki jak w symulacji: szczęście −stawka × TAX_HAPPINESS, wpływy dzienne z dailyTaxes
+    const taxAt = (rate: number) => dailyTaxes({ ...s, settlement: { ...st, taxRate: rate } }, C);
+    const hintText = (rate: number) => t('town.tax.hint', { n: Math.round(rate * TAX_HAPPINESS * 100), coins: fmt(taxAt(rate)) });
     const valueEl = h('b', { class: 'stl-tax-v', text: rateText(st.taxRate) });
     const hintEl = h('small', { class: 'stl-sub', text: hintText(st.taxRate) });
     const release = () => {

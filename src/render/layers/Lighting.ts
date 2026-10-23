@@ -43,11 +43,15 @@ const WARM_LAMP = '#ffcf7a';
 const NO_WINDOWS = new Set(['field', 'plaza', 'well']);
 export const hasWindows = (def: BuildingDef): boolean => isBox(def) && !NO_WINDOWS.has(def.art.model ?? '');
 
-/** Pierwszeństwo i limit: pożary, latarnie, rośliny, okna; tryb oszczędny – bez okien. */
+/** Limit świateł w trybie oszczędnym (mniej obiektów do sortowania przez renderer). */
+export const MAX_LIGHTS_ECONOMY = 24;
+
+/** Pierwszeństwo i limit: pożary, latarnie, rośliny, okna; tryb oszczędny – niższy limit (okna odpadają pierwsze). */
 export function pickLights<T extends { kind: LightKind }>(lights: T[], max = MAX_LIGHTS, economy = false): T[] {
-  const list = economy ? lights.filter((l) => l.kind !== 'window') : lights.slice();
+  const list = lights.slice();
+  // sort stabilny: w obrębie rodzaju zostaje kolejność wejścia
   list.sort((a, b) => PRIORITY[a.kind] - PRIORITY[b.kind]);
-  return list.slice(0, max);
+  return list.slice(0, economy ? Math.min(max, MAX_LIGHTS_ECONOMY) : max);
 }
 
 /** Migotanie płomieni 0,55..1,15 (czas w ms, faza budynku). */

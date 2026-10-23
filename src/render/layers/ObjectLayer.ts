@@ -144,7 +144,7 @@ export function lookSignature(look: ObjectLook): string {
 
 /** Ikonki nad budynkami (atlas, moduł postaci): klatka 128×128, czubek ogonka dymku na ~77% wysokości. */
 export const BADGE_ORIGIN_Y = 0.77;
-export const BADGE_SCALE = 0.9;
+export const BADGE_SCALE = 1.1;
 
 export class ObjectLayer {
   readonly layer: Phaser.GameObjects.SpriteGPULayer;

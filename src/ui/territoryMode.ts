@@ -4,7 +4,8 @@
 import { CONTENT, type Content } from '../content/content';
 import { fmt, t } from '../i18n/i18n';
 import type { FailReason } from '../sim/commands';
-import { buyableChunks, territoryCost, territoryLimit } from '../sim/systems/settlement/territory';
+import { project } from '../render/iso';
+import { buyableChunks, chunkRect, territoryCost, territoryLimit } from '../sim/systems/settlement/territory';
 import type { GameState } from '../sim/types';
 import { CHUNKS_X, CHUNKS_Y, MAP_H, MAP_W, chunkNeighbors, chunkOfTile } from '../sim/world';
 import type { App } from './app';
@@ -76,15 +77,15 @@ export class TerritoryMode {
       },
     });
     done.append(icEl('check'), document.createTextNode(t('territory.done')));
+    done.classList.add('tb-done');
     this.stats = h('div', { class: 'tb-stats' });
     this.hint = h('p', { class: 'tb-hint' });
     this.bar = h(
       'div',
       { class: 'build-bar territory-bar', attrs: { role: 'region', 'aria-label': t('territory.title'), hidden: true } },
-      h('p', { class: 'tb-title', html: `${ic('compass')}${t('territory.title')}` }),
+      h('div', { class: 'tb-head' }, h('p', { class: 'tb-title', html: `${ic('compass')}${t('territory.title')}` }), done),
       this.stats,
       this.hint,
-      h('div', { class: 'row' }, done),
     );
     $('#build-bar').after(this.bar);
     return this.bar;
@@ -98,6 +99,7 @@ export class TerritoryMode {
     bar.hidden = false;
     this.app.scene()?.setTerritoryMode(true);
     this.render(this.app.store.get());
+    this.overview();
     this.unsubscribe?.();
     this.unsubscribe = this.app.store.subscribe((s) => this.render(s));
     this.app.toasts.show(t('territory.intro'));
@@ -110,6 +112,40 @@ export class TerritoryMode {
     this.unsubscribe = null;
     if (this.bar) this.bar.hidden = true;
     this.app.scene()?.setTerritoryMode(false);
+  }
+
+  /** Kamera obejmuje teren osady i fragmenty do kupienia (pod belką trybu). */
+  private overview(): void {
+    const scene = this.app.scene();
+    const bar = this.bar;
+    if (!scene || !bar) return;
+    const s = this.app.store.get();
+    const chunks = [...s.settlement.territory, ...buyableChunks(s, CONTENT)];
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const ch of chunks) {
+      const r = chunkRect(ch);
+      x0 = Math.min(x0, r.x);
+      y0 = Math.min(y0, r.y);
+      x1 = Math.max(x1, r.x + r.w);
+      y1 = Math.max(y1, r.y + r.h);
+    }
+    if (!Number.isFinite(x0)) return;
+    // Rzut izometryczny prostokąta kafli: skrajne punkty to jego narożniki.
+    const corners = [project(x0, y0), project(x1, y0), project(x0, y1), project(x1, y1)];
+    const xs = corners.map((p) => p.x);
+    const ys = corners.map((p) => p.y);
+    const v = scene.cam.viewport;
+    const k = v.width / Math.max(1, window.innerWidth);
+    const top = Math.max(v.insetTop, bar.getBoundingClientRect().bottom * k);
+    const availW = v.width * 0.94;
+    const availH = Math.max(1, v.height - top - v.insetBottom) * 0.94;
+    const zoom = Math.min(availW / (Math.max(...xs) - Math.min(...xs)), availH / (Math.max(...ys) - Math.min(...ys)));
+    // Środek prostokąta w świecie przesunięty tak, by wypadł na środku widocznej części pod belką.
+    const cx = (Math.max(...xs) + Math.min(...xs)) / 2;
+    const cy = (Math.max(...ys) + Math.min(...ys)) / 2;
+    // Tylko oddalamy (nigdy nie przybliżamy) w granicach kamery.
+    const z = Math.max(scene.cam.minZoom, Math.min(zoom, scene.cam.zoom, scene.cam.maxZoom));
+    scene.cam.focusOn(cx, cy - (top - v.insetTop) / 2 / z, z, !this.app.reducedMotion());
   }
 
   /** Belka: posiadane/limit, cena następnego fragmentu, skarbiec – przerysowanie tylko przy zmianie. */

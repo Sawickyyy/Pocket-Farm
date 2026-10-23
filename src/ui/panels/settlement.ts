@@ -188,7 +188,7 @@ function lookupFor(s: GameState): ChronicleLookup {
 // ---------------------------------------------------------------- portrety (z atlasu sceny)
 
 /** Wycinek klatki postaci (72×104) z głową i ramionami; dziecko ma niżej osadzoną głowę. */
-const PORTRAIT_CUT = { adult: { x: 0, y: 0, size: 72 }, child: { x: 0, y: 6, size: 72 } } as const;
+const PORTRAIT_CUT = { adult: { x: 0, y: 0, size: 72 }, child: { x: 0, y: 4, size: 72 } } as const;
 const PORTRAIT_PX = 96;
 /** Klatka → data URL portretu. Wspólny dla wszystkich o tym samym zawodzie i wyglądzie (najwyżej ~60 obrazków). */
 const portraits = new Map<string, string>();

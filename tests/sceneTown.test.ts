@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { CONTENT, COVERAGE_KINDS, type BuildingDef } from '../src/content/content';
 import { BADGE_ORIGIN_Y, FIRE_TINT, SILHOUETTE_TINT, lookSignature, nearestSiteSize, objectLook, scorchTint, silhouetteAlpha } from '../src/render/layers/ObjectLayer';
-import { COVERAGE_COLORS, coverageAlpha, coverageRuns, isCoverageKind, tilesInRadius } from '../src/render/layers/CoverageLayer';
+import { COVERAGE_COLORS, VEIL, coverageAlpha, coverageRuns, gapRuns, isCoverageKind, tilesInRadius } from '../src/render/layers/CoverageLayer';
 import { TERRITORY_COLORS, dashSegments, labelScale, territoryEdges, territoryLabels } from '../src/render/layers/TerritoryLayer';
 import { FIRE_COLOR, MAX_LIGHTS, MAX_LIGHTS_ECONOMY, WINDOW_COLOR, fireFlicker, hasWindows, pickLights, type LightKind } from '../src/render/layers/Lighting';
 import { FxBudget, isGlowParticle } from '../src/render/ParticleLayer';
@@ -154,6 +154,25 @@ describe('zasięg usług', () => {
       [0, 1, 2],
       [7, 1, 1],
     ]);
+  });
+});
+
+describe('przygaszenie poza zasięgiem', () => {
+  it('obejmuje tylko odkryte kafle bez pokrycia', () => {
+    const map = new Float32Array(6 * 2);
+    map.set([0, 0, 1, 1, 0, 0], 0);
+    map.set([0, 0, 0, 0, 0, 0], 6);
+    const open = (x: number, y: number) => !(y === 1 && x >= 3);
+    expect(gapRuns(map, open, 6, 2)).toEqual([
+      [0, 0, 2],
+      [4, 0, 2],
+      [0, 1, 3],
+    ]);
+  });
+
+  it('ciepły brąz, nie czerń ani fiolet, i półprzezroczysty', () => {
+    expect(notPurple(VEIL.color)).toBe(true);
+    expect(VEIL.alpha).toBeLessThan(0.4);
   });
 });
 

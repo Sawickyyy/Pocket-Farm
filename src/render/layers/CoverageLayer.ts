@@ -6,7 +6,7 @@ import type Phaser from 'phaser';
 import { COVERAGE_KINDS, type Content, type CoverageKind } from '../../content/content';
 import { centerOf, coverage, isBuilt, isOperational, staffing } from '../../sim/systems/settlement/common';
 import type { GameState } from '../../sim/types';
-import { MAP_H, MAP_W } from '../../sim/world';
+import { MAP_H, MAP_W, chunkOfTile } from '../../sim/world';
 import { TILE } from '../art/atlas';
 
 /** Kolory rodzajów usług (bez fioletu – pilnuje tests/sceneTown.test.ts i tests/theme.test.ts). */
@@ -20,6 +20,9 @@ export const COVERAGE_COLORS: Readonly<Record<CoverageKind, number>> = {
   light: 0xffd166,
   market: 0xff6fa5,
 };
+
+/** Jasny podkład linii (papier motywu). */
+const CREAM = 0xfff8e6;
 
 export const isCoverageKind = (kind: string | undefined): kind is CoverageKind => !!kind && (COVERAGE_KINDS as readonly string[]).includes(kind);
 
@@ -36,7 +39,7 @@ export function tilesInRadius(cx: number, cy: number, r: number): { x: number; y
 }
 
 /** Krycie zabarwienia kafla dla wartości pokrycia 0..1 (zero = brak koloru). */
-export const coverageAlpha = (v: number): number => (v <= 0 ? 0 : 0.14 + 0.22 * Math.min(1, v));
+export const coverageAlpha = (v: number): number => (v <= 0 ? 0 : 0.24 + 0.24 * Math.min(1, v));
 
 /**
  * Poziome odcinki kafli o tym samym (skwantowanym) kryciu – mniej prostokątów do narysowania.
@@ -58,6 +61,29 @@ export function coverageRuns(map: ArrayLike<number>, w = MAP_W, h = MAP_H): [num
   }
   return runs;
 }
+
+/**
+ * Odcinki kafli bez pokrycia w odkrytym terenie – przygaszamy je, żeby obszar w zasięgu „świecił”.
+ * `open(x, y)` mówi, czy kafel jest odkryty. Zwraca [x, y, długość].
+ */
+export function gapRuns(map: ArrayLike<number>, open: (x: number, y: number) => boolean, w = MAP_W, h = MAP_H): [number, number, number][] {
+  const runs: [number, number, number][] = [];
+  for (let y = 0; y < h; y++) {
+    let start = -1;
+    for (let x = 0; x <= w; x++) {
+      const gap = x < w && (map[y * w + x] ?? 0) <= 0 && open(x, y);
+      if (gap && start < 0) start = x;
+      else if (!gap && start >= 0) {
+        runs.push([start, y, x - start]);
+        start = -1;
+      }
+    }
+  }
+  return runs;
+}
+
+/** Przygaszenie terenu poza zasięgiem (ciepły brąz, nie czerń). */
+export const VEIL = { color: 0x3a2414, alpha: 0.24 } as const;
 
 export interface CoveragePreviewSpec {
   type: string;
@@ -103,7 +129,7 @@ export class CoverageLayer {
       return;
     }
     // Podpis: budynki tego rodzaju (miejsce, obsada, stan) + podgląd.
-    let key = `${kind}|${this.preview ? `${this.preview.type}:${this.preview.x}:${this.preview.y}` : ''}`;
+    let key = `${kind}|${state.world.revealed.length}|${this.preview ? `${this.preview.type}:${this.preview.x}:${this.preview.y}` : ''}`;
     for (const o of state.objects) {
       if (this.content.buildings[o.type]?.service?.kind !== kind) continue;
       key += `|${o.uid}:${o.x}:${o.y}:${Math.round(staffing(state, this.content, o.uid) * 20)}:${isBuilt(state, o.uid) ? 1 : 0}`;
@@ -116,8 +142,14 @@ export class CoverageLayer {
   private draw(state: GameState, kind: CoverageKind): void {
     const g = this.gfx.clear().setVisible(true);
     const color = COVERAGE_COLORS[kind];
+    const map = coverage(state, this.content, kind);
+    // Poza zasięgiem (w odkrytym terenie) – lekkie przygaszenie, w zasięgu – kolor usługi.
+    const revealed = new Set(state.world.revealed);
+    const open = (x: number, y: number) => revealed.has(chunkOfTile(x, y));
+    g.fillStyle(VEIL.color, VEIL.alpha);
+    for (const [x, y, len] of gapRuns(map, open)) g.fillRect(x * TILE, y * TILE, len * TILE, TILE);
     // Kafle w zasięgu działających budynków (wartość = max value × obsada).
-    for (const [x, y, len, alpha] of coverageRuns(coverage(state, this.content, kind))) {
+    for (const [x, y, len, alpha] of coverageRuns(map)) {
       g.fillStyle(color, alpha).fillRect(x * TILE, y * TILE, len * TILE, TILE);
     }
     // Obrysy promieni: ciągły dla działających z obsadą, przerywany dla nieczynnych (budowa, brak obsady).
@@ -127,10 +159,17 @@ export class CoverageLayer {
       if (!def || sv?.kind !== kind || sv.radius <= 0) continue;
       const c = centerOf(this.content, o);
       const working = isOperational(state, o.uid) && staffing(state, this.content, o.uid) > 0;
-      if (working) g.lineStyle(10, color, 0.75).strokeCircle(c.x * TILE, c.y * TILE, sv.radius * TILE);
-      else dashedCircle(g, c.x * TILE, c.y * TILE, sv.radius * TILE, 10, color, 0.55);
+      // jasny podkład pod kolorową linią – czytelna na trawie, piasku i nocą
+      if (working) {
+        g.lineStyle(20, CREAM, 0.7).strokeCircle(c.x * TILE, c.y * TILE, sv.radius * TILE);
+        g.lineStyle(11, color, 0.95).strokeCircle(c.x * TILE, c.y * TILE, sv.radius * TILE);
+      } else {
+        dashedCircle(g, c.x * TILE, c.y * TILE, sv.radius * TILE, 20, CREAM, 0.6);
+        dashedCircle(g, c.x * TILE, c.y * TILE, sv.radius * TILE, 11, color, 0.9);
+      }
       // znacznik środka
-      g.fillStyle(color, 0.9).fillCircle(c.x * TILE, c.y * TILE, 16);
+      g.fillStyle(CREAM, 0.9).fillCircle(c.x * TILE, c.y * TILE, 26);
+      g.fillStyle(color, 1).fillCircle(c.x * TILE, c.y * TILE, 18);
     }
     const p = this.preview;
     const def = p && this.content.buildings[p.type];
@@ -138,10 +177,10 @@ export class CoverageLayer {
     if (p && def && sv && sv.radius > 0) {
       const cx = p.x + def.size[0] / 2;
       const cy = p.y + def.size[1] / 2;
-      g.fillStyle(color, 0.2);
+      g.fillStyle(color, 0.3);
       for (const t of tilesInRadius(cx, cy, sv.radius)) g.fillRect(t.x * TILE, t.y * TILE, TILE, TILE);
       // jasna obwódka pod kolorową – czytelna na każdym biomie
-      g.lineStyle(22, 0xfff8e6, 0.85).strokeCircle(cx * TILE, cy * TILE, sv.radius * TILE);
+      g.lineStyle(22, CREAM, 0.85).strokeCircle(cx * TILE, cy * TILE, sv.radius * TILE);
       g.lineStyle(12, color, 1).strokeCircle(cx * TILE, cy * TILE, sv.radius * TILE);
     }
   }

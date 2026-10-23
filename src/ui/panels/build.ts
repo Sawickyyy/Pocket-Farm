@@ -464,7 +464,6 @@ function constructionBanner(s: GameState, o: PlacedObject, def: BuildingDef, sit
     bar(site.built, false, 'site-built'),
     h('p', { class: 'bt-eta', attrs: { 'data-eta': '' }, text: etaText(s, o.uid) }),
     h('p', { class: 'hint', text: `${crew} ${site.fire > 0 ? t('site.paused') : ''}`.trim() }),
-    def.kind === 'house' ? h('p', { class: 'hint', text: t('site.homeSoon', { n: def.housing ?? 0 }) }) : null,
   );
 }
 
@@ -487,6 +486,7 @@ function sickBanner(app: App, s: GameState, uid: number): HTMLElement {
 function afterSection(def: BuildingDef, season: string): HTMLElement {
   const pills: string[] = [];
   if (def.housing) pills.push(pill(`${townIc('people')}${placesText(def.housing)}`));
+  if (def.comfort) pills.push(pill(t('buildTown.stat.comfort', { v: pct(def.comfort) })));
   if (def.jobs) pills.push(pill(`${townIc('briefcase')}${t(`profession.${def.jobs.profession}`)} ×${def.jobs.slots}`));
   const out = def.production && (productionOutput(def, season) ?? def.production.output.item);
   if (out && def.production) pills.push(pill(out === '@fish' ? t('buildTown.anyFish') : `<img src="${itemIconUrl(out, 48)}" alt="" />${itemName(out)} ×${def.production.output.qty}`));
@@ -494,6 +494,7 @@ function afterSection(def: BuildingDef, season: string): HTMLElement {
   return section(
     t('site.after'),
     townIc('hammer'),
+    def.housing ? h('p', { class: 'bt-effect', text: t('site.homeSoon', { n: def.housing }) }) : null,
     def.service ? h('p', { class: 'bt-effect', text: serviceEffect(def) }) : null,
     pills.length ? h('div', { class: 'bt-pills', html: pills.join('') }) : null,
   );

@@ -116,7 +116,8 @@ export function ageText(r: Resident, day: number, c: Content = CONTENT): string 
 }
 
 /** Od kiedy w osadzie: dzień narodzin albo przyjazdu. */
-export const sinceText = (r: Resident): string => (bornHere(r) ? t('resident.born', { day: r.bornDay + 1 }) : t('resident.arrived', { day: r.arrivedDay + 1 }));
+export const sinceText = (r: Resident): string =>
+  bornHere(r) ? t('resident.born', { day: Math.max(0, r.bornDay) + 1 }) : t('resident.arrived', { day: Math.max(0, r.arrivedDay) + 1 });
 
 export const relationLabel = (kind: RelationKind): string => t(`resident.rel.${kind}`);
 

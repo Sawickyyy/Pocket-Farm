@@ -899,6 +899,13 @@
   pointer-events: none;
 }
 
+/* dziecko ma dużą głowę z kokami – mniejszy portret mieści się w kółku */
+.stl-av.kid img {
+  width: 90%;
+  height: 90%;
+  margin-top: 20%;
+}
+
 .stl-av .ic {
   width: 2.05rem;
   height: 2.05rem;

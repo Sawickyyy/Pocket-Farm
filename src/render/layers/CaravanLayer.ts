@@ -10,7 +10,7 @@ import { HOUR_MS } from '../../sim/calendar';
 import { isOperational } from '../../sim/systems/settlement/common';
 import { CARAVAN_STAY_HOURS } from '../../sim/systems/settlement/trade';
 import type { Calendar, GameState } from '../../sim/types';
-import { MAP_H, VILLAGE_LANE_X, VILLAGE_STREET_Y, type WorldMap } from '../../sim/world';
+import { FARM, MAP_H, VILLAGE_LANE_X, VILLAGE_STREET_Y, type WorldMap } from '../../sim/world';
 import { SPRITES_KEY } from '../art/atlas';
 import { CARAVAN_FRAME, caravanFrame } from '../art/residents';
 import { project } from '../iso';
@@ -31,6 +31,8 @@ const DUST_EVERY = 95;
 const DUST_LIFE = 820;
 const DUST = 0xd9b98a;
 const HIT_PAD = 10;
+/** Odsunięcie postoju od drzwi faktorii (kafle). */
+const PARK_OFFSET = 0.6;
 
 interface Trip {
   /** leavesAt karawany ze stanu (klucz – nowa karawana = nowa trasa). */
@@ -110,13 +112,26 @@ export class CaravanLayer {
   /** Trasa: krawędź mapy → dróżka wioski → (drogi gracza albo przełaj) → drzwi faktorii. */
   private plan(state: GameState, tp: number, leavesAt: number): Trip {
     this.planner.refresh(state, this.content, this.world);
-    const door = this.planner.place(tp)?.door ?? { x: VILLAGE_LANE_X + 0.5, y: VILLAGE_STREET_Y + 0.5 };
+    const place = this.planner.place(tp);
+    const door = place?.door ?? { x: VILLAGE_LANE_X + 0.5, y: VILLAGE_STREET_Y + 0.5 };
+    // postój pół kafla dalej od ściany (wóz jest szeroki – nie wjeżdża w budynek)
+    let ox = 0;
+    let oy = 0;
+    if (place) {
+      if (door.y >= place.y0 + place.h) oy = 1;
+      else if (door.x >= place.x0 + place.w) ox = 1;
+      else if (door.y < place.y0) oy = -1;
+      else ox = -1;
+    }
+    const park: Pt = { x: door.x + ox * PARK_OFFSET, y: door.y + oy * PARK_OFFSET };
+    // z krawędzi mapy dróżką wioski aż do bramy farmy, dalej drogami gracza (albo na przełaj)
     const lane: Pt = { x: VILLAGE_LANE_X + 0.5, y: VILLAGE_STREET_Y + 2.5 };
+    const gate: Pt = { x: VILLAGE_LANE_X + 0.5, y: FARM.y + FARM.h + 0.5 };
     const edge: Pt = { x: lane.x, y: MAP_H - 0.5 };
-    const route = this.planner.route(lane, door);
-    const pts: Pt[] = [edge, lane];
+    const route = this.planner.route(gate, door);
+    const pts: Pt[] = [edge, lane, gate];
     for (let i = 1; i < route.pts.length - 1; i++) pts.push(route.pts[i]!);
-    pts.push(door);
+    pts.push(door, park);
     // bez zbędnych punktów na prostych (wóz jedzie płynnie)
     const clean: Pt[] = [pts[0]!];
     for (let i = 1; i < pts.length; i++) {
@@ -124,7 +139,11 @@ export class CaravanLayer {
       const prev = clean[clean.length - 1]!;
       if (Math.hypot(p.x - prev.x, p.y - prev.y) < 1e-3) continue;
       const before = clean[clean.length - 2];
-      if (before && Math.abs((prev.x - before.x) * (p.y - prev.y) - (prev.y - before.y) * (p.x - prev.x)) < 1e-6) clean[clean.length - 1] = p;
+      const straight =
+        !!before &&
+        Math.abs((prev.x - before.x) * (p.y - prev.y) - (prev.y - before.y) * (p.x - prev.x)) < 1e-6 &&
+        (prev.x - before.x) * (p.x - prev.x) + (prev.y - before.y) * (p.y - prev.y) > 0;
+      if (straight) clean[clean.length - 1] = p;
       else clean.push(p);
     }
     const cum = [0];

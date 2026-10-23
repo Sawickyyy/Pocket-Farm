@@ -1,7 +1,7 @@
 // Wydarzenia losowe (docs/plan-osada.md §10): pożary (obrażenia, gaszenie, rozprzestrzenianie), awarie,
 // epidemie zwierząt, kryzysy gospodarcze i dobre wydarzenia (festyn, urodzaj, bogata karawana).
 // Raz na dobę losujemy (nie offline, nie przed `events.minDay` dniem osady, najwyżej jedna katastrofa naraz),
-// co godzinę rozliczamy pożary i zdejmujemy wygasłe wydarzenia.
+// co godzinę rozliczamy pożary i zdejmujemy wygasłe wydarzenia. Offline pożar się nie rozprzestrzenia.
 
 import type { Content } from '../../../content/content';
 import { DAY_MS, HOUR_MS } from '../../calendar';
@@ -20,6 +20,7 @@ import {
   isSettlementDef,
   nextId,
   objectByUid,
+  releaseBuilding,
   siteOf,
 } from './common';
 
@@ -60,6 +61,8 @@ export const RICH_CARAVAN_MULT = 1.3;
 export const RICH_CARAVAN_DAYS = 7;
 
 export const CATASTROPHES: readonly SettlementEventKind[] = ['fire', 'breakdown', 'epidemic', 'crisis'];
+/** Katastrofy blokujące losowanie kolejnej (awaria nie blokuje – niezałatana trwałaby wiecznie). */
+export const BLOCKING_CATASTROPHES: readonly SettlementEventKind[] = ['fire', 'epidemic', 'crisis'];
 export type GoodEventKind = 'festival' | 'harvest' | 'richCaravan';
 export const GOOD_EVENTS: readonly GoodEventKind[] = ['festival', 'harvest', 'richCaravan'];
 
@@ -77,11 +80,10 @@ export function activeEvents(s: GameState): ActiveEvent[] {
 
 export const isCatastrophe = (kind: SettlementEventKind): boolean => CATASTROPHES.includes(kind);
 
-/** Czy trwa katastrofa (wydarzenie albo płonący/zepsuty budynek) – wtedy nie losujemy nowej. */
+/** Czy trwa pożar, epidemia albo kryzys – wtedy nie losujemy nowej katastrofy (zepsuty budynek nie blokuje). */
 export function catastropheActive(s: GameState): boolean {
   const now = s.clock.simMs;
-  if (s.settlement.events.some((e) => isCatastrophe(e.kind) && e.untilMs > now)) return true;
-  return Object.values(s.settlement.sites).some((site) => site.fire > 0 || site.broken);
+  return s.settlement.events.some((e) => BLOCKING_CATASTROPHES.includes(e.kind) && e.untilMs > now);
 }
 
 /** Czy zwierzęta w budynku `uid` chorują (hak w updateAnimals). */
@@ -126,13 +128,20 @@ export function fireChance(s: GameState, c: Content, uid: number, buildings = fl
 export const fireDamage = (crew: number, water: boolean): number =>
   FIRE_DAMAGE * (1 - FIRE_CREW_DAMAGE * crew) * (water ? FIRE_WATER_DAMAGE : 1);
 
-/** Kandydaci do awarii: działające budynki z produkcją albo maszyny z obsadą i automatycznymi recepturami. */
+/**
+ * Kandydaci do awarii: działające budynki osady z produkcją i maszyny z automatycznymi recepturami – maszyny farmy
+ * (`machine`) tylko z pracownikami (gracz bez osady nie ma awarii).
+ */
 export function breakable(s: GameState, c: Content): PlacedObject[] {
+  let staffed: Set<number> | undefined;
   return s.objects.filter((o) => {
     const def = c.buildings[o.type];
     if (!def) return false;
     const machine = !!def.jobs && (def.autoRecipes?.length ?? 0) > 0;
-    return (!!def.production || machine) && isOperational(s, o.uid);
+    if (!(def.production || machine) || !isOperational(s, o.uid)) return false;
+    if (def.kind !== 'machine') return true;
+    staffed ??= new Set(s.settlement.residents.map((r) => r.job).filter((j): j is number => j !== null));
+    return staffed.has(o.uid);
   });
 }
 
@@ -379,11 +388,13 @@ function firesHour(ctx: Ctx): void {
     const water = coverageAt(s, c, 'water', ctr.x, ctr.y) > 0;
     b.site.damage = Math.min(1, b.site.damage + fireDamage(crew, water));
     b.site.fire += 1;
+    // Zniszczony dom od razu przestaje być domem (jak po rozbiórce: przeprowadzka albo bezdomność).
+    if (b.site.damage >= DAMAGED) releaseBuilding(s, b.uid, true, false);
     if ((crew > 0 && b.site.fire >= FIRE_CREW_OUT) || b.site.fire > FIRE_MAX) {
       extinguish(ctx, b);
       continue;
     }
-    if (crew > 0 || b.site.fire <= SPREAD_AFTER || hasSpread(s, b.ev)) continue;
+    if (ctx.offline || crew > 0 || b.site.fire <= SPREAD_AFTER || hasSpread(s, b.ev)) continue;
     const target = spreadTarget(s, c, b.uid);
     if (target && rand(s) < SPREAD_CHANCE) startFire(ctx, target.uid, true);
   }

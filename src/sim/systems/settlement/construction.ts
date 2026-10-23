@@ -1,19 +1,22 @@
 // Budowa i naprawy (docs/plan-osada.md §2, §10): postęp placów budowy, naprawy uszkodzeń i awarii przez
-// budowlańców oraz natychmiastowa naprawa za monety.
+// budowlańców oraz natychmiastowa naprawa za monety. Urodzaj przyspiesza tylko produkcję – nie budowlańców.
 
 import type { Content } from '../../../content/content';
 import type { CommandResult } from '../../commands';
 import { OK, fail, type Ctx } from '../../ctx';
 import type { GameState, PlacedObject, SiteState } from '../../types';
-import { addBudget, centerOf, chronicle, isOperational, isWorkHour, objectByUid, productivity, siteOf } from './common';
+import { activeEvent, addBudget, centerOf, chronicle, isOperational, isWorkHour, objectByUid, productivity, siteOf } from './common';
 
 /** Tempo bazowe budowy poza godzinami pracy (mnożnik). */
 export const OFF_HOURS_RATE = 0.5;
 /** Dodatkowe tempo najstarszej budowy na jednego budowlańca (× jego wydajność). */
 export const BUILDER_BONUS = 0.5;
-/** Postęp naprawy na godzinę pracy budowlańców: awaria (3 h) i uszkodzenie (10 h). */
-export const REPAIR_RATE_BROKEN = 1 / 3;
-export const REPAIR_RATE_DAMAGE = 0.1;
+/** Roboczogodziny naprawy przy pełnej mocy: awaria 3 h, uszkodzenie 10 h × wielkość (pełne 1,0 = 10 h), min. 1 h. */
+export const REPAIR_HOURS_BROKEN = 3;
+export const REPAIR_HOURS_DAMAGE = 10;
+export const REPAIR_MIN_HOURS = 1;
+/** Mnożnik urodzaju w `productivity` (common.ts) – budowlańcy go nie dostają. */
+export const HARVEST_BOOST = 1.25;
 /** Natychmiastowa naprawa: 20% kosztu budynku, min. 20 monet. */
 export const REPAIR_COST_SHARE = 0.2;
 export const REPAIR_MIN_COST = 20;
@@ -55,9 +58,14 @@ export function buildRate(c: Content, hour: number, power: number): number {
   return (isWorkHour(c, hour) ? 1 : OFF_HOURS_RATE) + BUILDER_BONUS * power;
 }
 
-/** Postęp naprawy na godzinę przy danej mocy budowlańców (0 bez budowlańców). */
+/** Roboczogodziny naprawy budynku (dłuższa z: awaria, uszkodzenie proporcjonalne do wielkości; min. 1 h). */
+export function repairHours(site: SiteState): number {
+  return Math.max(REPAIR_MIN_HOURS, REPAIR_HOURS_DAMAGE * site.damage, site.broken ? REPAIR_HOURS_BROKEN : 0);
+}
+
+/** Postęp naprawy na godzinę przy danej mocy budowlańców: `min(1, moc) / roboczogodziny` (0 bez budowlańców). */
 export function repairRate(site: SiteState, power: number): number {
-  return (site.broken ? REPAIR_RATE_BROKEN : REPAIR_RATE_DAMAGE) * Math.min(1, Math.max(0, power));
+  return Math.min(1, Math.max(0, power)) / repairHours(site);
 }
 
 /**
@@ -70,16 +78,27 @@ export function constructionQueue(s: GameState, c: Content): number[] {
     .map((x) => x.uid);
 }
 
-/** Budynki do naprawy przez budowlańców (bez trwającego pożaru): najpierw większe uszkodzenia, potem uid. */
+/** Budynek nie działa z powodu awarii albo uszkodzenia ≥ 0,5 (naprawa przywraca działanie). */
+const outOfOrder = (site: SiteState): boolean => site.broken || site.damage >= 0.5;
+
+/**
+ * Budynki do naprawy przez budowlańców (bez trwającego pożaru): najpierw niedziałające (awaria, uszkodzenie ≥ 0,5),
+ * potem większe uszkodzenia, potem uid.
+ */
 export function repairQueue(s: GameState): number[] {
   return repairTargets(s).map((x) => x.uid);
 }
 
 function repairTargets(s: GameState): SiteRef[] {
-  return sitesWhere(s, (site) => needsRepair(site) && site.fire <= 0).sort((a, b) => b.site.damage - a.site.damage || a.uid - b.uid);
+  return sitesWhere(s, (site) => needsRepair(site) && site.fire <= 0).sort(
+    (a, b) => Number(outOfOrder(b.site)) - Number(outOfOrder(a.site)) || b.site.damage - a.site.damage || a.uid - b.uid,
+  );
 }
 
-/** Efektywna liczba budowlańców pracujących teraz (Σ wydajności pracowników placów budowy w godzinach pracy). */
+/**
+ * Efektywna liczba budowlańców pracujących teraz (Σ wydajności pracowników placów budowy w godzinach pracy,
+ * bez premii urodzaju).
+ */
 export function builderPower(ctx: Ctx, hour: number): number {
   const { s, c } = ctx;
   if (!isWorkHour(c, hour)) return 0;
@@ -88,7 +107,7 @@ export function builderPower(ctx: Ctx, hour: number): number {
   if (!yards.size) return 0;
   let power = 0;
   for (const r of s.settlement.residents) if (r.job !== null && yards.has(r.job)) power += productivity(s, c, r);
-  return power;
+  return activeEvent(s, 'harvest') ? power / HARVEST_BOOST : power;
 }
 
 function finishConstruction(ctx: Ctx, ref: SiteRef): void {

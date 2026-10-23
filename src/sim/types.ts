@@ -41,6 +41,8 @@ export interface PlacedObject {
   y: number;
   /** Wariant wyglądu (domy osady). */
   style?: number;
+  /** Zapłacona cena (po bonie rady) – podstawa zwrotu przy rozbiórce; brak = pełny koszt (stare zapisy). */
+  paid?: number;
 }
 
 export interface Animal {
@@ -206,6 +208,8 @@ export interface Settlement {
   /** Klucz = uid budynku. */
   sites: Record<string, SiteState>;
   taxRate: number;
+  /** Suma stawek podatku z kolejnych godzin bieżącej doby i ich liczba (podatek = średnia; zerowane o północy). */
+  taxAcc?: { sum: number; hours: number };
   /** Przedmioty, których mieszkańcy nie jedzą, a karawany nie kupują automatycznie. */
   reserved: string[];
   autoExport: string[];

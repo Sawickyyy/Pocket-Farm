@@ -1,9 +1,11 @@
 // Przetwórstwo: budynki-maszyny z kolejką zadań (receptury z JSON), produkty trafiają na tackę do odebrania.
+// Maszyna, która nie działa (awaria, pożar, uszkodzenie, budowa – docs/plan-osada.md §10), wstrzymuje kolejkę.
 
 import { HOUR_MS } from '../calendar';
 import type { CommandResult } from '../commands';
 import { OK, addItem, addXp, consumeItem, countItem, fail, mod, stat, type Ctx } from '../ctx';
 import type { Machine, PlacedObject } from '../types';
+import { isOperational } from './settlement/common';
 
 export const BASE_QUEUE = 3;
 export const OUTPUT_CAP = 20;
@@ -29,7 +31,7 @@ export function updateProcessing(ctx: Ctx, dt: number): void {
   const speed = 1 + mod(s, c, 'processSpeed');
   for (const o of s.objects) {
     const m = s.machines[String(o.uid)];
-    if (!m || !m.queue.length) continue;
+    if (!m || !m.queue.length || !isOperational(s, o.uid)) continue;
     let budget = dt * speed;
     while (budget > 0 && m.queue.length) {
       const job = m.queue[0]!;

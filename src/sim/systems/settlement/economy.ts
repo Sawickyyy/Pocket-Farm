@@ -41,6 +41,8 @@ export const MACHINE_WORKER_RATE = 0.3;
 export const TAX_BASE = 10;
 /** Strajk: chwilowa zmiana szczęścia pracowników przy niewypłaconych płacach (do końca następnej doby). */
 export const UNPAID_MOOD = -0.15;
+/** Wyroby osady nasycają rynek farmy: +0,5 nasycenia na sztukę (masowa sprzedaż szybko tanieje). */
+export const PRODUCTION_SAT = 0.5;
 
 export type ProductionBlock = 'inputs' | 'storage' | 'season' | 'staff';
 
@@ -130,9 +132,20 @@ export function dailyWages(s: GameState, c: Content): number {
   return sum;
 }
 
-/** Podatki pobierane na nowy dzień: dorosły `stawka × (płaca + 10)`, bezrobotny `stawka × 10` (zaokrąglone). */
-export function dailyTaxes(s: GameState, c: Content): number {
-  const rate = s.settlement.taxRate;
+/**
+ * Stawka podatku do rozliczenia: średnia z godzin bieżącej doby (`settlement.taxAcc`, próbka co godzinę gry),
+ * a przed pierwszą próbką – bieżąca stawka. Zmiana suwaka tuż przed północą nie zmienia podatku z całej doby.
+ */
+export function effectiveTaxRate(s: GameState): number {
+  const acc = s.settlement.taxAcc;
+  return acc && acc.hours > 0 ? acc.sum / acc.hours : s.settlement.taxRate;
+}
+
+/**
+ * Podatki pobierane na nowy dzień: dorosły `stawka × (płaca + 10)`, bezrobotny `stawka × 10` (zaokrąglone).
+ * Domyślnie średnia stawka z doby; `rate` – podgląd innej stawki (suwak w UI).
+ */
+export function dailyTaxes(s: GameState, c: Content, rate = effectiveTaxRate(s)): number {
   if (!(rate > 0)) return 0;
   let sum = 0;
   for (const r of s.settlement.residents) {
@@ -143,12 +156,19 @@ export function dailyTaxes(s: GameState, c: Content): number {
   return Math.round(sum);
 }
 
-/** Utrzymanie ukończonych budynków na dobę. */
+/** Utrzymanie ukończonych budynków na dobę; maszyny farmy (`machine`) płacą tylko z obsadą (pracownicy osady). */
 export function dailyUpkeep(s: GameState, c: Content): number {
+  let staffed: Set<number> | undefined;
   let sum = 0;
   for (const o of s.objects) {
-    const upkeep = c.buildings[o.type]?.upkeep ?? 0;
-    if (upkeep > 0 && isBuilt(s, o.uid)) sum += upkeep;
+    const def = c.buildings[o.type];
+    const upkeep = def?.upkeep ?? 0;
+    if (!def || upkeep <= 0 || !isBuilt(s, o.uid)) continue;
+    if (def.kind === 'machine') {
+      staffed ??= new Set(s.settlement.residents.map((r) => r.job).filter((j): j is number => j !== null));
+      if (!staffed.has(o.uid)) continue;
+    }
+    sum += upkeep;
   }
   return sum;
 }
@@ -195,7 +215,10 @@ interface Store {
   room: number;
 }
 
+/** Wyrób osady: zdarzenie, statystyka i nasycenie rynku farmy (`qty × 0,5`). */
 function produced(ctx: Ctx, o: PlacedObject, item: string, qty: number): void {
+  const sat = ctx.s.market.sat;
+  sat[item] = (sat[item] ?? 0) + qty * PRODUCTION_SAT;
   ctx.bus.emit({ type: 'produced', uid: o.uid, item, qty, at: centerOf(ctx.c, o) });
   stat(ctx, 'produced', qty);
 }
@@ -291,9 +314,18 @@ export function productionHour(ctx: Ctx, hour: number): void {
 
 // ---------------------------------------------------------------- płace i rozliczenie dnia
 
-/** Co godzinę: wypłata płac o `wageHour` (emituje `unpaid` przy braku monet). */
+/** Próbka stawki podatku z bieżącej godziny (do średniej z doby). */
+function sampleTax(s: GameState): void {
+  const st = s.settlement;
+  const acc = (st.taxAcc ??= { sum: 0, hours: 0 });
+  acc.sum += st.taxRate;
+  acc.hours++;
+}
+
+/** Co godzinę: próbka stawki podatku i wypłata płac o `wageHour` (emituje `unpaid` przy braku monet). */
 export function economyHour(ctx: Ctx, hour: number): void {
   const { s, c } = ctx;
+  sampleTax(s);
   if (hour !== c.settlement.constants.wageHour) return;
   const staff = payroll(s, c);
   if (!staff.length) return;
@@ -310,13 +342,14 @@ export function economyHour(ctx: Ctx, hour: number): void {
   chronicle(ctx, 'unpaid', { missing });
 }
 
-/** Raz na dobę: zdarzenie `budget{day, net}` za miniony dzień, podatki, utrzymanie. */
+/** Raz na dobę: zdarzenie `budget{day, net}` za miniony dzień, podatki (średnia stawka z doby), utrzymanie. */
 export function economyDay(ctx: Ctx): void {
   const { s, c } = ctx;
   // Zwykle `budget[0]`; szukamy po dniu, gdyby dzisiejszy wpis powstał już przed rozliczeniem (np. komenda).
   const last = s.settlement.budget.find((b) => b.day === ctx.cal.day - 1);
   if (last) ctx.bus.emit({ type: 'budget', day: last.day, net: budgetNet(last) });
   const taxes = dailyTaxes(s, c);
+  s.settlement.taxAcc = { sum: 0, hours: 0 };
   if (taxes > 0) {
     s.coins += taxes;
     addBudget(ctx, 'taxes', taxes);

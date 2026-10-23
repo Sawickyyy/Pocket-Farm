@@ -20,6 +20,7 @@
   {"id": "herb", "kind": "forage", "price": 16, "quality": true, "art": {"shape": "herb", "color": "#6cbf3c"}},
   {"id": "wood", "kind": "forage", "price": 6, "art": {"shape": "log", "color": "#8a5a2e"}},
   {"id": "shell", "kind": "forage", "price": 20, "art": {"shape": "shell", "color": "#f3d9c4"}},
+  {"id": "veg", "kind": "crop", "price": 4, "art": {"shape": "basket", "color": "#c98a4a"}},
   {"id": "planks", "kind": "material", "price": 30, "art": {"shape": "planks", "color": "#d9a066"}},
   {"id": "tools", "kind": "material", "price": 90, "art": {"shape": "tools", "color": "#a9b4be"}},
   {"id": "medicine", "kind": "material", "price": 60, "art": {"shape": "bottle", "color": "#5fb544"}}

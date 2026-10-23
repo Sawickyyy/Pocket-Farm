@@ -128,6 +128,9 @@ function dailyFood(s: GameState): number {
   return n * ST.constants.mealHours.length;
 }
 
+/** Limit mieszkańców (constants.maxPopulation; gdy pola jeszcze nie ma w danych → 250). */
+const maxPopulation = (): number => (ST.constants as { maxPopulation?: number }).maxPopulation ?? 250;
+
 const hasHall = (s: GameState): boolean => hasService(s, C, 'hall');
 const tradepostBuilt = (s: GameState): boolean => s.objects.some((o) => C.buildings[o.type]?.service?.kind === 'trade');
 
@@ -453,7 +456,7 @@ export function registerSettlement(app: App, sheets: SheetManager): void {
 
     // napływ
     const block = arrivalBlock(s, C);
-    parts.push(block ? note('warning', t(`town.arrival.${block}`), 'warn') : note('people', t('town.arrival.ok', { hour: hourText(ST.constants.arrivalHour) }), 'ok'));
+    parts.push(block ? note('warning', t(`town.arrival.${block}`, { max: fmt(maxPopulation()) }), 'warn') : note('people', t('town.arrival.ok', { hour: hourText(ST.constants.arrivalHour) }), 'ok'));
 
     // potrzeby
     if (pop) {

@@ -288,6 +288,8 @@ export interface SettlementContent {
     maxProposals: number;
     voucherDiscount: number;
     voucherDays: number;
+    /** Twardy limit populacji (napływ i narodziny). */
+    maxPopulation: number;
   };
   names: { given: string[]; family: string[] };
   partners: { id: string; buys: string[]; sells: string[] }[];
@@ -426,6 +428,7 @@ export function validateContent(c: Content): string[] {
   }
   for (const pr of PROFESSIONS) if (!st.professions[pr]) errors.push(`osada: brak płacy dla ${pr}`);
   for (let i = 1; i < st.tiers.length; i++) if (st.tiers[i]!.min <= st.tiers[i - 1]!.min) errors.push('osada: etapy nierosnące');
+  if (!(st.constants.maxPopulation > 0)) errors.push('osada: maxPopulation musi być dodatnie');
   for (const s of SEASONS) {
     const sum = Object.values(c.weather.seasons[s] ?? {}).reduce((a, b) => a + (b ?? 0), 0);
     if (Math.abs(sum - 1) > 1e-6) errors.push(`pogoda ${s}: prawdopodobieństwa sumują się do ${sum}`);

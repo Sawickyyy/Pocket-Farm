@@ -302,6 +302,95 @@ export function drawItem(ctx: Ctx2D, def: ItemDef, crop: CropDef | undefined, si
       ellipse(ctx, cx + 23, cy - 6, 2.5, 2.5, '#222');
       ellipse(ctx, cx, cy + 6, 22, 6, 'rgba(255,255,255,0.25)');
       break;
+    case 'basket': {
+      // Wiklinowy koszyk: ucho, liść, marchewka i pomidor, splot.
+      const dark = shade(color, -0.3);
+      ctx.strokeStyle = shade(color, -0.15);
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - 4, 38, 40, 0, Math.PI, Math.PI * 2);
+      ctx.stroke();
+      leaf(ctx, cx + 2, cy - 2, 40, 15, 0.2, '#6cbf3c');
+      ctx.beginPath();
+      ctx.moveTo(cx - 34, cy - 24);
+      ctx.lineTo(cx - 12, cy - 30);
+      ctx.lineTo(cx - 16, cy + 4);
+      ctx.closePath();
+      ctx.fillStyle = '#ef8326';
+      ctx.fill();
+      leaf(ctx, cx - 24, cy - 26, 20, 7, -0.4, '#4f9e2f');
+      leaf(ctx, cx - 22, cy - 27, 18, 6, 0.3, '#5fae3a');
+      ellipse(ctx, cx + 18, cy - 10, 17, 16, '#e0402a');
+      ellipse(ctx, cx + 12, cy - 16, 5, 4, 'rgba(255,255,255,0.45)');
+      leaf(ctx, cx + 18, cy - 24, 10, 5, -1.1, '#4f9e2f');
+      leaf(ctx, cx + 18, cy - 24, 10, 5, 1.1, '#4f9e2f');
+      ctx.beginPath();
+      ctx.moveTo(cx - 44, cy - 2);
+      ctx.lineTo(cx + 44, cy - 2);
+      ctx.lineTo(cx + 34, cy + 42);
+      ctx.lineTo(cx - 34, cy + 42);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = 3;
+      for (const dy of [12, 24, 36]) {
+        const inset = (dy / 44) * 10;
+        ctx.beginPath();
+        ctx.moveTo(cx - 44 + inset, cy - 2 + dy);
+        ctx.lineTo(cx + 44 - inset, cy - 2 + dy);
+        ctx.stroke();
+      }
+      for (let i = -3; i <= 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(cx + i * 12, cy + 2);
+        ctx.lineTo(cx + i * 9.5, cy + 40);
+        ctx.stroke();
+      }
+      rrect(ctx, cx - 48, cy - 9, 96, 12, 6, shade(color, 0.12));
+      break;
+    }
+    case 'planks':
+      // Stos trzech desek: słoje i jaśniejsze czoła.
+      for (const [dx, dy] of [[-4, 18], [6, 2], [-2, -14]] as const) {
+        const x = cx - 44 + dx;
+        const y = cy + dy - 9;
+        rrect(ctx, x, y, 84, 18, 3, shade(color, dy === 2 ? -0.06 : 0));
+        ctx.strokeStyle = shade(color, -0.28);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 8, y + 6);
+        ctx.quadraticCurveTo(x + 36, y + 3, x + 70, y + 7);
+        ctx.moveTo(x + 14, y + 12);
+        ctx.quadraticCurveTo(x + 44, y + 15, x + 66, y + 12);
+        ctx.stroke();
+        rrect(ctx, x + 76, y, 8, 18, 3, shade(color, 0.3));
+        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+        ctx.strokeRect(x, y, 84, 18);
+      }
+      break;
+    case 'tools':
+      // Młotek i klucz na krzyż.
+      ctx.save();
+      ctx.translate(cx, cy + 4);
+      ctx.rotate(0.6);
+      rrect(ctx, -6, -30, 12, 66, 6, shade(color, -0.12));
+      rrect(ctx, -15, -40, 30, 14, 7, color);
+      rrect(ctx, -15, -54, 9, 20, 4, color);
+      rrect(ctx, 6, -54, 9, 20, 4, color);
+      ellipse(ctx, 0, 30, 9, 9, color);
+      ellipse(ctx, -2, 0, 2, 16, 'rgba(255,255,255,0.35)');
+      ctx.restore();
+      ctx.save();
+      ctx.translate(cx, cy + 4);
+      ctx.rotate(-0.6);
+      rrect(ctx, -6, -24, 12, 64, 5, '#a8743f');
+      rrect(ctx, -6, 18, 12, 22, 5, '#7c5128');
+      rrect(ctx, -26, -42, 52, 20, 5, shade(color, -0.2));
+      rrect(ctx, -26, -42, 52, 7, 4, shade(color, 0.2));
+      rrect(ctx, 20, -44, 10, 24, 3, shade(color, -0.35));
+      ctx.restore();
+      break;
     default:
       ellipse(ctx, cx, cy, 36, 36, color);
   }

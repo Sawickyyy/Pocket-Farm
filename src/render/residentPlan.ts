@@ -28,7 +28,9 @@ export const NIGHTFALL = 21;
 /** Pojawianie się i znikanie w drzwiach (h gry ≈ 1,2 s). */
 export const FADE_H = 0.02;
 /** Limit tras w cache (czyszczony w całości po przekroczeniu). */
-const ROUTE_CACHE_MAX = 1500;
+const ROUTE_CACHE_MAX = 4000;
+/** Do tej odległości (Manhattan, kafle) wolna prosta wygrywa bez pytania o drogę. */
+const SHORT_HOP = 4;
 
 const N = MAP_W * MAP_H;
 const inMap = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < MAP_W && y < MAP_H;
@@ -568,7 +570,9 @@ export class ResidentPlanner {
       route = this.timed([{ x: fx + 0.5, y: fy + 0.5 }, { x: tx + 0.5, y: ty + 0.5 }], false, speed);
     } else {
       const off = this.timed(this.offroad(fx, fy, tx, ty), false, speed);
-      const tiles = findPath(s, c, world, { x: fx, y: fy }, { x: tx, y: ty });
+      // krótki spacer po prostej – bez szukania drogi (najczęstszy przypadek, tani)
+      const short = off.pts.length === 2 && Math.abs(tx - fx) + Math.abs(ty - fy) <= SHORT_HOP;
+      const tiles = short ? null : findPath(s, c, world, { x: fx, y: fy }, { x: tx, y: ty });
       const viaRoad = tiles ? this.timed(tiles.map((t) => ({ x: t.x + 0.5, y: t.y + 0.5 })), true, speed) : null;
       route = viaRoad && viaRoad.hours <= off.hours * ROAD_PREFERENCE ? viaRoad : off;
     }

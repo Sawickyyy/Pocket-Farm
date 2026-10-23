@@ -42,6 +42,7 @@
   "town.arrival.housing": "No one will come: there are no free beds.",
   "town.arrival.unhappy": "No one will come: residents are too unhappy (below 45%).",
   "town.arrival.hungry": "No one will come: the pantry is short of food.",
+  "town.arrival.limit": "The settlement is full – no more families can move in (limit {max} residents).",
   "town.arrival.jobs": "No one will come: too many residents are looking for work – build new workplaces.",
   "town.needs": "Needs (average)",
   "town.supplies": "Supplies",

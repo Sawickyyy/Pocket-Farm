@@ -24,7 +24,7 @@
   },
   "needWeights": { "food": 0.3, "housing": 0.2, "work": 0.2, "safety": 0.15, "fun": 0.15 },
   "foods": {
-    "radish": 1, "carrot": 1, "tomato": 1, "strawberry": 1, "pumpkin": 2, "corn": 1, "kale": 1, "snowberry": 1, "moonmelon": 2,
+    "veg": 1, "radish": 1, "carrot": 1, "tomato": 1, "strawberry": 1, "pumpkin": 2, "corn": 1, "kale": 1, "snowberry": 1, "moonmelon": 2,
     "egg": 1, "milk": 1, "cheese": 3, "bread": 4, "pie": 6, "jam": 2, "winterjam": 2,
     "mushroom": 1, "berries": 1, "roach": 2, "perch": 2, "carp": 2, "trout": 2, "pike": 3, "catfish": 3, "moonfish": 3
   },
@@ -46,7 +46,8 @@
     "proposalDays": 3,
     "maxProposals": 3,
     "voucherDiscount": 0.4,
-    "voucherDays": 5
+    "voucherDays": 5,
+    "maxPopulation": 250
   },
   "names": {
     "given": ["Ala", "Bartek", "Celina", "Dawid", "Ewa", "Filip", "Gosia", "Henio", "Iga", "Janek", "Kasia", "Leon", "Magda", "Natan", "Ola", "Piotr", "Róża", "Staś", "Tola", "Witek", "Zosia", "Antek", "Basia", "Igor", "Julka", "Kuba", "Lena", "Marek", "Nina", "Oskar", "Pola", "Rysiek", "Sara", "Tymek", "Wiki", "Zbyszek", "Ania", "Bogna", "Eryk", "Fela"],
@@ -81,7 +82,7 @@
     { "id": "need_trade", "kind": "build", "building": "tradepost", "when": "noTrade" },
     { "id": "lower_taxes", "kind": "policy", "when": "taxUnhappy", "value": -0.05 },
     { "id": "festival", "kind": "event", "when": "always", "cost": 150, "days": 2, "value": 0.15 },
-    { "id": "tools_grant", "kind": "grant", "when": "craftsmen", "cost": 200, "item": "tools", "qty": 5 },
+    { "id": "tools_grant", "kind": "grant", "when": "craftsmen", "cost": 500, "item": "tools", "qty": 5 },
     { "id": "roads", "kind": "build", "building": "road", "when": "disconnected" }
   ],
   "specializations": [

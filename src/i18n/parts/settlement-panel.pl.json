@@ -42,6 +42,7 @@
   "town.arrival.housing": "Nikt nie przyjedzie: w domach brak wolnych miejsc.",
   "town.arrival.unhappy": "Nikt nie przyjedzie: mieszkańcy są zbyt smutni (poniżej 45%).",
   "town.arrival.hungry": "Nikt nie przyjedzie: w spiżarni brakuje jedzenia.",
+  "town.arrival.limit": "Osada jest pełna – więcej rodzin się nie zmieści (limit {max} mieszkańców).",
   "town.arrival.jobs": "Nikt nie przyjedzie: zbyt wielu mieszkańców szuka pracy – postaw nowe miejsca pracy.",
   "town.needs": "Potrzeby (średnio)",
   "town.supplies": "Zapasy",

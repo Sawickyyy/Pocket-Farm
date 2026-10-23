@@ -7,7 +7,7 @@ import { DICTS, setLanguage } from '../src/i18n/i18n';
 import { canPlace } from '../src/sim/systems/building';
 import { chunkRect, inTerritory } from '../src/sim/systems/settlement/territory';
 import { generateWorld } from '../src/sim/world';
-import { MAX_LINE, coverageKindOf, findFreeSpot, isLineDef, lineTiles, serviceEffect, worldFor } from '../src/ui/buildMode';
+import { MAX_LINE, coverageKindOf, findFreeSpot, isLineDef, lineTiles, serviceEffect, tilesText, worldFor } from '../src/ui/buildMode';
 import {
   CATALOG_TABS,
   catalogGroups,
@@ -282,5 +282,13 @@ describe('teksty dla danych (pl i en)', () => {
     setLanguage('en');
     expect(serviceEffect(def('well'))).toContain(String(def('well').service!.radius));
     expect(serviceEffect(def('tent'))).toBe('');
+    expect(serviceEffect(def('depot'))).toContain(String(CONTENT.settlement.constants.offroadDistanceDepot));
+  });
+
+  it('kafle z polską odmianą', () => {
+    setLanguage('pl');
+    expect([1, 3, 5, 12, 22].map(tilesText)).toEqual(['1 kafel', '3 kafle', '5 kafli', '12 kafli', '22 kafle']);
+    setLanguage('en');
+    expect([1, 3].map(tilesText)).toEqual(['1 tile', '3 tiles']);
   });
 });

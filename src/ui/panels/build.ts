@@ -12,6 +12,7 @@ import {
   centerOf,
   coverageAt,
   freeHousing,
+  isBuilt,
   isHabitable,
   isSettlementDef,
   isWorkHour,
@@ -26,11 +27,13 @@ import {
 } from '../../sim/systems/settlement/common';
 import { builderPower, buildRate, constructionQueue, needsRepair, repairCost } from '../../sim/systems/settlement/construction';
 import { voucherDiscount } from '../../sim/systems/settlement/council';
+import { machineRate, productionInfo, workPower, type ProductionInfo } from '../../sim/systems/settlement/economy';
 import { animalHomeSick } from '../../sim/systems/settlement/events';
+import { commuteChecker, isConnected } from '../../sim/systems/settlement/roads';
 import { tierAllows } from '../../sim/systems/settlement/tiers';
 import type { GameState, PlacedObject, Resident, SiteState } from '../../sim/types';
 import type { App } from '../app';
-import { coverageKindOf, hideCoverage, serviceEffect, showCoverage, styleThumbUrl } from '../buildMode';
+import { coverageKindOf, hideCoverage, serviceEffect, showCoverage, styleThumbUrl, tilesText } from '../buildMode';
 import { h } from '../dom';
 import { formatDuration, plural } from '../format';
 import type { SheetManager } from '../sheet';
@@ -480,9 +483,30 @@ function sickBanner(app: App, s: GameState, uid: number): HTMLElement {
   );
 }
 
+/** Budynek w budowie: co da po ukończeniu (bez list i liczników, które jeszcze nie działają). */
+function afterSection(def: BuildingDef, season: string): HTMLElement {
+  const pills: string[] = [];
+  if (def.housing) pills.push(pill(`${townIc('people')}${placesText(def.housing)}`));
+  if (def.jobs) pills.push(pill(`${townIc('briefcase')}${t(`profession.${def.jobs.profession}`)} ×${def.jobs.slots}`));
+  const out = def.production && (productionOutput(def, season) ?? def.production.output.item);
+  if (out && def.production) pills.push(pill(out === '@fish' ? t('buildTown.anyFish') : `<img src="${itemIconUrl(out, 48)}" alt="" />${itemName(out)} ×${def.production.output.qty}`));
+  if (def.service && def.service.radius > 0) pills.push(pill(t('buildTown.stat.radius', { r: def.service.radius })));
+  return section(
+    t('site.after'),
+    townIc('hammer'),
+    def.service ? h('p', { class: 'bt-effect', text: serviceEffect(def) }) : null,
+    pills.length ? h('div', { class: 'bt-pills', html: pills.join('') }) : null,
+  );
+}
+
 function settlementView(app: App, s: GameState, o: PlacedObject, def: BuildingDef): HTMLElement[] {
   const out: HTMLElement[] = [];
   const cal = viewCtx(s).cal;
+  if (!isBuilt(s, o.uid)) {
+    if (def.housing || def.jobs || def.production || def.service) out.push(afterSection(def, cal.season));
+    if ((def.styles ?? 1) > 1) out.push(restyleSection(app, o, def));
+    return out;
+  }
 
   // dom: mieszkańcy, miejsca, komfort
   if (def.kind === 'house') {
@@ -503,6 +527,21 @@ function settlementView(app: App, s: GameState, o: PlacedObject, def: BuildingDe
     const staff = workersAt(s, o.uid);
     const prof = def.jobs.profession;
     const rows = staff.map((r) => personRow(app, r, homeLabel(s, r)));
+    const ctx = viewCtx(s);
+    const k = CONTENT.settlement.constants;
+    const road = isConnected(ctx, o.uid);
+    const open = def.jobs.slots - staff.length;
+    let vacancy: HTMLElement | null = null;
+    if (open > 0) {
+      // Bez pracowników: czy ktokolwiek z domów osady w ogóle tu dojedzie?
+      const homes = [...new Set(s.settlement.residents.flatMap((r) => (!r.child && r.home !== null ? [r.home] : [])))];
+      const reach = commuteChecker(ctx);
+      vacancy = !homes.length
+        ? h('p', { class: 'hint', text: t('buildTown.noPeople', { n: open }) })
+        : !staff.length && !homes.some((home) => reach(home, o.uid))
+          ? h('p', { class: 'bt-note', text: t('buildTown.noAccess', { d: k.offroadDistance }) })
+          : h('p', { class: 'hint', text: t('buildTown.vacancy', { n: open, d: k.offroadDistance }) });
+    }
     out.push(
       section(
         t('buildTown.work', { name: t(`profession.${prof}`) }),
@@ -510,29 +549,30 @@ function settlementView(app: App, s: GameState, o: PlacedObject, def: BuildingDe
         facts([
           [t('buildTown.staff'), `<span class="bt-meter">${bar(staff.length / def.jobs.slots).outerHTML}<b>${staff.length}/${def.jobs.slots}</b></span>`],
           [t('buildTown.wage'), `${coins(fmt(wageOf(CONTENT, prof)))} ${t('buildTown.perDay')}`],
-          [t('buildTown.hours'), t('buildTown.hoursValue', { a: CONTENT.settlement.constants.workStart, b: CONTENT.settlement.constants.workEnd })],
+          [t('buildTown.hours'), t('buildTown.hoursValue', { a: k.workStart, b: k.workEnd })],
+          [t('buildTown.access'), `${townIc('road')}${t(road ? 'buildTown.accessRoad' : 'buildTown.accessNone')}`],
         ]),
         rows.length ? h('div', { class: 'bt-people' }, ...rows) : null,
-        staff.length < def.jobs.slots ? h('p', { class: 'hint', text: t('buildTown.vacancy', { n: def.jobs.slots - staff.length }) }) : null,
+        vacancy,
       ),
     );
   }
 
   // produkcja osady
-  if (def.production) out.push(productionSection(s, o, def, cal.season));
+  if (def.production) out.push(productionSection(s, o, def));
   if (def.autoRecipes?.length) out.push(autoSection(s, o, def));
 
   // magazyn osady
   const sv = def.service;
   if (sv && (sv.kind === 'storage' || sv.kind === 'hall')) {
-    const used = storageUsed(s);
+    const used = storageUsed(s, CONTENT);
     const cap = storageCap(s, CONTENT);
     out.push(
       section(
         t('buildTown.storage'),
         townIc('crate'),
         h('div', { class: 'bt-meter wide' }, bar(used / Math.max(1, cap), used >= cap), h('b', { text: `${fmt(used)}/${fmt(cap)}` })),
-        h('p', { class: 'hint', text: t('buildTown.storageAdds', { n: sv.value ?? 0 }) }),
+        h('p', { class: 'hint', text: `${t('buildTown.storageAdds', { n: sv.value ?? 0 })} ${t('buildTown.storageNote')}` }),
       ),
     );
   }
@@ -549,7 +589,7 @@ function settlementView(app: App, s: GameState, o: PlacedObject, def: BuildingDe
         const hc = centerOf(CONTENT, home);
         return Math.hypot(hc.x - ctr.x, hc.y - ctr.y) <= sv.radius;
       }).length;
-      rows.push([t('buildTown.radius'), t('buildTown.radiusValue', { r: sv.radius })], [t('buildTown.inRange'), String(inRange)]);
+      rows.push([t('buildTown.radius'), tilesText(sv.radius)], [t('buildTown.inRange'), String(inRange)]);
     }
     if (def.jobs) rows.push([t('buildTown.power'), pct(staffing(s, CONTENT, o.uid))]);
     const extra: HTMLElement[] = [];
@@ -558,7 +598,8 @@ function settlementView(app: App, s: GameState, o: PlacedObject, def: BuildingDe
         btn(t('buildTown.showRange'), () => {
           app.click();
           app.closeSheet();
-          showCoverage(app, kind, buildingName(def.id));
+          const c = centerOf(CONTENT, o);
+          showCoverage(app, kind, buildingName(def.id), { x: Math.floor(c.x), y: Math.floor(c.y) });
         }, { primary: false, icon: 'eye' }),
       );
     }
@@ -585,63 +626,89 @@ function settlementView(app: App, s: GameState, o: PlacedObject, def: BuildingDe
   return out;
 }
 
-function productionSection(s: GameState, o: PlacedObject, def: BuildingDef, season: string): HTMLElement {
+/** Powód przestoju produkcji (z productionInfo) jako notka; null – pracuje. */
+function blockedNote(s: GameState, def: BuildingDef, info: ProductionInfo): string | null {
+  switch (info.blocked) {
+    case 'season':
+      return info.item === '@fish' ? t('buildTown.noFish') : t('buildTown.seasonIdle');
+    case 'staff':
+      return def.autoRecipes?.length ? t('buildTown.autoNoStaff') : t('buildTown.noStaff');
+    case 'storage': {
+      const limit = def.production?.limit;
+      return limit && info.item && countItem(s, info.item) >= limit ? t('buildTown.limitReached', { n: limit }) : t('buildTown.storageFull');
+    }
+    case 'inputs':
+      return def.production ? t('buildTown.inputsMissing') : null;
+    default:
+      return null;
+  }
+}
+
+const perDayText = (info: ProductionInfo): string | null =>
+  info.perDay > 0 && !info.blocked ? t('buildTown.pace', { n: info.perDay >= 10 ? Math.round(info.perDay) : Math.round(info.perDay * 10) / 10 }) : null;
+
+function productionSection(s: GameState, o: PlacedObject, def: BuildingDef): HTMLElement {
   const p = def.production!;
-  const outItem = productionOutput(def, season);
-  const staff = workersAt(s, o.uid).length;
-  const used = storageUsed(s);
-  const cap = storageCap(s, CONTENT);
-  const notes: string[] = [];
-  if (!outItem) notes.push(t('buildTown.seasonIdle'));
-  if (def.jobs && !staff) notes.push(t('buildTown.noStaff'));
-  if (used >= cap) notes.push(t('buildTown.storageFull'));
-  if (p.limit && outItem && countItem(s, outItem) >= p.limit) notes.push(t('buildTown.limitReached', { n: p.limit }));
+  const info = productionInfo(viewCtx(s), o.uid);
+  const outItem = info.item;
   const outHtml = !outItem
     ? `<span class="bt-mat">${t('buildTown.idle')}</span>`
     : outItem === '@fish'
       ? `<span class="bt-mat">${t('buildTown.anyFish')} ×${p.output.qty}</span>`
       : `<span class="bt-mat"><img src="${itemIconUrl(outItem, 48)}" alt="" />${itemName(outItem)} ×${p.output.qty}</span>`;
-  const inHtml = p.inputs.length
-    ? p.inputs
-        .map((i) => {
-          const have = countItem(s, i.item);
-          return `<span class="bt-mat${have < i.qty ? ' miss' : ''}"><img src="${itemIconUrl(i.item, 48)}" alt="" />${itemName(i.item)} ${Math.min(have, 999)}/${i.qty}</span>`;
-        })
-        .join('')
-    : '';
+  const inHtml = p.inputs
+    .map((i) => {
+      const have = countItem(s, i.item);
+      return `<span class="bt-mat${have < i.qty ? ' miss' : ''}"><img src="${itemIconUrl(i.item, 48)}" alt="" />${itemName(i.item)} ${Math.min(have, 999)}/${i.qty}</span>`;
+    })
+    .join('');
   const seasonal = p.seasonal
-    ? `<p class="hint">${t('buildTown.seasonal', {
+    ? t('buildTown.seasonal', {
         list: Object.entries(p.seasonal)
-          .map(([k, v]) => `${t(`season.${k}`)}: ${itemName(v)}`)
+          .map(([k, v]) => `${t(`season.${k}`)}: ${v === '@fish' ? t('buildTown.anyFish') : itemName(v)}`)
           .join(', '),
-      })}</p>`
+      })
     : '';
-  const body = h('div', { class: 'bt-flow', html: `${inHtml ? `${inHtml}<span class="bt-arrow" aria-hidden="true"></span>` : ''}${outHtml}` });
+  const note = blockedNote(s, def, info);
+  const pace = perDayText(info);
   return section(
     t('buildTown.production'),
     ic('sack'),
-    body,
-    h('p', { class: 'hint', text: t('buildTown.cycle', { n: p.hours }) }),
+    h('div', { class: 'bt-flow', html: `${inHtml ? `${inHtml}<span class="bt-arrow" aria-hidden="true"></span>` : ''}${outHtml}` }),
+    h('p', { class: 'hint', text: [t('buildTown.cycle', { n: p.hours }), pace].filter(Boolean).join(' ') }),
     bar(s.settlement.sites[String(o.uid)]?.progress ?? 0, false, 'prod'),
-    seasonal ? h('div', { html: seasonal }) : null,
-    notes.length ? h('p', { class: 'bt-note', text: notes.join(' ') }) : null,
+    seasonal ? h('p', { class: 'hint', text: seasonal }) : null,
+    note ? h('p', { class: 'bt-note', text: note }) : null,
   );
 }
 
 function autoSection(s: GameState, o: PlacedObject, def: BuildingDef): HTMLElement {
-  const staff = workersAt(s, o.uid).length;
+  const staff = workersAt(s, o.uid);
+  const info = productionInfo(viewCtx(s), o.uid);
   const recipes = (def.autoRecipes ?? []).map((id) => CONTENT.recipes[id]).filter((r) => !!r);
   const current = recipes.find((r) => r.inputs.every((i) => countItem(s, i.item) >= i.qty));
   const first = recipes[0];
-  let html: string;
-  if (!staff) html = `<p class="hint">${t('buildTown.autoNoStaff')}</p>`;
-  else if (current) html = `<p>${t('buildTown.autoNow')} <span class="bt-mat"><img src="${itemIconUrl(current.output.item, 48)}" alt="" />${itemName(current.output.item)} ×${current.output.qty}</span></p>`;
-  else if (first) {
-    const miss = first.inputs.map((i) => `<span class="bt-mat miss"><img src="${itemIconUrl(i.item, 48)}" alt="" />${itemName(i.item)} ${Math.min(countItem(s, i.item), 999)}/${i.qty}</span>`).join('');
-    html = `<p>${t('buildTown.autoMissing')} ${miss}</p>`;
-  } else html = '';
-  const speed = staff ? `<p class="hint">${t('buildTown.autoSpeed', { v: (0.4 + 0.3 * staff).toFixed(1) })}</p>` : '';
-  return section(t('buildTown.auto'), townIc('briefcase'), h('div', { class: 'bt-auto', html: html + speed }));
+  const mat = (item: string, qty: number) => `<span class="bt-mat"><img src="${itemIconUrl(item, 48)}" alt="" />${itemName(item)} ×${qty}</span>`;
+  const parts: string[] = [];
+  if (current && staff.length) parts.push(`<p>${t('buildTown.autoNow')} ${mat(current.output.item, current.output.qty)}</p>`);
+  else if (!current && first) {
+    const miss = first.inputs
+      .map((i) => `<span class="bt-mat${countItem(s, i.item) < i.qty ? ' miss' : ''}"><img src="${itemIconUrl(i.item, 48)}" alt="" />${itemName(i.item)} ${Math.min(countItem(s, i.item), 999)}/${i.qty}</span>`)
+      .join('');
+    parts.push(`<p>${t('buildTown.autoMissing')} ${miss}</p>`);
+  }
+  if (staff.length) {
+    const rate = machineRate(workPower(s, CONTENT, o.type, staff));
+    const pace = perDayText(info);
+    parts.push(`<p class="hint">${t('buildTown.autoSpeed', { v: rate.toFixed(1) })}${pace ? ` · ${pace}` : ''}</p>`);
+  }
+  const note = blockedNote(s, def, info);
+  return section(
+    t('buildTown.auto'),
+    townIc('briefcase'),
+    parts.length ? h('div', { class: 'bt-auto', html: parts.join('') }) : null,
+    note ? h('p', { class: 'bt-note', text: note }) : null,
+  );
 }
 
 function restyleSection(app: App, o: PlacedObject, def: BuildingDef): HTMLElement {

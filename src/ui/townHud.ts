@@ -304,10 +304,17 @@ export function mountTownHud(app: App): void {
     setTimeout(() => el.remove(), 2000);
   };
 
+  // Chwilowe animacje: klasa zdejmowana po czasie, żeby puls alarmu wrócił.
+  const timers = new Map<string, number>();
   const restart = (cls: string) => {
     chip.classList.remove(cls);
     void chip.offsetWidth;
     chip.classList.add(cls);
+    clearTimeout(timers.get(cls));
+    timers.set(
+      cls,
+      window.setTimeout(() => chip.classList.remove(cls), 1000),
+    );
   };
 
   const render = (s: GameState, force = false) => {

@@ -644,10 +644,25 @@ body:has(.bt-coverage:not([hidden])) .clock {
   white-space: nowrap;
 }
 
-.bt-effect {
-  margin: 0 0 0.5rem;
+.bt-effect,
+.bt-section > .bt-effect {
+  margin: 0.1rem 0 0.6rem;
   font-weight: 700;
   line-height: 1.35;
+}
+
+/* wartość z ikonką (np. dojazd przy drodze) */
+.bt-facts dd .ic {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-right: 0.25rem;
+  vertical-align: -0.2rem;
+}
+
+/* panel budowy w toku: co da budynek po ukończeniu */
+.bt-section > .bt-pills .bt-pill {
+  min-height: 1.65rem;
+  font-size: 0.8rem;
 }
 
 /* mieszkańcy i pracownicy: ceramiczne wiersze z buźką */

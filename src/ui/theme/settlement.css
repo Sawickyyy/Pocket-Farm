@@ -889,9 +889,9 @@
 }
 
 .stl-av img {
-  width: 112%;
-  height: 112%;
-  margin-top: 12%;
+  width: 104%;
+  height: 104%;
+  margin-top: 14%;
   object-fit: contain;
   filter: drop-shadow(0 0.08rem 0 rgb(40 20 5 / 0.2));
   pointer-events: none;

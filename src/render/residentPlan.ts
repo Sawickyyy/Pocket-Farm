@@ -63,6 +63,46 @@ const isWalkable = (def: BuildingDef): boolean => def.art.model === 'plaza';
 /** Praca pod gołym niebem (pole osady) – pracownicy są widoczni na polu. */
 const isOutdoor = (def: BuildingDef): boolean => def.art.model === 'field';
 
+// ---------------------------------------------------------------- czas
+
+/**
+ * Czas gry do rysowania: stan z Workera przychodzi co ~200 ms, więc między stanami dokładamy upływ czasu
+ * rzeczywistego (× mnożnik czasu, najwyżej o `MAX_AHEAD_MS`), bez cofania się przy drobnych rozjazdach.
+ */
+export class SimClock {
+  static readonly MAX_AHEAD_MS = 1000;
+  private base = -1;
+  private real = 0;
+  private scale = 1;
+  private shown = -1;
+
+  get ready(): boolean {
+    return this.base >= 0;
+  }
+
+  /** Nowy stan: czas symulacji (simMs + accMs), mnożnik czasu i bieżący czas rzeczywisty (ms). */
+  sync(sim: number, timeScale: number, realNow: number): void {
+    if (sim !== this.base) {
+      this.base = sim;
+      this.real = realNow;
+    }
+    this.scale = timeScale > 0 ? timeScale : 1;
+  }
+
+  /** Mnożnik czasu (np. do tempa kroków). */
+  get timeScale(): number {
+    return this.scale;
+  }
+
+  now(realNow: number): number {
+    const est = this.base + Math.min(Math.max(0, realNow - this.real), SimClock.MAX_AHEAD_MS) * this.scale;
+    // duży skok (przewinięcie godzin, wczytanie zapisu) – przyjmujemy od razu
+    if (this.shown < 0 || est < this.shown - 5000 || est > this.shown + 120_000) this.shown = est;
+    else if (est > this.shown) this.shown = est;
+    return this.shown;
+  }
+}
+
 // ---------------------------------------------------------------- trasy
 
 /** Trasa: punkty (środki kafli) i skumulowany czas dojścia (h gry przy prędkości bazowej). */

@@ -30,7 +30,7 @@ import { registerSettings } from './ui/panels/settings';
 import { registerVillage } from './ui/panels/village';
 import { registerSettlement } from './ui/panels/settlement';
 import { TerritoryMode } from './ui/territoryMode';
-import { mountTownHud } from './ui/townHud';
+import { mountTownHud, townReportLines } from './ui/townHud';
 import { SheetManager } from './ui/sheet';
 import { Toasts } from './ui/toast';
 import { installIconStyles } from './ui/uiIcons';
@@ -62,6 +62,7 @@ function reportText(r: CatchUpReport | null, fresh: boolean): string {
   if (r.animalProducts) lines.push(t('start.products', { n: r.animalProducts }));
   if (r.crafted) lines.push(t('start.crafted', { n: r.crafted }));
   if (r.withered) lines.push(t('start.withered', { n: r.withered }));
+  lines.push(...townReportLines(r));
   if (r.capped) lines.push(t('start.capped'));
   return lines.join('\n');
 }
@@ -253,7 +254,7 @@ async function boot(): Promise<void> {
     handleEvents(app, events);
   });
   sim.onReport((r) => {
-    if (r.days > 0 || r.harvestReady) toasts.show(reportText(r, false).split('\n').slice(1).join(' '), 'good', undefined, 5000);
+    if (r.days > 0 || r.harvestReady || r.arrived || r.left) toasts.show(reportText(r, false).split('\n').slice(1).join(' '), 'good', undefined, 5000);
   });
 
   // ---------------------------------------------------------------- Phaser
@@ -325,7 +326,7 @@ async function boot(): Promise<void> {
   // ---------------------------------------------------------------- ekran startowy
   const report = await sim.ready;
   startSummary.textContent = reportText(report, !saved);
-  if (report && (report.days > 0 || report.harvestReady)) document.querySelector<HTMLElement>('.start-card .mascot')?.setAttribute('data-mood', 'cheer');
+  if (report && (report.days > 0 || report.harvestReady || report.arrived)) document.querySelector<HTMLElement>('.start-card .mascot')?.setAttribute('data-mood', 'cheer');
   startBtn.disabled = false;
   startBtn.addEventListener(
     'click',

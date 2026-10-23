@@ -13,6 +13,7 @@ import { h } from '../dom';
 import { ic, icEl } from '../uiIcons';
 import { formatDuration, keyLabelHtml } from '../format';
 import type { SheetManager } from '../sheet';
+import { townTileBadge } from '../townHud';
 import { viewCtx } from '../view';
 import { btn, card, coins, empty, grid } from './common';
 
@@ -23,16 +24,19 @@ export function registerEconomy(app: App, sheets: SheetManager): void {
   sheets.register({
     id: 'hub',
     title: () => t('hub.title'),
-    sig: (s) => JSON.stringify([s.quests, s.orders, s.skillPoints, Object.keys(s.inventory).length]),
+    sig: (s) => JSON.stringify([s.quests, s.orders, s.skillPoints, Object.keys(s.inventory).length, townTileBadge(s)]),
     render(body, s) {
       const claimable = [...s.quests.daily, ...s.quests.weekly].filter((q) => !q.claimed && q.progress >= q.target).length;
       const deliverable = s.orders.filter((o) => countItem(s, o.item) >= o.qty).length;
       const sellable = Object.keys(s.inventory).filter((k) => (s.inventory[k] ?? 0) > 0).length;
+      // osada: wnioski rady + złe wydarzenia; czerwona pieczęć, gdy płonie
+      const town = townTileBadge(s);
       const tiles: [string, string, number, boolean][] = [
         ['market', t('hub.market'), sellable, false],
         ['shop', t('hub.shop'), 0, false],
         ['build', t('hub.build'), 0, false],
         ['village', t('hub.village'), deliverable, true],
+        ['settlement', t('townHud.hub'), town.n, town.urgent],
         ['progress', t('hub.progress'), claimable, true],
         ['skills', t('hub.skills'), s.skillPoints, true],
         ['inventory', t('hub.inventory'), 0, false],
